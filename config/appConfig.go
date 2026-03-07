@@ -8,8 +8,13 @@ import (
 )
 
 type AppConfig struct {
-	ServerPort string
-	Dsn        string
+	ServerPort    string
+	Dsn           string
+	AppSecret     string
+	EmailHost     string
+	EmailPort     string
+	EmailUser     string
+	EmailPassword string
 }
 
 func SetupEnv() (cfg AppConfig, err error) {
@@ -28,6 +33,27 @@ func SetupEnv() (cfg AppConfig, err error) {
 		return AppConfig{}, errors.New("DSN env variables not found")
 	}
 
-	return AppConfig{ServerPort: httpPort, Dsn: Dsn}, nil
+	appSecret := os.Getenv("APP_SECRET")
+	if len(appSecret) < 1 {
+		return AppConfig{}, errors.New("appSecret env variables not found")
+	}
+
+	emailHost := os.Getenv("EMAIL_HOST")
+	emailPort := os.Getenv("EMAIL_PORT")
+	emailUser := os.Getenv("EMAIL_USER")
+	emailPassword := os.Getenv("EMAIL_PASSWORD")
+	if emailHost == "" || emailPort == "" || emailUser == "" || emailPassword == "" {
+		return AppConfig{}, errors.New("email env variables not found")
+	}
+
+	return AppConfig{
+		ServerPort:    httpPort,
+		Dsn:           Dsn,
+		AppSecret:     appSecret,
+		EmailHost:     emailHost,
+		EmailPort:     emailPort,
+		EmailUser:     emailUser,
+		EmailPassword: emailPassword,
+	}, nil
 
 }

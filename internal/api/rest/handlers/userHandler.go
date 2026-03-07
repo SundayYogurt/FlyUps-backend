@@ -2,16 +2,21 @@ package handlers
 
 import (
 	"flyup/internal/api/rest"
-	_ "flyup/internal/dto"
-	"flyup/internal/service"
-	_ "net/http"
+	"flyup/internal/dto"
+	"log"
+	"net/http"
+	"strings"
 
+	"flyup/internal/repository"
+	"flyup/internal/service"
+
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
-	_ "github.com/gofiber/fiber/v3"
 )
 
 type UserHandler struct {
-	svc service.UserService
+	svc       service.UserService
+	validator *validator.Validate
 }
 
 func SetupUserRoutes(rh *rest.RestHandler) {
@@ -19,39 +24,62 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 
 	// create an instance of user service & inject to handler
 	svc := service.UserService{
-		//Repo:   repository.NewUserRepository(rh.DB),
-		//Auth:   rh.Auth,
-		//Config: rh.Config,
+		Repo:   repository.NewUserRepository(rh.DB),
+		URepo:  repository.NewUniversityRepository(rh.DB),
+		Auth:   rh.Auth,
+		Config: rh.Config,
 	}
 
 	handler := UserHandler{
-		svc: svc,
+		svc:       svc,
+		validator: validator.New(),
 	}
 
 	pubRoutes := app.Group("/")
-	pubRoutes.Post("/register", handler.Register)
+	pubRoutes.Post("/signup", handler.Signup)
 
 }
 
-func (h *UserHandler) Register(ctx fiber.Ctx) error {
-	//user := dto.UserSignup{}
-	//err := ctx.BodyParser(&user)
-	//if err != nil {
-	//	return ctx.Status(http.StatusBadRequest).JSON(&fiber.Map{
-	//		"message": "please provide valid inputs",
-	//	})
-	//}
-	//
-	//token, err := h.svc.Signup(user)
-	//if err != nil {
-	//	return ctx.Status(http.StatusInternalServerError).JSON(&fiber.Map{
-	//		"message": "error on signup",
-	//	})
-	//}
-	//
-	//return ctx.Status(http.StatusOK).JSON(&fiber.Map{
-	//	"message": "register",
-	//	"token":   token,
-	//})
-	return nil
+func (h *UserHandler) Signup(ctx fiber.Ctx) error {
+	user := dto.UserSignup{}
+
+	// Step 1: Bind JSON Body
+	if err := ctx.Bind().Body(&user); err != nil {
+		// ใช้ ErrorMessage เพื่อส่ง Error จากการ Bind กลับไปตรงๆ
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
+	}
+
+	// Step 2: Validate Data
+	if err := h.validator.Struct(user); err != nil {
+		// ใช้ BadRequestError พร้อมบอกรายละเอียดการ Validate
+		return rest.BadRequestError(ctx, "Validation failed: "+err.Error())
+	}
+
+	// Step 3: Call Service Logic
+	msg, err := h.svc.Signup(user)
+	if err != nil {
+		errStr := err.Error()
+
+		// 1. กรณีข้อมูลซ้ำ (409 Conflict)
+		if strings.Contains(errStr, "already registered") {
+			return rest.ErrorMessage(ctx, http.StatusConflict, err)
+		}
+
+		// 2. กรณี Business Logic ไม่ผ่าน (400 Bad Request)
+		// เพิ่มเช็คคำว่า "record not found" หรือ "domain"
+		if strings.Contains(errStr, "password") ||
+			strings.Contains(errStr, "มหาวิทยาลัย") ||
+			strings.Contains(errStr, "domain") ||
+			strings.Contains(errStr, "not found") ||
+			strings.Contains(errStr, "invalid email") {
+			return rest.BadRequestError(ctx, errStr)
+		}
+
+		// กรณี Error อื่นๆ (500 Internal Error)
+		log.Printf("[Signup Error]: %v", err)
+		return rest.InternalError(ctx, err)
+	}
+
+	// Success Response (201 Created)
+	return rest.SuccessResponse(ctx, msg, nil)
 }
