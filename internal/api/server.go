@@ -4,6 +4,8 @@ import (
 	"flyup/config"
 	"flyup/internal/api/rest"
 	"flyup/internal/api/rest/handlers"
+	"flyup/internal/domain"
+	"flyup/internal/helper"
 	"log"
 
 	"github.com/gofiber/fiber/v3"
@@ -24,8 +26,13 @@ func StartServer(cfg config.AppConfig) {
 
 	// run migration
 	err = db.AutoMigrate(
-		//&domain.User{},
+		&domain.User{},
+		&domain.University{},
+		&domain.UniversityDomain{},
+		&domain.UserConsent{},
+		&domain.StudentProfile{},
 	)
+
 	if err != nil {
 		log.Fatalf("error on runing migration %v", err.Error())
 	}
@@ -47,9 +54,21 @@ func StartServer(cfg config.AppConfig) {
 		})
 	})
 
+	// เตรียม Email Config จาก cfg (AppConfig)
+	emailCfg := helper.EmailConfig{
+		Host:     cfg.EmailHost, // ตรวจสอบชื่อฟิลด์ใน config.AppConfig ของคุณด้วยนะ
+		Port:     cfg.EmailPort,
+		Email:    cfg.EmailUser,
+		Password: cfg.EmailPassword,
+	}
+
+	auth := helper.SetupAuth(cfg.AppSecret, emailCfg)
+
 	rh := &rest.RestHandler{
-		App: app,
-		DB:  db,
+		App:    app,
+		DB:     db,
+		Auth:   auth,
+		Config: cfg,
 	}
 
 	setupRoutes(rh)
