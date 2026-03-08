@@ -20,6 +20,7 @@ type UserHandler struct {
 }
 
 func SetupUserRoutes(rh *rest.RestHandler) {
+
 	app := rh.App
 
 	// create an instance of user service & inject to handler
@@ -37,6 +38,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 
 	pubRoutes := app.Group("/")
 	pubRoutes.Post("/signup", handler.Signup)
+	pubRoutes.Get("/verify-email", handler.VerifyEmail)
 
 }
 
@@ -81,5 +83,25 @@ func (h *UserHandler) Signup(ctx fiber.Ctx) error {
 	}
 
 	// Success Response (201 Created)
+	return rest.SuccessResponse(ctx, msg, nil)
+}
+
+func (h *UserHandler) VerifyEmail(ctx fiber.Ctx) error {
+
+	token := ctx.Query("token")
+
+	if token == "" {
+		return rest.BadRequestError(ctx, "token is required")
+	}
+
+	req := dto.VerifyEmailRequest{
+		Token: token,
+	}
+
+	msg, err := h.svc.VerifyEmail(req)
+	if err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
 	return rest.SuccessResponse(ctx, msg, nil)
 }

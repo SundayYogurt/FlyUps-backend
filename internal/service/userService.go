@@ -122,3 +122,38 @@ func (s UserService) Signup(input dto.UserSignup) (string, error) {
 
 	return "registration successful, please verify your email", nil
 }
+
+func (s UserService) VerifyEmail(input dto.VerifyEmailRequest) (string, error) {
+
+	user, err := s.Repo.FindUserByVerificationToken(input.Token)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", errors.New("invalid verification token")
+		}
+		return "", errors.New("internal server error")
+	}
+
+	// เช็ค token หมดอายุ
+	if user.VerificationTokenExpiresAt == nil ||
+		time.Now().After(*user.VerificationTokenExpiresAt) {
+		return "", errors.New("verification token expired")
+	}
+
+	// เช็ค verify แล้วหรือยัง
+	if user.EmailVerifiedAt != nil {
+		return "", errors.New("email already verified")
+	}
+
+	now := time.Now()
+
+	user.EmailVerifiedAt = &now
+	user.VerificationToken = nil
+	user.VerificationTokenExpiresAt = nil
+
+	err = s.Repo.UpdateUser(user)
+	if err != nil {
+		return "", errors.New("failed to verify email")
+	}
+
+	return "email verified successfully", nil
+}

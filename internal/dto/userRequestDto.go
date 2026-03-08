@@ -17,3 +17,7 @@ type UserSignup struct {
 	// ยอมรับข้อตกลง
 	AcceptTerms bool `json:"accept_terms" validate:"required,eq=true"`
 }
+
+type VerifyEmailRequest struct {
+	Token string `json:"token" validate:"required"`
+}
