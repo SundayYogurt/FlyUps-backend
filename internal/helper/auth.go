@@ -13,13 +13,11 @@ import (
 
 type Auth struct {
 	Secret string
-	Config EmailConfig
 }
 
-func SetupAuth(s string, emailCfg EmailConfig) Auth {
+func SetupAuth(s string) Auth {
 	return Auth{
 		Secret: s,
-		Config: emailCfg,
 	}
 }
 
@@ -140,6 +138,6 @@ func (a Auth) GenerateCode() (string, error) {
 	return GenerateRandomToken(32)
 }
 
-func (a Auth) SendVerifyEmail(to string, token string) error {
-	return SendVerifyEmail(to, token, a.Config) // ส่ง config ที่เก็บไว้ใน struct ไป
-}
+//func (a Auth) SendVerifyEmail(to string, token string) error {
+//	return SendVerifyEmail(to, token, a.Config) // ส่ง config ที่เก็บไว้ใน struct ไป
+//}

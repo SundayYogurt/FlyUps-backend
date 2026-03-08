@@ -7,6 +7,7 @@ import (
 	"flyup/internal/dto"
 	"flyup/internal/helper"
 	"flyup/internal/repository"
+	"flyup/pkg/notification"
 	"log"
 	"strings"
 	"time"
@@ -109,8 +110,11 @@ func (s UserService) Signup(input dto.UserSignup) (string, error) {
 				log.Printf("email panic: %v", r)
 			}
 		}()
+		verifyLink := s.Config.BaseURL + "/verify?token=" + token
 
-		err := s.Auth.SendVerifyEmail(createdUser.Email, token)
+		notificationClient := notification.NewNotificationClient(s.Config)
+
+		err := notificationClient.SendVerifyEmail(email, verifyLink)
 		if err != nil {
 			log.Printf("send verify email error: %v", err)
 		}

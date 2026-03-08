@@ -6,6 +6,7 @@ import (
 	"flyup/internal/api/rest/handlers"
 	"flyup/internal/domain"
 	"flyup/internal/helper"
+	"flyup/pkg/notification"
 	"log"
 
 	"github.com/gofiber/fiber/v3"
@@ -53,29 +54,20 @@ func StartServer(cfg config.AppConfig) {
 			"status": "ok with 200 status code",
 		})
 	})
-
-	// เตรียม Email Config จาก cfg (AppConfig)
-	emailCfg := helper.EmailConfig{
-		Host:     cfg.EmailHost, // ตรวจสอบชื่อฟิลด์ใน config.AppConfig ของคุณด้วยนะ
-		Port:     cfg.EmailPort,
-		Email:    cfg.EmailUser,
-		Password: cfg.EmailPassword,
-	}
-
-	auth := helper.SetupAuth(cfg.AppSecret, emailCfg)
+	notificationClient := notification.NewNotificationClient(cfg)
+	auth := helper.SetupAuth(cfg.AppSecret)
 
 	rh := &rest.RestHandler{
-		App:    app,
-		DB:     db,
-		Auth:   auth,
-		Config: cfg,
+		App:          app,
+		DB:           db,
+		Auth:         auth,
+		Config:       cfg,
+		Notification: notificationClient,
 	}
 
 	setupRoutes(rh)
 
-	if err := app.Listen(cfg.ServerPort); err != nil {
-		panic(err)
-	}
+	log.Fatal(app.Listen(":" + cfg.ServerPort))
 
 }
 
