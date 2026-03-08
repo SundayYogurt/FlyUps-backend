@@ -22,13 +22,15 @@ type UserService struct {
 }
 
 func (s UserService) Signup(input dto.UserSignup) (string, error) {
-	// 1. ตรวจสอบ Password และ Hash
+	// ตรวจสอบ Password และ Hash
 	hPassword, err := s.Auth.CreateHashedPassword(input.Password)
 	if err != nil {
 		return "", err
 	}
 
-	existingUser, err := s.Repo.FindUser(input.Email)
+	email := strings.ToLower(strings.TrimSpace(input.Email))
+
+	existingUser, err := s.Repo.FindUser(email)
 
 	// ถ้า err เป็น nil แปลว่า เจอข้อมูล -> แสดงว่าอีเมลซ้ำ
 	if err == nil && existingUser.ID != 0 {
@@ -36,13 +38,13 @@ func (s UserService) Signup(input dto.UserSignup) (string, error) {
 	}
 
 	// ถ้า error ไม่ใช่ user not found แปลว่า DB อาจจะมีปัญหา
-	if err != nil && err.Error() != "user not found" {
-		return "", errors.New("service temporarily unavailable, please try again later")
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", errors.New("service temporarily unavailable")
 	}
 
 	if input.Role == "pioneer" {
 		//ดึง Domain ออกจาก Emai
-		parts := strings.Split(input.Email, "@")
+		parts := strings.Split(email, "@")
 		if len(parts) < 2 {
 			return "", errors.New("invalid email format")
 		}
@@ -56,12 +58,12 @@ func (s UserService) Signup(input dto.UserSignup) (string, error) {
 				return "", errors.New("sorry!, the domain doesn't exist")
 			}
 			// กรณี Error อื่นๆ เช่น DB ล่ม
-			return "", errors.New("ระบบขัดข้อง กรุณาลองใหม่ภายหลัง")
+			return "", errors.New("internal server error, try again later")
 		}
 
 		// เช็ค Status ของ Domain (ถ้าใน Domain model มี field IsActive)
 		if !findDomain.IsActive {
-			return "", errors.New("มหาวิทยาลัยนี้ถูกระงับการใช้งานชั่วคราว")
+			return "", errors.New("this university is not active")
 		}
 	}
 	token, err := s.Auth.GenerateCode() // จะได้ string ยาว 32 ตัวอักษร
@@ -74,7 +76,7 @@ func (s UserService) Signup(input dto.UserSignup) (string, error) {
 	expireAt := time.Now().Add(time.Hour * 24)
 
 	newUser := domain.User{
-		Email:                      input.Email,
+		Email:                      email,
 		PasswordHash:               hPassword,
 		FirstName:                  input.FirstName,
 		LastName:                   input.LastName,
@@ -95,16 +97,22 @@ func (s UserService) Signup(input dto.UserSignup) (string, error) {
 	// บันทึก Transaction (User + Consent)
 	createdUser, err := s.Repo.CreateUser(newUser, consent)
 	if err != nil {
-		return "", errors.New("registration failed: " + err.Error())
+		log.Printf("CreateUser error: %v", err)
+		return "", errors.New("registration failed")
 	}
 	log.Printf("User created with ID: %d", createdUser.ID)
 
 	// ส่ง Email โดยใช้ Goroutine
 	go func() {
-		// เรียกผ่าน s.Auth
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("email panic: %v", r)
+			}
+		}()
+
 		err := s.Auth.SendVerifyEmail(createdUser.Email, token)
 		if err != nil {
-			log.Printf("Email error: %v", err)
+			log.Printf("send verify email error: %v", err)
 		}
 	}()
 
