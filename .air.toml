@@ -6,10 +6,8 @@ testdata_dir = "testdata"
 tmp_dir = "tmp"
 
 [build]
-
- bin = "./tmp/main"
  cmd = "go build -o ./tmp/main main.go"
- entrypoint = ["./tmp/main"]
+ bin = "tmp/main"
  delay = 1000
  exclude_dir = ["assets", "tmp", "vendor", "testdata"]
  include_ext = ["go", "tpl", "tmpl", "html", "env"] # เพิ่ม env เข้าไปด้วย
