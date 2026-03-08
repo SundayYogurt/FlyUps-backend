@@ -10,13 +10,25 @@ import (
 type UserRepository interface {
 	CreateUser(usr domain.User, consent domain.UserConsent) (domain.User, error)
 	FindUser(email string) (domain.User, error)
+	FindUserByVerificationToken(token string) (domain.User, error)
+	UpdateUser(user domain.User) error
 }
 
 type userRepository struct {
 	db *gorm.DB
 }
 
-func (r userRepository) FindUser(email string) (domain.User, error) {
+func (r *userRepository) FindUserByVerificationToken(token string) (domain.User, error) {
+	var user domain.User
+	err := r.db.Where("verification_token = ?", token).First(&user).Error
+	return user, err
+}
+
+func (r *userRepository) UpdateUser(user domain.User) error {
+	return r.db.Save(&user).Error
+}
+
+func (r *userRepository) FindUser(email string) (domain.User, error) {
 	var user domain.User
 
 	// ใช้คำสั่ง Where เพื่อหาอีเมล และ First เพื่อดึงมาแค่ record เดียว
@@ -30,7 +42,7 @@ func (r userRepository) FindUser(email string) (domain.User, error) {
 	return user, nil
 }
 
-func (r userRepository) CreateUser(usr domain.User, consent domain.UserConsent) (domain.User, error) {
+func (r *userRepository) CreateUser(usr domain.User, consent domain.UserConsent) (domain.User, error) {
 	// ใช้ Transaction เพื่อกันข้อมูลไม่ครบ เช่น สมัครแล้วเน็ตดับ
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		// create user
