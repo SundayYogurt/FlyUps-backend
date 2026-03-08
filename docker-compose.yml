@@ -12,7 +12,7 @@ services:
       HTTP_PORT: "3000"
       DSN: "host=db user=root password=root dbname=flyup port=5432 sslmode=disable"
       APP_SECRET: "supersecret"
-      RESEND_API_KEY: "re_2xtj3ZcJ_KW2ii3NV8vs3GJiqGx5CHVwz"
+      RESEND_API_KEY: ${RESEND_API_KEY}
       EMAIL_FROM: "FlyUp <noreply@api.flyupapi.dev>"
       BASE_URL: "http://localhost:5173"
 
