@@ -3,6 +3,7 @@ package rest
 import (
 	"flyup/config"
 	"flyup/internal/helper"
+	"flyup/pkg/notification"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
@@ -10,9 +11,10 @@ import (
 )
 
 type RestHandler struct {
-	App       *fiber.App
-	DB        *gorm.DB
-	Auth      helper.Auth
-	Config    config.AppConfig
-	Validator *validator.Validate
+	App          *fiber.App
+	DB           *gorm.DB
+	Auth         helper.Auth
+	Config       config.AppConfig
+	Validator    *validator.Validate
+	Notification notification.NotificationClient
 }

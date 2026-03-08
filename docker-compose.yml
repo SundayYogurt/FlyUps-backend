@@ -9,11 +9,12 @@ services:
       db:
         condition: service_healthy
     environment:
-      - DB_HOST=db
-      - DB_USER=postgres
-      - DB_PASSWORD=password
-      - DB_NAME=flyup_db
-      - DB_PORT=5432
+      HTTP_PORT: "3000"
+      DSN: "host=db user=root password=root dbname=flyup port=5432 sslmode=disable"
+      APP_SECRET: "supersecret"
+      RESEND_API_KEY: "re_2xtj3ZcJ_KW2ii3NV8vs3GJiqGx5CHVwz"
+      EMAIL_FROM: "FlyUp <noreply@api.flyupapi.dev>"
+      BASE_URL: "http://localhost:5173"
 
   db:
     image: postgres:18
@@ -25,7 +26,7 @@ services:
     ports:
       - "5434:5432"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d flyup_db" ]
+      test: [ "CMD-SHELL", "pg_isready -U root -d flyup" ]
       interval: 5s
       timeout: 5s
       retries: 10
