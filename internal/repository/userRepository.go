@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"errors"
 	"flyup/internal/domain"
 	"log"
 
@@ -24,14 +23,10 @@ func (r userRepository) FindUser(email string) (domain.User, error) {
 	err := r.db.Where("email = ?", email).First(&user).Error
 
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return domain.User{}, errors.New("user not found")
-		}
-		// เคสที่ 2
 		log.Printf("userRepository FindUser err: %v", err)
 		return domain.User{}, err
 	}
-	// เคสที่ 3 เจอข้อมูลปกติก็คืนค่า user
+
 	return user, nil
 }
 

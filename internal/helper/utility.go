@@ -23,15 +23,77 @@ func SendVerifyEmail(to string, token string, config EmailConfig) error {
 	verifyLink := fmt.Sprintf("http://localhost:5173/verify?token=%s", token)
 
 	body := fmt.Sprintf(`
-		<html>
-			<body>
-				<h1>Welcome to FlyUp!</h1>
-				<p>Please click the link below to verify your account:</p>
-				<a href="%s" style="padding: 10px 20px; background-color: blue; color: white; text-decoration: none;">Verify Email</a>
-				<p>This link will expire in 24 hours.</p>
-			</body>
-		</html>
-	`, verifyLink)
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+</head>
+<body style="margin:0; padding:0; background-color:#f4f6f8; font-family:Arial, Helvetica, sans-serif;">
+	
+	<table width="100%%" cellpadding="0" cellspacing="0" style="background-color:#f4f6f8; padding:40px 0;">
+		<tr>
+			<td align="center">
+				
+				<table width="500" cellpadding="0" cellspacing="0" style="background:white; border-radius:10px; padding:40px; box-shadow:0 4px 10px rgba(0,0,0,0.05);">
+					
+					<tr>
+						<td align="center">
+							<h1 style="margin:0; color:#1a1a1a;">🚀 Welcome to FlyUp</h1>
+						</td>
+					</tr>
+
+					<tr>
+						<td style="padding-top:20px; color:#555; font-size:16px; line-height:1.6;">
+							Thanks for joining FlyUp!  
+							Please confirm your email address by clicking the button below.
+						</td>
+					</tr>
+
+					<tr>
+						<td align="center" style="padding:30px 0;">
+							<a href="%s"
+								style="
+									background-color:#2563eb;
+									color:white;
+									padding:14px 28px;
+									text-decoration:none;
+									border-radius:6px;
+									font-size:16px;
+									font-weight:bold;
+									display:inline-block;
+								">
+								Verify Email
+							</a>
+						</td>
+					</tr>
+
+					<tr>
+						<td style="color:#777; font-size:14px;">
+							This verification link will expire in <b>24 hours</b>.
+						</td>
+					</tr>
+
+					<tr>
+						<td style="padding-top:30px; color:#999; font-size:12px;">
+							If you did not create an account, you can safely ignore this email.
+						</td>
+					</tr>
+
+					<tr>
+						<td align="center" style="padding-top:30px; font-size:12px; color:#aaa;">
+							© 2026 FlyUp. All rights reserved.
+						</td>
+					</tr>
+
+				</table>
+
+			</td>
+		</tr>
+	</table>
+
+</body>
+</html>
+`, verifyLink)
 
 	msg := []byte(subject + mime + body)
 
