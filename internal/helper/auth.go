@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -141,3 +142,9 @@ func (a Auth) GenerateCode() (string, error) {
 //func (a Auth) SendVerifyEmail(to string, token string) error {
 //	return SendVerifyEmail(to, token, a.Config) // ส่ง config ที่เก็บไว้ใน struct ไป
 //}
+
+func (a Auth) GetCurrentUser(ctx fiber.Ctx) domain.User {
+	user := ctx.Locals("user")
+	return user.(domain.User)
+
+}

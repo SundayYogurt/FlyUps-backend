@@ -46,29 +46,29 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 func (h *UserHandler) Signup(ctx fiber.Ctx) error {
 	user := dto.UserSignup{}
 
-	// Step 1: Bind JSON Body
+	//Bind JSON Body
 	if err := ctx.Bind().Body(&user); err != nil {
 		// ใช้ ErrorMessage เพื่อส่ง Error จากการ Bind กลับไปตรงๆ
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
 	}
 
-	// Step 2: Validate Data
+	//Validate Data
 	if err := h.validator.Struct(user); err != nil {
 		// ใช้ BadRequestError พร้อมบอกรายละเอียดการ Validate
 		return rest.BadRequestError(ctx, "Validation failed: "+err.Error())
 	}
 
-	// Step 3: Call Service Logic
+	//Call Service Logic
 	msg, err := h.svc.Signup(user)
 	if err != nil {
 		errStr := err.Error()
 
-		// 1. กรณีข้อมูลซ้ำ (409 Conflict)
+		//กรณีข้อมูลซ้ำ (409 Conflict)
 		if strings.Contains(errStr, "already registered") {
 			return rest.ErrorMessage(ctx, http.StatusConflict, err)
 		}
 
-		// 2. กรณี Business Logic ไม่ผ่าน (400 Bad Request)
+		// กรณี Business Logic ไม่ผ่าน (400 Bad Request)
 		// เพิ่มเช็คคำว่า "record not found" หรือ "domain"
 		if strings.Contains(errStr, "password") ||
 			strings.Contains(errStr, "มหาวิทยาลัย") ||
