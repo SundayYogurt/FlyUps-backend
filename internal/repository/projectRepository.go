@@ -13,6 +13,7 @@ type ProjectRepository interface {
 	GetCategoryByID(id uint) (*domain.ProjectCategory, error)
 	GetByOwner(ownerID uint) ([]domain.Project, error)
 	CreateMedia(media *domain.ProjectMedia) error
+	SlugExists(slug string) (bool, error)
 }
 
 type projectRepository struct {
@@ -67,4 +68,18 @@ func (r *projectRepository) GetCategoryByID(id uint) (*domain.ProjectCategory, e
 
 func (r *projectRepository) CreateMedia(media *domain.ProjectMedia) error {
 	return r.db.Create(media).Error
+}
+
+func (r *projectRepository) SlugExists(slug string) (bool, error) {
+	var count int64
+
+	err := r.db.Model(&domain.Project{}).
+		Where("slug = ?", slug).
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }
