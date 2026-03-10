@@ -40,6 +40,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	pioneerRoutes.Post("/projects/:id/media", handler.AddMedia)
 	pioneerRoutes.Get("/projects", handler.GetMyProjects)
 	pioneerRoutes.Get("/projects/:id", handler.GetProject)
+
 }
 
 func (h *ProjectHandler) CreateProject(ctx fiber.Ctx) error {

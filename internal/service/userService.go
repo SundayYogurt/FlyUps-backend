@@ -9,9 +9,11 @@ import (
 	"flyup/internal/repository"
 	"flyup/pkg/notification"
 	"log"
+	"regexp"
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -22,7 +24,7 @@ type UserService struct {
 	Config config.AppConfig
 }
 
-func (s UserService) Signup(input dto.UserSignup) (string, error) {
+func (s *UserService) Signup(input dto.UserSignup) (string, error) {
 	// ตรวจสอบ Password และ Hash
 	hPassword, err := s.Auth.CreateHashedPassword(input.Password)
 	if err != nil {
@@ -123,7 +125,7 @@ func (s UserService) Signup(input dto.UserSignup) (string, error) {
 	return "registration successful, please verify your email", nil
 }
 
-func (s UserService) VerifyEmail(input dto.VerifyEmailRequest) (string, error) {
+func (s *UserService) VerifyEmail(input dto.VerifyEmailRequest) (string, error) {
 
 	user, err := s.Repo.FindUserByVerificationToken(input.Token)
 	if err != nil {
@@ -158,14 +160,14 @@ func (s UserService) VerifyEmail(input dto.VerifyEmailRequest) (string, error) {
 	return "email verified successfully", nil
 }
 
-func (s UserService) findUserByEmail(email string) (*domain.User, error) {
+func (s *UserService) findUserByEmail(email string) (*domain.User, error) {
 	//perform some db operation
 	//business logic
 	user, err := s.Repo.FindUser(email)
 	return user, err
 }
 
-func (s UserService) Signin(email string, password string) (string, error) {
+func (s *UserService) Signin(email string, password string) (string, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	user, err := s.Repo.FindUser(email)
 	if err != nil {
@@ -184,4 +186,122 @@ func (s UserService) Signin(email string, password string) (string, error) {
 
 	// generate token
 	return s.Auth.GenerateToken(user.ID, user.Email, user.Role)
+}
+
+func (s *UserService) ForgotPassword(email string) error {
+	email = strings.TrimSpace(strings.ToLower(email))
+
+	user, err := s.Repo.FindUser(email)
+	if err != nil || user == nil {
+		return nil
+	}
+
+	plain, err := helper.GenerateRandomToken(32)
+	if err != nil {
+		return errors.New("failed to generate reset token")
+	}
+
+	hash := helper.Sha256Hex(plain)
+	exp := time.Now().Add(30 * time.Minute)
+
+	log.Printf("Reset token (dev only): %s", plain)
+
+	user.ResetTokenHash = &hash
+	user.ResetTokenExpiresAt = &exp
+	if err := s.Repo.UpdateUser(user); err != nil {
+		return errors.New("fail to save user")
+	}
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("email panic: %v", r)
+			}
+		}()
+		verifyLink := s.Config.BaseURL + "/reset-password?reset_token=" + plain
+
+		notificationClient := notification.NewNotificationClient(s.Config)
+
+		err := notificationClient.SendResetPasswordEmail(email, verifyLink)
+		if err != nil {
+			log.Printf("send verify email error: %v", err)
+		}
+	}()
+
+	return nil
+}
+
+func (s *UserService) SetPassword(token string, newPassword string) error {
+
+	newPassword = strings.TrimSpace(newPassword)
+	token = strings.TrimSpace(token)
+
+	if token == "" || newPassword == "" {
+		return errors.New("invalid input")
+	}
+
+	if len(newPassword) < 8 {
+		return errors.New("password must be at least 8 characters")
+	}
+
+	//check ตัวใหญ่ (A-Z)
+	upper := regexp.MustCompile(`[A-Z]`)
+	if !upper.MatchString(newPassword) {
+		return errors.New("password must contain at least one uppercase letter")
+	}
+
+	//check ตัวใหญ่ (A-Z)
+	lower := regexp.MustCompile(`[a-z]`)
+	if !lower.MatchString(newPassword) {
+		return errors.New("password must contain at least one lowercase letter")
+	}
+
+	//check ตัวเลข
+	digit := regexp.MustCompile(`[0-9]`)
+	if !digit.MatchString(newPassword) {
+		return errors.New("password must contain at least one number")
+	}
+
+	//check อักขระพิเศษ
+	special := regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]`)
+	if !special.MatchString(newPassword) {
+		return errors.New("password must contain at least one special character")
+	}
+
+	hash := helper.Sha256Hex(token)
+
+	user, err := s.Repo.FindUserByResetToken(hash)
+	if err != nil || user == nil {
+		return errors.New("invalid or expired token")
+	}
+
+	if user.ResetTokenExpiresAt == nil || time.Now().After(*user.ResetTokenExpiresAt) {
+		return errors.New("invalid or expired token")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return errors.New("fail to hash password")
+	}
+
+	user.PasswordHash = string(hashedPassword)
+
+	// invalidate reset token
+	user.ResetTokenHash = nil
+	user.ResetTokenExpiresAt = nil
+
+	return s.Repo.UpdateUser(user)
+}
+
+func (s *UserService) GetProfile(userID uint) (*domain.User, error) {
+	if userID == 0 {
+		return nil, errors.New("invalid user id")
+	}
+
+	user, err := s.Repo.FindUserById(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
