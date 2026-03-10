@@ -2,6 +2,7 @@ package helper
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"regexp"
@@ -125,4 +126,9 @@ func GenerateSlug(title string) string {
 	slug = strings.Trim(slug, "-")
 
 	return slug
+}
+
+func Sha256Hex(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(sum[:])
 }

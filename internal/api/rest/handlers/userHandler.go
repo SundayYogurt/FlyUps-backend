@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"flyup/internal/api/rest"
 	"flyup/internal/dto"
 	"log"
@@ -40,7 +41,12 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	pubRoutes.Post("/signup", handler.Signup)
 	pubRoutes.Get("/verify-email", handler.VerifyEmail)
 	pubRoutes.Post("/signin", handler.Signin)
+	pubRoutes.Post("/forgot-password", handler.ForgotPassword)
+	pubRoutes.Post("/reset-password", handler.SetPassword)
 
+	//private route
+	privateRoutes := app.Group("/user", rh.Middlewares.Authorize)
+	privateRoutes.Get("/me", handler.Me)
 }
 
 func (h *UserHandler) Signup(ctx fiber.Ctx) error {
@@ -146,4 +152,55 @@ func (h *UserHandler) Signin(ctx fiber.Ctx) error {
 		"message": "login",
 		"token":   token,
 	})
+}
+
+func (h *UserHandler) ForgotPassword(ctx fiber.Ctx) error {
+	var req dto.ForgotPasswordRequest
+	if err := ctx.Bind().Body(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid email")
+	}
+
+	if err := h.svc.ForgotPassword(req.Email); err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+	return rest.SuccessResponse(ctx, "reset link sent", nil)
+}
+
+func (h *UserHandler) SetPassword(ctx fiber.Ctx) error {
+
+	token := strings.TrimSpace(ctx.Query("reset_token"))
+
+	var body struct {
+		NewPassword string `json:"new_password"`
+	}
+
+	if err := ctx.Bind().Body(&body); err != nil {
+		return rest.BadRequestError(ctx, "invalid json body")
+	}
+
+	if token == "" || strings.TrimSpace(body.NewPassword) == "" {
+		return rest.BadRequestError(ctx, "token and new_password are required")
+	}
+
+	if err := h.svc.SetPassword(token, body.NewPassword); err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "password updated successfully", nil)
+}
+
+func (h *UserHandler) Me(ctx fiber.Ctx) error {
+
+	user := h.svc.Auth.GetCurrentUser(ctx)
+
+	if user.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	profile, err := h.svc.GetProfile(user.ID)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "success", profile)
 }

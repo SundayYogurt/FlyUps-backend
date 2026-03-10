@@ -16,7 +16,7 @@ type ProjectService struct {
 	Auth helper.Auth
 }
 
-func (s ProjectService) CreateProject(ownerID uint) (*domain.Project, error) {
+func (s *ProjectService) CreateProject(ownerID uint) (*domain.Project, error) {
 
 	//slug, err := s.generateUniqueSlug(input.Title)
 	//if err != nil {
@@ -39,7 +39,7 @@ func (s ProjectService) CreateProject(ownerID uint) (*domain.Project, error) {
 	return &project, nil
 }
 
-func (s ProjectService) UpdateProjectDraft(
+func (s *ProjectService) UpdateProjectDraft(
 	projectID uint,
 	ownerID uint,
 	input dto.UpdateProjectDraftRequest,
@@ -83,7 +83,7 @@ func (s ProjectService) UpdateProjectDraft(
 	return nil
 }
 
-func (s ProjectService) AddProjectMedia(
+func (s *ProjectService) AddProjectMedia(
 	projectID uint,
 	ownerID uint,
 	input dto.AddProjectMediaRequest,
@@ -115,7 +115,7 @@ func (s ProjectService) AddProjectMedia(
 	return nil
 }
 
-func (s ProjectService) GetProjectsByOwner(ownerID uint) ([]domain.Project, error) {
+func (s *ProjectService) GetProjectsByOwner(ownerID uint) ([]domain.Project, error) {
 
 	projects, err := s.Repo.GetByOwner(ownerID)
 	if err != nil {
@@ -124,7 +124,7 @@ func (s ProjectService) GetProjectsByOwner(ownerID uint) ([]domain.Project, erro
 
 	return projects, nil
 }
-func (s ProjectService) GetProjectByID(id uint, ownerID uint) (*domain.Project, error) {
+func (s *ProjectService) GetProjectByID(id uint, ownerID uint) (*domain.Project, error) {
 
 	project, err := s.Repo.GetByID(id)
 	if err != nil {
@@ -138,7 +138,7 @@ func (s ProjectService) GetProjectByID(id uint, ownerID uint) (*domain.Project, 
 	return project, nil
 }
 
-func (s ProjectService) generateUniqueSlug(title string) (string, error) {
+func (s *ProjectService) generateUniqueSlug(title string) (string, error) {
 
 	base := helper.GenerateSlug(title)
 	slug := base

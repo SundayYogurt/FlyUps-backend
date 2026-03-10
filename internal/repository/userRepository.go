@@ -1,7 +1,9 @@
 package repository
 
 import (
+	"errors"
 	"flyup/internal/domain"
+	"log"
 
 	"gorm.io/gorm"
 )
@@ -10,6 +12,8 @@ type UserRepository interface {
 	CreateUser(usr domain.User, consent domain.UserConsent) (*domain.User, error)
 	FindUser(email string) (*domain.User, error)
 	FindUserByVerificationToken(token string) (*domain.User, error)
+	FindUserByResetToken(token string) (*domain.User, error)
+	FindUserById(id uint) (*domain.User, error)
 	UpdateUser(user *domain.User) error
 }
 
@@ -67,6 +71,26 @@ func (r *userRepository) CreateUser(usr domain.User, consent domain.UserConsent)
 		return nil, err
 	}
 	return &usr, nil
+}
+
+func (r *userRepository) FindUserByResetToken(token string) (*domain.User, error) {
+	user := &domain.User{}
+
+	if err := r.db.Where("reset_token_hash = ?", token).First(user).Error; err != nil {
+		log.Printf("find user by reset token error: %v", err)
+		return nil, errors.New("failed to find user by reset token")
+	}
+
+	return user, nil
+}
+
+func (r *userRepository) FindUserById(id uint) (*domain.User, error) {
+	var user domain.User
+	err := r.db.Where("id = ?", id).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }
 
 // 3. Constructor สำหรับตอนเรียกใช้งาน รับ db เข้ามา แล้วจับยัดใส่ไว้ใน struct เตรียมพร้อมใช้งาน

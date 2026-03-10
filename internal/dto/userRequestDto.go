@@ -26,3 +26,14 @@ type UserSignin struct {
 type VerifyEmailRequest struct {
 	Token string `json:"token" validate:"required"`
 }
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+type AuthResponse struct {
+	UserID int     `json:"user_id"`
+	Email  string  `json:"email"`
+	Iat    float64 `json:"iat"`
+	Expiry float64 `json:"expiry"`
+}
