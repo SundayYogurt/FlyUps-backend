@@ -144,6 +144,7 @@ func (h *UserHandler) Signin(ctx fiber.Ctx) error {
 		Value:    token,
 		HTTPOnly: true,
 		Secure:   true, // false ถ้า localhost
+		SameSite: "None",
 		Path:     "/",
 		MaxAge:   60 * 60 * 24, // 1 day
 	})

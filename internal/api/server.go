@@ -66,8 +66,25 @@ func StartServer(cfg config.AppConfig) {
 	c := cors.New(cors.Config{
 		AllowOrigins:     []string{cfg.BaseURL},
 		AllowCredentials: true,
-		AllowHeaders:     []string{"Content-Type", "Accept", "Authorization"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders: []string{
+			"Origin",
+			"Content-Type",
+			"Accept",
+			"Authorization",
+			"X-Requested-With",
+		},
+		AllowMethods: []string{
+			"GET",
+			"POST",
+			"PUT",
+			"PATCH",
+			"DELETE",
+			"OPTIONS",
+		},
+		ExposeHeaders: []string{
+			"Content-Length",
+		},
+		MaxAge: 86400,
 	})
 
 	app.Use(c)
