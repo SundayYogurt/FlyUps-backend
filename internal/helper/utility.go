@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"regexp"
+	"strings"
 )
 
 //func SendVerifyEmail(to string, token string, config EmailConfig) error {
@@ -111,4 +113,16 @@ func GenerateRandomToken(length int) (string, error) {
 	}
 
 	return hex.EncodeToString(b), nil
+}
+
+func GenerateSlug(title string) string {
+
+	slug := strings.ToLower(title)
+
+	re := regexp.MustCompile(`[^a-z0-9]+`)
+	slug = re.ReplaceAllString(slug, "-")
+
+	slug = strings.Trim(slug, "-")
+
+	return slug
 }

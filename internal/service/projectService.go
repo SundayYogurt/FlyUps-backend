@@ -6,6 +6,7 @@ import (
 	"flyup/internal/dto"
 	"flyup/internal/helper"
 	"flyup/internal/repository"
+	"fmt"
 
 	"gorm.io/gorm"
 )
@@ -26,9 +27,15 @@ func (s ProjectService) CreateProject(ownerID uint, input dto.CreateProjectReque
 		return nil, errors.New("internal server error")
 	}
 
+	slug, err := s.generateUniqueSlug(input.Title)
+	if err != nil {
+		return nil, errors.New("failed to generate slug")
+	}
+
 	project := domain.Project{
 		OwnerUserID: ownerID,
 		Title:       input.Title,
+		Slug:        slug,
 		CategoryID:  &input.CategoryID,
 		State:       domain.ProjectStateDraft,
 		Status:      domain.ProjectStatusActive,
@@ -140,4 +147,27 @@ func (s ProjectService) GetProjectByID(id uint, ownerID uint) (*domain.Project, 
 	}
 
 	return project, nil
+}
+
+func (s ProjectService) generateUniqueSlug(title string) (string, error) {
+
+	base := helper.GenerateSlug(title)
+	slug := base
+	i := 1
+
+	for {
+		exists, err := s.Repo.SlugExists(slug)
+		if err != nil {
+			return "", err
+		}
+
+		if !exists {
+			break
+		}
+
+		i++
+		slug = fmt.Sprintf("%s-%d", base, i)
+	}
+
+	return slug, nil
 }
