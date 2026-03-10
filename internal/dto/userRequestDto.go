@@ -18,6 +18,11 @@ type UserSignup struct {
 	AcceptTerms bool `json:"accept_terms" validate:"required,eq=true"`
 }
 
+type UserSignin struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 type VerifyEmailRequest struct {
 	Token string `json:"token" validate:"required"`
 }

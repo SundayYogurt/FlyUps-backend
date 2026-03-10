@@ -39,6 +39,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	pubRoutes := app.Group("/")
 	pubRoutes.Post("/signup", handler.Signup)
 	pubRoutes.Get("/verify-email", handler.VerifyEmail)
+	pubRoutes.Post("/signin", handler.Signin)
 
 }
 
@@ -104,4 +105,45 @@ func (h *UserHandler) VerifyEmail(ctx fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, msg, nil)
+}
+
+func (h *UserHandler) Signin(ctx fiber.Ctx) error {
+	signinInput := dto.UserSignin{}
+	err := ctx.Bind().Body(&signinInput)
+	if err != nil {
+		return ctx.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"message": "please provide valid inputs",
+		})
+	}
+	token, err := h.svc.Signin(signinInput.Email, signinInput.Password)
+
+	if err != nil {
+
+		// แยก error verify email
+		if err.Error() == "please verify your email first" {
+			return ctx.Status(http.StatusForbidden).JSON(fiber.Map{
+				"message": err.Error(),
+			})
+		}
+
+		log.Println("signin error:", err)
+
+		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"message": "please provide correct user id password",
+		})
+	}
+	// set cookie
+	ctx.Cookie(&fiber.Cookie{
+		Name:     "auth_token",
+		Value:    token,
+		HTTPOnly: true,
+		Secure:   false, // false ถ้า localhost
+		Path:     "/",
+		MaxAge:   60 * 60 * 24, // 1 day
+	})
+
+	return ctx.Status(http.StatusOK).JSON(fiber.Map{
+		"message": "login",
+		"token":   token,
+	})
 }

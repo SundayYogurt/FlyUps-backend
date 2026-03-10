@@ -90,7 +90,7 @@ func (s UserService) Signup(input dto.UserSignup) (string, error) {
 
 	// สร้างก้อน Consent จาก AcceptTerms ใน DTO
 	consent := domain.UserConsent{
-		ConsentCode: "TERMS_AND_CONDITIONS",
+		ConsentCode: domain.ConsentTerm,
 		Accepted:    input.AcceptTerms,
 		AcceptedAt:  time.Now(),
 	}
@@ -156,4 +156,32 @@ func (s UserService) VerifyEmail(input dto.VerifyEmailRequest) (string, error) {
 	}
 
 	return "email verified successfully", nil
+}
+
+func (s UserService) findUserByEmail(email string) (*domain.User, error) {
+	//perform some db operation
+	//business logic
+	user, err := s.Repo.FindUser(email)
+	return user, err
+}
+
+func (s UserService) Signin(email string, password string) (string, error) {
+	email = strings.ToLower(strings.TrimSpace(email))
+	user, err := s.Repo.FindUser(email)
+	if err != nil {
+		return "", errors.New("user does not exist with the provided email id")
+	}
+
+	if user.EmailVerifiedAt == nil {
+		return "", errors.New("please verify your email first")
+	}
+
+	err = s.Auth.VerifyPassword(password, user.PasswordHash)
+
+	if err != nil {
+		return "", err
+	}
+
+	// generate token
+	return s.Auth.GenerateToken(user.ID, user.Email, user.Role)
 }

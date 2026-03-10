@@ -34,3 +34,9 @@ type UserConsent struct {
 	AcceptedAt  time.Time `json:"accepted_at"`
 	gorm.Model
 }
+
+const (
+	ConsentTerm        = "TERM"
+	ConsentAcceptTrue  = true
+	ConsentPioneerTerm = "PIONEER_TERM"
+)
