@@ -9,12 +9,12 @@ services:
       db:
         condition: service_healthy
     environment:
-      HTTP_PORT: "3000"
-      DSN: "host=db user=root password=root dbname=flyup port=5432 sslmode=disable"
-      APP_SECRET: "supersecret"
+      HTTP_PORT: ${HTTP_PORT}
+      DSN: ${DSN}
+      APP_SECRET: ${APP_SECRET}
       RESEND_API_KEY: ${RESEND_API_KEY}
-      EMAIL_FROM: "FlyUp <noreply@api.flyupapi.dev>"
-      BASE_URL: "http://localhost:5173"
+      EMAIL_FROM: ${EMAIL_FROM}
+      BASE_URL: ${BASE_URL}
 
   db:
     image: postgres:18

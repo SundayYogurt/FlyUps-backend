@@ -61,7 +61,7 @@ func (a Auth) CreateHashedPassword(p string) (string, error) {
 }
 
 // check password (login)
-func (a Auth) VerifyPassword(hashedPassword string, password string) error {
+func (a Auth) VerifyPassword(password string, hashedPassword string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
 
