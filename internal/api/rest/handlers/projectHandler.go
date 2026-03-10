@@ -44,20 +44,10 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 
 func (h *ProjectHandler) CreateProject(ctx fiber.Ctx) error {
 
-	req := dto.CreateProjectRequest{}
-
-	if err := ctx.Bind().Body(&req); err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
-	}
-
-	if err := h.validator.Struct(req); err != nil {
-		return rest.BadRequestError(ctx, "validation failed: "+err.Error())
-	}
-
 	user := h.svc.Auth.GetCurrentUser(ctx)
 	log.Println(user)
 
-	project, err := h.svc.CreateProject(user.ID, req)
+	project, err := h.svc.CreateProject(user.ID)
 	if err != nil {
 		return rest.BadRequestError(ctx, err.Error())
 	}

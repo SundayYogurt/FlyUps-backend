@@ -13,9 +13,9 @@ type Project struct {
 	UniversityID *uint `json:"university_id,omitempty"`
 	CategoryID   *uint `json:"category_id,omitempty"`
 
-	Title       string `json:"title"`
-	Slug        string `json:"slug"`
-	Description string `json:"description"`
+	Title       string  `json:"title"`
+	Slug        *string `json:"slug,omitempty"`
+	Description string  `json:"description"`
 
 	FundingGoal float64 `json:"funding_goal"`
 

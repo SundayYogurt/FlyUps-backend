@@ -64,7 +64,7 @@ func StartServer(cfg config.AppConfig) {
 
 	// cors configuration
 	c := cors.New(cors.Config{
-		AllowOrigins: []string{"http://localhost:3000"},
+		AllowOrigins: []string{cfg.BaseURL},
 		AllowHeaders: []string{"Content-Type", "Accept", "Authorization"},
 		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 	})

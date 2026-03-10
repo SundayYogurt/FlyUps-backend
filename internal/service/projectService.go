@@ -16,33 +16,22 @@ type ProjectService struct {
 	Auth helper.Auth
 }
 
-func (s ProjectService) CreateProject(ownerID uint, input dto.CreateProjectRequest) (*domain.Project, error) {
+func (s ProjectService) CreateProject(ownerID uint) (*domain.Project, error) {
 
-	// check category exists
-	_, err := s.Repo.GetCategoryByID(input.CategoryID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("category not found")
-		}
-		return nil, errors.New("internal server error")
-	}
-
-	slug, err := s.generateUniqueSlug(input.Title)
-	if err != nil {
-		return nil, errors.New("failed to generate slug")
-	}
+	//slug, err := s.generateUniqueSlug(input.Title)
+	//if err != nil {
+	//	return nil, errors.New("failed to generate slug")
+	//}
 
 	project := domain.Project{
 		OwnerUserID: ownerID,
-		Title:       input.Title,
-		Slug:        slug,
-		CategoryID:  &input.CategoryID,
-		State:       domain.ProjectStateDraft,
-		Status:      domain.ProjectStatusActive,
-		Visibility:  domain.ProjectVisibilityPrivate,
+		//Slug:        slug,
+		State:      domain.ProjectStateDraft,
+		Status:     domain.ProjectStatusActive,
+		Visibility: domain.ProjectVisibilityPrivate,
 	}
 
-	err = s.Repo.Create(&project)
+	err := s.Repo.Create(&project)
 	if err != nil {
 		return nil, errors.New("failed to create project")
 	}
