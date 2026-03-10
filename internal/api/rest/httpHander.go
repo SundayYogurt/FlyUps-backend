@@ -14,6 +14,7 @@ type RestHandler struct {
 	App          *fiber.App
 	DB           *gorm.DB
 	Auth         helper.Auth
+	Middlewares  Middleware
 	Config       config.AppConfig
 	Validator    *validator.Validate
 	Notification notification.NotificationClient
