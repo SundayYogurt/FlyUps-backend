@@ -3,13 +3,6 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                git branch: 'develop',
-                url: 'https://github.com/SundayYogurt/FlyUps-backend.git'
-            }
-        }
-
         stage('Build & Deploy') {
             steps {
                 sh '''
