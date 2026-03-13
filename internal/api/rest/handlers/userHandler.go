@@ -41,7 +41,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	pubRoutes.Post("/signup", handler.Signup)
 	pubRoutes.Get("/verify-email", handler.VerifyEmail)
 	pubRoutes.Post("/signin", handler.Signin)
-	pubRoutes.Post("/forgot-passwords", handler.ForgotPassword)
+	pubRoutes.Post("/forgot-password", handler.ForgotPassword)
 	pubRoutes.Post("/reset-password", handler.SetPassword)
 
 	//private route
