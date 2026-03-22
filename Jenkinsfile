@@ -61,9 +61,12 @@ pipeline {
                       }
             steps {
                 sh '''
-                docker compose down
-                docker compose up -d --build
-                '''
+                        apt-get update
+                        apt-get install -y docker.io docker-compose
+
+                        docker compose down
+                        docker compose up -d --build
+                        '''
             }
         }
     }
