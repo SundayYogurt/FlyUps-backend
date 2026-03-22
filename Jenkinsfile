@@ -55,7 +55,7 @@ pipeline {
 
         stage('Build & Deploy') {
             when {
-                branch 'main'
+                branch 'develop'
             }
             steps {
                 sh '''
