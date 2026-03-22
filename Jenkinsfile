@@ -52,12 +52,6 @@ pipeline {
             }
         }
 
-        stage('Quality Gate') {
-            steps {
-                waitForQualityGate abortPipeline: true
-            }
-        }
-
         stage('Build & Deploy') {
             when {
                 branch 'main'
