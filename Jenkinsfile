@@ -42,7 +42,7 @@ pipeline {
 
                     ./sonar-scanner/bin/sonar-scanner \
                       -Dsonar.projectKey=sundayyogurt_flyup \
-                      -Dsonar.organization=Krit \
+                      -Dsonar.organization=sundayyogurt \
                       -Dsonar.sources=. \
                       -Dsonar.exclusions=**/*_test.go \
                       -Dsonar.go.coverage.reportPaths=coverage.out \
