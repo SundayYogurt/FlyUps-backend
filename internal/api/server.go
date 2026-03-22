@@ -10,6 +10,7 @@ import (
 	"flyup/pkg/notification"
 	"log"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"gorm.io/driver/postgres"
@@ -99,6 +100,17 @@ func StartServer(cfg config.AppConfig) {
 
 	middleware := rest.SetupMiddleware(auth)
 
+	cloudinarySvc, err := helper.NewCloudinary(
+		cfg.CloudinaryCloudName,
+		cfg.CloudinaryAPIKey,
+		cfg.CloudinaryAPISecret,
+	)
+	if err != nil {
+		log.Fatalf("cloudinary init error %v", err)
+	}
+
+	validate := validator.New()
+
 	rh := &rest.RestHandler{
 		App:          app,
 		DB:           db,
@@ -106,8 +118,9 @@ func StartServer(cfg config.AppConfig) {
 		Config:       cfg,
 		Notification: notificationClient,
 		Middlewares:  middleware,
+		Validator:    validate,
+		Cloudinary:   cloudinarySvc,
 	}
-
 	setupRoutes(rh)
 
 	log.Fatal(app.Listen(":" + cfg.ServerPort))

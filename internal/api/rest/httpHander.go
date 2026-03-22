@@ -18,4 +18,5 @@ type RestHandler struct {
 	Config       config.AppConfig
 	Validator    *validator.Validate
 	Notification notification.NotificationClient
+	Cloudinary   *helper.CloudinaryService
 }

@@ -19,18 +19,7 @@ func SetupMiddleware(auth helper.Auth) Middleware {
 
 func (m Middleware) Authorize(ctx fiber.Ctx) error {
 
-	// try header
-	authHeader := ctx.Get("Authorization")
-	var token string
-
-	if authHeader != "" {
-		token = strings.Replace(authHeader, "Bearer ", "", 1)
-	}
-
-	// try cookie
-	if token == "" {
-		token = ctx.Cookies("auth_token")
-	}
+	token := m.extractToken(ctx)
 
 	if token == "" {
 		return ctx.Status(401).JSON(fiber.Map{
@@ -52,12 +41,7 @@ func (m Middleware) Authorize(ctx fiber.Ctx) error {
 
 func (m Middleware) AuthorizePioneer(ctx fiber.Ctx) error {
 
-	authHeader := ctx.Get("Authorization")
-	token := strings.Replace(authHeader, "Bearer ", "", 1)
-
-	if token == "" {
-		token = ctx.Cookies("auth_token")
-	}
+	token := m.extractToken(ctx)
 
 	if token == "" {
 		return ctx.Status(401).JSON(fiber.Map{
@@ -81,4 +65,15 @@ func (m Middleware) AuthorizePioneer(ctx fiber.Ctx) error {
 	ctx.Locals("user", user)
 
 	return ctx.Next()
+}
+
+func (m Middleware) extractToken(ctx fiber.Ctx) string {
+
+	authHeader := ctx.Get("Authorization")
+
+	if authHeader != "" {
+		return strings.TrimPrefix(authHeader, "Bearer ")
+	}
+
+	return ctx.Cookies("auth_token")
 }

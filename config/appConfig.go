@@ -9,12 +9,15 @@ import (
 )
 
 type AppConfig struct {
-	ServerPort   string
-	Dsn          string
-	AppSecret    string
-	ResendAPIKey string
-	EmailFrom    string
-	BaseURL      string
+	ServerPort          string
+	Dsn                 string
+	AppSecret           string
+	ResendAPIKey        string
+	EmailFrom           string
+	BaseURL             string
+	CloudinaryCloudName string
+	CloudinaryAPIKey    string
+	CloudinaryAPISecret string
 }
 
 func SetupEnv() (cfg AppConfig, err error) {
@@ -57,13 +60,31 @@ func SetupEnv() (cfg AppConfig, err error) {
 		return AppConfig{}, errors.New("baseURL env variables not found")
 	}
 
+	cloudName := os.Getenv("CLOUDINARY_CLOUD_NAME")
+	if len(cloudName) < 1 {
+		return AppConfig{}, errors.New("cloudinary cloud name not found")
+	}
+
+	apiKey := os.Getenv("CLOUDINARY_API_KEY")
+	if len(apiKey) < 1 {
+		return AppConfig{}, errors.New("cloudinary api key not found")
+	}
+
+	apiSecret := os.Getenv("CLOUDINARY_API_SECRET")
+	if len(apiSecret) < 1 {
+		return AppConfig{}, errors.New("cloudinary api secret not found")
+	}
+
 	return AppConfig{
-		ServerPort:   httpPort,
-		Dsn:          Dsn,
-		AppSecret:    appSecret,
-		ResendAPIKey: resendAPIKey,
-		EmailFrom:    emailFrom,
-		BaseURL:      baseURL,
+		ServerPort:          httpPort,
+		Dsn:                 Dsn,
+		AppSecret:           appSecret,
+		ResendAPIKey:        resendAPIKey,
+		EmailFrom:           emailFrom,
+		BaseURL:             baseURL,
+		CloudinaryCloudName: cloudName,
+		CloudinaryAPIKey:    apiKey,
+		CloudinaryAPISecret: apiSecret,
 	}, nil
 
 }

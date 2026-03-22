@@ -132,3 +132,22 @@ func Sha256Hex(s string) string {
 	sum := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(sum[:])
 }
+
+func GetMilestonePercent(phase int) int {
+	switch phase {
+	case 1:
+		return 15
+	case 2:
+		return 25
+	case 3:
+		return 25
+	case 4:
+		return 35
+	default:
+		return 0
+	}
+}
+
+func CalculateMinInvest(goal float64) float64 {
+	return goal * 0.01
+}

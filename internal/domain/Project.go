@@ -9,12 +9,12 @@ import (
 type Project struct {
 	ID uint `json:"id"`
 
-	OwnerUserID  uint  `json:"owner_user_id"`
-	UniversityID *uint `json:"university_id,omitempty"`
-	CategoryID   *uint `json:"category_id,omitempty"`
+	OwnerUserID  uint  `json:"owner_user_id" gorm:"index"`
+	UniversityID *uint `json:"university_id,omitempty" gorm:"index"`
+	CategoryID   *uint `json:"category_id,omitempty" gorm:"index"`
 
 	Title       string  `json:"title"`
-	Slug        *string `json:"slug,omitempty"`
+	Slug        *string `json:"slug,omitempty" gorm:"uniqueIndex"`
 	Description string  `json:"description"`
 
 	FundingGoal float64 `json:"funding_goal"`
@@ -29,6 +29,15 @@ type Project struct {
 	CoverImageURL string `json:"cover_image_url"`
 	VideoURL      string `json:"video_url"`
 
+	// Relations
+	Media         []ProjectMedia        `gorm:"foreignKey:ProjectID"`
+	StorySections []ProjectStorySection `gorm:"foreignKey:ProjectID"`
+	Risks         []ProjectRisk         `gorm:"foreignKey:ProjectID"`
+	FAQ           []ProjectFAQ          `gorm:"foreignKey:ProjectID"`
+	Milestones    []Milestone           `gorm:"foreignKey:ProjectID"`
+	FundingPolicy *ProjectFundingPolicy `gorm:"foreignKey:ProjectID"`
+	ProfitPolicy  *ProjectProfitPolicy  `gorm:"foreignKey:ProjectID"`
+
 	gorm.Model
 }
 
@@ -42,7 +51,7 @@ type ProjectCategory struct {
 type ProjectMedia struct {
 	ID uint `json:"id"`
 
-	ProjectID uint `json:"project_id"`
+	ProjectID uint `json:"project_id" gorm:"index"`
 
 	Type      string `json:"type"`
 	URL       string `json:"url"`
@@ -54,7 +63,7 @@ type ProjectMedia struct {
 type ProjectStorySection struct {
 	ID uint `json:"id"`
 
-	ProjectID uint `json:"project_id"`
+	ProjectID uint `json:"project_id" gorm:"index"`
 
 	Title     string `json:"title"`
 	Body      string `json:"body"`
@@ -66,7 +75,7 @@ type ProjectStorySection struct {
 type ProjectRisk struct {
 	ID uint `json:"id"`
 
-	ProjectID uint `json:"project_id"`
+	ProjectID uint `json:"project_id" gorm:"index"`
 
 	Title      string `json:"title"`
 	Detail     string `json:"detail"`
@@ -81,7 +90,7 @@ type ProjectRisk struct {
 type ProjectFAQ struct {
 	ID uint `json:"id"`
 
-	ProjectID uint `json:"project_id"`
+	ProjectID uint `json:"project_id" gorm:"index"`
 
 	Question string `json:"question"`
 	Answer   string `json:"answer"`
@@ -94,9 +103,9 @@ type ProjectFAQ struct {
 type ProjectFundingPolicy struct {
 	ID uint `json:"id"`
 
-	ProjectID uint `json:"project_id"`
+	ProjectID uint `json:"project_id" gorm:"index"`
 
-	FundingModel string `json:"funding_model"`
+	FundingModel FundingModel `json:"funding_model"`
 
 	SoftCapAmount *float64 `json:"soft_cap_amount,omitempty"`
 	HardCapAmount *float64 `json:"hard_cap_amount,omitempty"`
@@ -108,33 +117,28 @@ type ProjectFundingPolicy struct {
 }
 
 type ProjectProfitPolicy struct {
-	ID uint `json:"id"`
-
-	ProjectID uint `json:"project_id"`
-
-	DistributionFrequency string `json:"distribution_frequency"`
-
-	MinimumDurationMonths int `json:"minimum_duration_months"`
-	TotalQuarters         int `json:"total_quarters"`
-
-	ExpectedStartDate *time.Time `json:"expected_start_date,omitempty"`
-	Note              string     `json:"note"`
-
+	ID                    uint       `json:"id"`
+	ProjectID             uint       `json:"project_id" gorm:"index"`
+	DistributionFrequency string     `json:"distribution_frequency"`
+	MinimumDurationMonths int        `json:"minimum_duration_months"`
+	TotalQuarters         int        `json:"total_quarters"`
+	ExpectedStartDate     *time.Time `json:"expected_start_date,omitempty"`
+	Note                  string     `json:"note"`
 	gorm.Model
 }
 
 type Milestone struct {
 	ID uint `json:"id"`
 
-	ProjectID uint `json:"project_id"`
+	ProjectID uint `json:"project_id" gorm:"index"`
 
 	PhaseNo int `json:"phase_no"`
 
 	Title       string `json:"title"`
 	Description string `json:"description"`
 
-	PercentRelease int    `json:"percent_release"`
-	Status         string `json:"status"`
+	PercentRelease int             `json:"percent_release"`
+	Status         MilestoneStatus `json:"status"`
 
 	gorm.Model
 }
@@ -142,7 +146,7 @@ type Milestone struct {
 type MilestoneSubmission struct {
 	ID uint `json:"id"`
 
-	MilestoneID uint `json:"milestone_id"`
+	MilestoneID uint `json:"milestone_id" gorm:"index"`
 	SubmittedBy uint `json:"submitted_by"`
 
 	Note   string `json:"note"`
@@ -156,13 +160,15 @@ type MilestoneSubmission struct {
 type MilestoneEvidence struct {
 	ID uint `json:"id"`
 
-	SubmissionID uint `json:"submission_id"`
+	SubmissionID uint `json:"submission_id" gorm:"index"`
 
 	Type string `json:"type"`
 	URL  string `json:"url"`
 
 	gorm.Model
 }
+
+//ENUMS
 
 type ProjectState string
 
@@ -192,4 +198,21 @@ const (
 	ProjectVisibilityPrivate  ProjectVisibility = "private"
 	ProjectVisibilityPublic   ProjectVisibility = "public"
 	ProjectVisibilityUnlisted ProjectVisibility = "unlisted"
+)
+
+type FundingModel string
+
+const (
+	FundingModelDonation FundingModel = "donation"
+	FundingModelEquity   FundingModel = "equity"
+	FundingModelRevenue  FundingModel = "revenue_share"
+)
+
+type MilestoneStatus string
+
+const (
+	MilestonePending  MilestoneStatus = "pending"
+	MilestoneReview   MilestoneStatus = "review"
+	MilestoneApproved MilestoneStatus = "approved"
+	MilestoneRejected MilestoneStatus = "rejected"
 )
