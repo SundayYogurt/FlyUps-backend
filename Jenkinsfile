@@ -55,8 +55,10 @@ pipeline {
 
         stage('Build & Deploy') {
             when {
-                branch 'develop'
-            }
+                expression {
+                      return env.GIT_BRANCH == 'origin/develop' || env.GIT_BRANCH == 'develop'
+                            }
+                      }
             steps {
                 sh '''
                 docker compose down
