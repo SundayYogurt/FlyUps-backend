@@ -33,14 +33,15 @@ pipeline {
             steps {
                 withSonarQubeEnv('sonarcloud') {
                     sh '''
+                    rm -rf sonar-scanner*
+
                     apt-get update
                     apt-get install -y curl unzip
 
                     curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
                     unzip sonar-scanner.zip
-                    mv sonar-scanner-* sonar-scanner
 
-                    ./sonar-scanner/bin/sonar-scanner \
+                    ./sonar-scanner-*/bin/sonar-scanner \
                       -Dsonar.projectKey=sundayyogurt_flyup \
                       -Dsonar.organization=sundayyogurt \
                       -Dsonar.sources=. \
