@@ -1,17 +1,27 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'golang:1.22'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
 
     environment {
         SONAR_TOKEN = credentials('SonarQubeTokens')
     }
 
     stages {
+        stage('Check Go') {
+            steps {
+                sh 'go version'
+            }
+        }
 
-//        stage('Install') {
-//            steps {
-//                sh 'go mod tidy'
-//            }
-//        }
+        stage('Install') {
+            steps {
+                sh 'go mod tidy'
+            }
+        }
 
         stage('Test & Coverage') {
             steps {
@@ -23,7 +33,14 @@ pipeline {
             steps {
                 withSonarQubeEnv('sonarcloud') {
                     sh '''
-                    sonar-scanner \
+                    apt-get update
+                    apt-get install -y curl unzip
+
+                    curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+                    unzip sonar-scanner.zip
+                    mv sonar-scanner-* sonar-scanner
+
+                    ./sonar-scanner/bin/sonar-scanner \
                       -Dsonar.projectKey=sundayyogurt_flyup \
                       -Dsonar.organization=Krit \
                       -Dsonar.sources=. \
