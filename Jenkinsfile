@@ -7,11 +7,11 @@ pipeline {
 
     stages {
 
-        stage('Install') {
-            steps {
-                sh 'go mod tidy'
-            }
-        }
+//        stage('Install') {
+//            steps {
+//                sh 'go mod tidy'
+//            }
+//        }
 
         stage('Test & Coverage') {
             steps {
