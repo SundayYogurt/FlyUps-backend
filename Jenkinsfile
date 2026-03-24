@@ -43,32 +43,34 @@ pipeline {
 //        }
 
                 stage('Debug Branch') {
-                    steps {
-                        sh 'echo BRANCH_NAME=$BRANCH_NAME'
-                        sh 'echo GIT_BRANCH=$GIT_BRANCH'
-                    }
-                }
+                            steps {
+                                sh 'echo BRANCH_NAME=$BRANCH_NAME'
+                                sh 'echo GIT_BRANCH=$GIT_BRANCH'
+                            }
+                        }
 
-                stage('Cleanup & Down') {
-                    steps {
-                        sh '''
-                        # ใช้ docker compose down เพื่อหยุดและลบ container ทั้งหมดที่เกี่ยวข้องกับโปรเจกต์นี้
-                        # โดยอ้างอิงจากไฟล์ docker-compose.yml ใน directory ปัจจุบัน
-                        docker compose down --remove-orphans
-                        '''
-                    }
-                }
+                        stage('Cleanup & Down') {
+                            steps {
+                                sh '''
+                                # หยุด container เก่า และลบ orphan container
+                                docker compose down --remove-orphans
 
-                stage('Build & Deploy') {
-                    steps {
-                        sh '''
-                        # build แบบไม่ใช้ cache เพื่อความมั่นใจว่าได้โค้ดใหม่ล่าสุด
-                        docker compose build --no-cache
+                                # kill process ที่อาจใช้ port 5434 (DB) ถ้ามี
+                                lsof -i :5434 | awk 'NR>1 {print $2}' | xargs -r kill -9
+                                '''
+                            }
+                        }
 
-                        # รันขึ้นมาใหม่
-                        docker compose up -d
-                        '''
-                    }
-                }
+                        stage('Build & Deploy') {
+                            steps {
+                                sh '''
+                                # rebuild image แบบไม่ใช้ cache → ได้ code ใหม่ล่าสุด
+                                docker compose build --no-cache
+
+                                # run container ใหม่
+                                docker compose up -d --force-recreate
+                                '''
+                            }
+                        }
             }
         }
