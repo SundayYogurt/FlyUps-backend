@@ -90,11 +90,8 @@ func StartServer(cfg config.AppConfig) {
 
 	app.Use(c)
 
-	app.Get("/", func(c fiber.Ctx) error {
-		return rest.SuccessResponse(c, "I am Healthy", fiber.Map{
-			"status": "ok with 200 status code",
-		})
-	})
+	app.Get("/", HealthCheck)
+
 	notificationClient := notification.NewNotificationClient(cfg)
 	auth := helper.SetupAuth(cfg.AppSecret)
 
@@ -133,4 +130,10 @@ func setupRoutes(rh *rest.RestHandler) {
 
 	handlers.SetupProjectRoutes(rh)
 
+}
+
+func HealthCheck(ctx fiber.Ctx) error {
+	return ctx.Status(200).JSON(fiber.Map{
+		"message": "Healthy",
+	})
 }

@@ -12,6 +12,14 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type AuthService interface {
+	CreateHashedPassword(string) (string, error)
+	VerifyPassword(string, string) error
+	GenerateToken(uint, string, string) (string, error)
+	VerifyToken(string) (domain.User, error)
+	GenerateCode() (string, error)
+}
+
 type Auth struct {
 	Secret string
 }
