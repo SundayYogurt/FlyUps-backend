@@ -1,36 +1,47 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'golang:1.25.3'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
 
     environment {
         SONAR_TOKEN = credentials('SonarQubeTokens')
     }
 
     stages {
+        stage('Check Go') {
+            steps {
+                sh 'go version'
+            }
+        }
 
-//        stage('Go Build & Test') {
-//            agent {
-//                docker {
-//                    image 'golang:1.25'
-//                }
-//            }
+        stage('Install') {
+            steps {
+                sh 'go mod tidy'
+            }
+        }
+
+//        stage('Test & Coverage') {
 //            steps {
-//                sh '''
-//                go mod tidy
-//                go test ./... -coverprofile=coverage.out
-//                '''
+//                sh 'go test ./... -coverprofile=coverage.out'
 //            }
 //        }
-
+//
 //        stage('Sonar Scan') {
-//            agent {
-//                docker {
-//                    image 'sonarsource/sonar-scanner-cli:latest'
-//                }
-//            }
 //            steps {
 //                withSonarQubeEnv('sonarcloud') {
 //                    sh '''
-//                    sonar-scanner \
+//                    rm -rf sonar-scanner*
+//
+//                    apt-get update
+//                    apt-get install -y curl unzip
+//
+//                    curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+//                    unzip sonar-scanner.zip
+//
+//                    ./sonar-scanner-*/bin/sonar-scanner \
 //                      -Dsonar.projectKey=sundayyogurt_flyup \
 //                      -Dsonar.organization=sundayyogurt \
 //                      -Dsonar.sources=. \
@@ -42,35 +53,20 @@ pipeline {
 //            }
 //        }
 
-                stage('Debug Branch') {
-                            steps {
-                                sh 'echo BRANCH_NAME=$BRANCH_NAME'
-                                sh 'echo GIT_BRANCH=$GIT_BRANCH'
+        stage('Build & Deploy') {
+            when {
+                expression {
+                      return env.GIT_BRANCH == 'origin/develop' || env.GIT_BRANCH == 'develop'
                             }
-                        }
+                      }
+            steps {
+                sh '''
+                        apt-get update
+                        apt-get install -y docker.io docker-compose
 
-                        stage('Cleanup & Down') {
-                            steps {
-                                sh '''
-                                # หยุด container เก่า และลบ orphan container
-                                docker compose down --remove-orphans
-
-                                # kill process ที่อาจใช้ port 5434 (DB) ถ้ามี
-                                lsof -i :5434 | awk 'NR>1 {print $2}' | xargs -r kill -9
-                                '''
-                            }
-                        }
-
-                        stage('Build & Deploy') {
-                            steps {
-                                sh '''
-                                # rebuild image แบบไม่ใช้ cache → ได้ code ใหม่ล่าสุด
-                                docker compose build --no-cache
-
-                                # run container ใหม่
-                                docker compose up -d --force-recreate
-                                '''
-                            }
-                        }
+                        docker compose down
+                        docker compose up -d --build
+                        '''
             }
         }
+    }
