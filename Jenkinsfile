@@ -24,16 +24,13 @@ pipeline {
         stage('Sonar Scan') {
             agent {
                 docker {
-                    image 'golang:1.25'
+                    image 'sonarsource/sonar-scanner-cli:latest'
                 }
             }
             steps {
                 withSonarQubeEnv('sonarcloud') {
                     sh '''
-                    curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
-                    unzip -o sonar-scanner.zip
-
-                    ./sonar-scanner-*/bin/sonar-scanner \
+                    sonar-scanner \
                       -Dsonar.projectKey=sundayyogurt_flyup \
                       -Dsonar.organization=sundayyogurt \
                       -Dsonar.sources=. \
