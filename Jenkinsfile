@@ -49,25 +49,11 @@ pipeline {
             }
         }
 
-
         stage('Build & Deploy') {
-            when {
-                expression {
-                    return env.GIT_BRANCH?.contains('develop')
-                }
-            }
             steps {
                 sh '''
-                echo "== CLEAN OLD CONTAINERS =="
-                docker compose down --remove-orphans || true
-
-                # ลบ container เก่าที่อาจเหลือ
-                docker ps -a -q --filter name=flyup-backend | xargs -r docker rm -f
-
-                # ลบ network ที่ไม่ได้ใช้
+                docker compose down --remove-orphans -v
                 docker network prune -f
-
-                echo "== START NEW =="
                 docker compose up -d --build
                 '''
             }
