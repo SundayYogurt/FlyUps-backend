@@ -59,16 +59,13 @@ pipeline {
             steps {
                 sh '''
                 echo "== CLEAN OLD CONTAINERS =="
-                docker compose down || true
+                docker compose down --remove-orphans || true
 
-                # หยุดและลบ container ที่ยังรันอยู่ ใช้ชื่อ pattern flyup-backend2*
-                docker ps -a -q --filter "name=flyup-backend2" | xargs -r docker rm -f
+                # ลบ container เก่าที่อาจเหลือ
+                docker ps -a -q --filter name=flyup-backend | xargs -r docker rm -f
 
-                # เช็กว่าพอร์ต 5434 ถูกใช้อยู่ไหม ถ้าใช้อยู่ kill process
-                if lsof -i :5434; then
-                  echo "Port 5434 in use, killing process..."
-                  lsof -ti :5434 | xargs -r kill -9
-                fi
+                # ลบ network ที่ไม่ได้ใช้
+                docker network prune -f
 
                 echo "== START NEW =="
                 docker compose up -d --build
