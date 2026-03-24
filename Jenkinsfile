@@ -10,9 +10,8 @@ pipeline {
 
         stage('Build & Deploy') {
             when {
-                anyOf {
-                    branch 'develop'
-                    branch 'main'
+                expression {
+                    return env.GIT_BRANCH == 'origin/develop' || env.GIT_BRANCH == 'develop' || env.GIT_BRANCH == 'origin/main' || env.GIT_BRANCH == 'main'
                 }
             }
             steps {
