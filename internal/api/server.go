@@ -65,7 +65,13 @@ func StartServer(cfg config.AppConfig) {
 
 	// cors configuration
 	c := cors.New(cors.Config{
-		AllowOrigins:     []string{cfg.BaseURL},
+		AllowOrigins: []string{
+			cfg.BaseURL,
+			"https://www.fly-up.app",
+			"https://fly-up.app",
+			"http://localhost:3000", // สำหรับทดสอบ Local
+			"http://localhost:5173", // สำหรับเปิดทดสอบด้วย Vite
+		},
 		AllowCredentials: true,
 		AllowHeaders: []string{
 			"Origin",
