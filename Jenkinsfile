@@ -1,47 +1,36 @@
 pipeline {
-    agent {
-        docker {
-            image 'golang:1.25.3'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
+    agent any
 
     environment {
         SONAR_TOKEN = credentials('SonarQubeTokens')
     }
 
     stages {
-        stage('Check Go') {
-            steps {
-                sh 'go version'
-            }
-        }
 
-        stage('Install') {
-            steps {
-                sh 'go mod tidy'
-            }
-        }
-
-//        stage('Test & Coverage') {
+//        stage('Go Build & Test') {
+//            agent {
+//                docker {
+//                    image 'golang:1.25'
+//                }
+//            }
 //            steps {
-//                sh 'go test ./... -coverprofile=coverage.out'
+//                sh '''
+//                go mod tidy
+//                go test ./... -coverprofile=coverage.out
+//                '''
 //            }
 //        }
-//
+
 //        stage('Sonar Scan') {
+//            agent {
+//                docker {
+//                    image 'sonarsource/sonar-scanner-cli:latest'
+//                }
+//            }
 //            steps {
 //                withSonarQubeEnv('sonarcloud') {
 //                    sh '''
-//                    rm -rf sonar-scanner*
-//
-//                    apt-get update
-//                    apt-get install -y curl unzip
-//
-//                    curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
-//                    unzip sonar-scanner.zip
-//
-//                    ./sonar-scanner-*/bin/sonar-scanner \
+//                    sonar-scanner \
 //                      -Dsonar.projectKey=sundayyogurt_flyup \
 //                      -Dsonar.organization=sundayyogurt \
 //                      -Dsonar.sources=. \
@@ -53,20 +42,46 @@ pipeline {
 //            }
 //        }
 
-        stage('Build & Deploy') {
-            when {
-                expression {
-                      return env.GIT_BRANCH == 'origin/develop' || env.GIT_BRANCH == 'develop'
+                stages {
+                        stage('Debug Branch') {
+                            steps {
+                                sh 'echo BRANCH_NAME=$BRANCH_NAME'
+                                sh 'echo GIT_BRANCH=$GIT_BRANCH'
                             }
-                      }
-            steps {
-                sh '''
-                        apt-get update
-                        apt-get install -y docker.io docker-compose
+                        }
 
-                        docker compose down
-                        docker compose up -d --build
-                        '''
-            }
-        }
-    }
+                        stage('Force Cleanup Port 5434') {
+                            steps {
+                                sh '''
+                                echo "--- Starting Aggressive Cleanup ---"
+
+                                # 1. หยุดและลบทุก Container ที่ใช้ Port 5434 (ไม่สนชื่อโปรเจกต์)
+                                # คำสั่งนี้จะหา Container ID ที่ Map พอร์ต 5434 แล้วสั่งลบทิ้งทันที
+                                docker ps -q --filter "publish=5434" | xargs -r docker rm -f || true
+
+                                # 2. กวาดล้าง Container ที่ชื่อมีคำว่า flyup (ป้องกันเรื่องชื่อมี s หรือไม่มี s)
+                                docker ps -aq --filter "name=flyup" | xargs -r docker rm -f || true
+
+                                # 3. ใช้ docker compose down ตามปกติเพื่อล้าง Network
+                                docker compose down --remove-orphans || true
+
+                                # 4. ตรวจสอบพอร์ตด้วยคำสั่งพื้นฐาน (เผื่อมี process นอก docker)
+                                # ใช้ fuser หรือแก้ด้วยการเช็คผ่าน /proc ถ้า lsof ไม่มี
+                                (ss -lntp | grep :5434 | awk -F, '{print $2}' | awk -F= '{print $2}' | xargs -r kill -9) || true
+                                '''
+                            }
+                        }
+
+                        stage('Build & Deploy') {
+                            steps {
+                                sh '''
+                                # Build ใหม่แบบไม่ใช้ cache
+                                docker compose build --no-cache
+
+                                # รันขึ้นมาใหม่
+                                docker compose up -d --force-recreate
+                                '''
+                            }
+                        }
+                    }
+                }
