@@ -6,6 +6,7 @@ pipeline {
     }
 
     stages {
+
         stage('Go Build & Test') {
             agent {
                 docker {
@@ -14,7 +15,6 @@ pipeline {
             }
             steps {
                 sh '''
-                go version
                 go mod tidy
                 go test ./... -coverprofile=coverage.out
                 '''
@@ -22,14 +22,16 @@ pipeline {
         }
 
         stage('Sonar Scan') {
+            agent {
+                docker {
+                    image 'golang:1.25'
+                }
+            }
             steps {
                 withSonarQubeEnv('sonarcloud') {
                     sh '''
-                    apt-get update
-                    apt-get install -y curl unzip
-
                     curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
-                    unzip sonar-scanner.zip
+                    unzip -o sonar-scanner.zip
 
                     ./sonar-scanner-*/bin/sonar-scanner \
                       -Dsonar.projectKey=sundayyogurt_flyup \
@@ -45,9 +47,7 @@ pipeline {
 
         stage('Build & Deploy') {
             when {
-                expression {
-                    return env.GIT_BRANCH == 'origin/develop' || env.GIT_BRANCH == 'develop'
-                }
+                branch 'develop'
             }
             steps {
                 sh '''
