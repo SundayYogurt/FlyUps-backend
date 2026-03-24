@@ -15,12 +15,12 @@ pipeline {
                 }
             }
             steps {
-                // คำสั่งรัน Docker Compose
-                // โดย docker-compose.yml จะไปดึง .env จาก /etc/flyup/.env บนเครื่อง Server (Host)
+                // บังคับชื่อโปรเจกต์ (-p) ให้เป็น flyup_backend ทุกครั้ง
+                // เพื่อให้ docker compose down สามารถหาและปิดของเก่าได้ถูกต้องแม้ชื่อโฟลเดอร์ของ Jenkins รันจะเปลี่ยนไป
                 sh '''
                 echo "Deploying the application..."
-                docker compose down
-                docker compose up -d --build
+                docker compose -p flyup_backend down
+                docker compose -p flyup_backend up -d --build
                 '''
             }
             post {
