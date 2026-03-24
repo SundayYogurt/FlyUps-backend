@@ -42,30 +42,38 @@ pipeline {
 //            }
 //        }
 
-        stage('Debug Branch') {
-            steps {
-                sh 'echo BRANCH_NAME=$BRANCH_NAME'
-                sh 'echo GIT_BRANCH=$GIT_BRANCH'
-            }
-        }
+        stages {
 
-        stage('Cleanup DB Port') {
-            steps {
-                sh '''
-                # stop container เก่าถ้ามี
-                docker ps -q --filter "name=flyup-backend-db-1" | xargs -r docker stop
-                docker ps -a -q --filter "name=flyup-backend-db-1" | xargs -r docker rm
-                '''
-            }
-        }
+                stage('Debug Branch') {
+                    steps {
+                        sh 'echo BRANCH_NAME=$BRANCH_NAME'
+                        sh 'echo GIT_BRANCH=$GIT_BRANCH'
+                    }
+                }
 
-        stage('Build & Deploy') {
-            steps {
-                sh '''
-                   docker compose down
-                   docker compose up -d --build
-                '''
+                stage('Cleanup DB Port') {
+                    steps {
+                        sh '''
+                        # หยุด container DB เก่า
+                        docker ps -q --filter "name=flyup-backend-db-1" | xargs -r docker stop
+                        docker ps -a -q --filter "name=flyup-backend-db-1" | xargs -r docker rm
+
+                        # kill process ที่ใช้ port 5434 ถ้ายังมี
+                        lsof -i :5434 | awk 'NR>1 {print $2}' | xargs -r kill -9
+                        '''
+                    }
+                }
+
+                stage('Build & Deploy') {
+                    steps {
+                        sh '''
+                        # rebuild image ใหม่
+                        docker compose build
+
+                        # recreate container ใหม่จาก image ล่าสุด
+                        docker compose up -d --force-recreate
+                        '''
+                    }
+                }
             }
         }
-    }
-}
