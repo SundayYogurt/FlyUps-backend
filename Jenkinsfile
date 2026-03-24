@@ -56,6 +56,7 @@ pipeline {
                     return env.GIT_BRANCH?.contains('develop')
                 }
             }
+
             steps {
                 sh '''
                 docker compose down
