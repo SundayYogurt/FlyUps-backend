@@ -74,9 +74,28 @@ pipeline {
                         stage('Build & Deploy') {
                             steps {
                                 sh '''
-                                # สั่ง docker compose โดยชี้ไปที่ไฟล์ .env บนเครื่อง Server ตรงๆ
-                                # วิธีนี้จะดึงค่าจากไฟล์ที่วางอยู่บนเครื่องมาใช้ ไม่ต้องกลัว Jenkins หาไม่เจอ
-                                docker compose --env-file .env up -d --build --force-recreate
+                                # 1. สร้างไฟล์ .env สดๆ ไว้ใน Workspace (วิธีนี้ปลอดภัยและ Jenkins เห็นแน่นอน)
+                                echo "DSN=host=db user=root password=root dbname=flyup port=5432 sslmode=disable" > .env
+                                echo "HTTP_PORT=3000" >> .env
+                                echo "APP_SECRET=flyup-secret-key" >> .env
+                                echo "BASE_URL=http://localhost:5173" >> .env
+                                # ใส่ตัวแปร Cloudinary ที่แอปต้องการ (สำคัญมาก!)
+                                echo "CLOUDINARY_CLOUD_NAME=your_name" >> .env
+                                echo "CLOUDINARY_API_KEY=your_key" >> .env
+                                echo "CLOUDINARY_API_SECRET=your_secret" >> .env
+
+                                # 2. ตรวจสอบว่าไฟล์ถูกสร้างจริงไหม
+                                ls -la .env
+
+                                # 3. รัน Docker Compose (เขียนแยกบรรทัดแบบนี้ Shell จะไม่งง)
+                                docker compose down --remove-orphans
+                                docker compose up -d --build --force-recreate
+
+                                # 4. รอให้ DB พร้อมแล้วเช็ค Log
+                                echo "Waiting for app to start..."
+                                sleep 8
+                                docker ps -a
+                                docker logs flyup-backend-app-1
                                 '''
                             }
                         }
