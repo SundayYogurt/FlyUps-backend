@@ -49,15 +49,12 @@ pipeline {
                     }
                 }
 
-                stage('Cleanup DB Port') {
+                stage('Cleanup & Down') {
                     steps {
                         sh '''
-                        # หยุด container DB เก่า
-                        docker ps -q --filter "name=flyup-backend-db-1" | xargs -r docker stop
-                        docker ps -a -q --filter "name=flyup-backend-db-1" | xargs -r docker rm
-
-                        # kill process ที่ใช้ port 5434 ถ้ายังมี
-                        lsof -i :5434 | awk 'NR>1 {print $2}' | xargs -r kill -9
+                        # ใช้ docker compose down เพื่อหยุดและลบ container ทั้งหมดที่เกี่ยวข้องกับโปรเจกต์นี้
+                        # โดยอ้างอิงจากไฟล์ docker-compose.yml ใน directory ปัจจุบัน
+                        docker compose down --remove-orphans
                         '''
                     }
                 }
@@ -65,11 +62,11 @@ pipeline {
                 stage('Build & Deploy') {
                     steps {
                         sh '''
-                        # rebuild image ใหม่
-                        docker compose build
+                        # build แบบไม่ใช้ cache เพื่อความมั่นใจว่าได้โค้ดใหม่ล่าสุด
+                        docker compose build --no-cache
 
-                        # recreate container ใหม่จาก image ล่าสุด
-                        docker compose up -d --force-recreate
+                        # รันขึ้นมาใหม่
+                        docker compose up -d
                         '''
                     }
                 }
