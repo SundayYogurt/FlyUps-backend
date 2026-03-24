@@ -53,7 +53,7 @@ pipeline {
         stage('Build & Deploy') {
             when {
                 expression {
-                    return env.BRANCH_NAME == 'develop'
+                    return env.GIT_BRANCH?.contains('develop')
                 }
             }
             steps {
