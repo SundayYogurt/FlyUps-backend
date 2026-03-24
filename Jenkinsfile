@@ -57,11 +57,21 @@ pipeline {
                 }
             }
 
-            steps {
-                sh '''
-                docker compose down
-                docker compose up -d --build
-                '''
+            stage('Build & Deploy') {
+                when {
+                    expression {
+                        return env.GIT_BRANCH?.contains('develop')
+                    }
+                }
+                steps {
+                    sh '''
+                    echo "== CLEAN OLD CONTAINERS =="
+                    docker compose down || true
+
+                    echo "== START NEW =="
+                    docker compose up -d --build
+                    '''
+                }
             }
         }
     }
