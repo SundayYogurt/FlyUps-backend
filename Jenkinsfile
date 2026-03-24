@@ -6,21 +6,18 @@ pipeline {
     }
 
     stages {
-        stage('Check Go') {
-            steps {
-                sh 'go version'
+        stage('Go Build & Test') {
+            agent {
+                docker {
+                    image 'golang:1.25'
+                }
             }
-        }
-
-        stage('Install') {
             steps {
-                sh 'go mod tidy'
-            }
-        }
-
-        stage('Test & Coverage') {
-            steps {
-                sh 'go test ./... -coverprofile=coverage.out'
+                sh '''
+                go version
+                go mod tidy
+                go test ./... -coverprofile=coverage.out
+                '''
             }
         }
 
@@ -28,8 +25,6 @@ pipeline {
             steps {
                 withSonarQubeEnv('sonarcloud') {
                     sh '''
-                    rm -rf sonar-scanner*
-
                     apt-get update
                     apt-get install -y curl unzip
 
