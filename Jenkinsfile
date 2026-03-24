@@ -62,9 +62,8 @@ pipeline {
         stage('Build & Deploy') {
             steps {
                 sh '''
-                docker compose down --remove-orphans -v
-                docker network prune -f
-                docker compose up -d --build
+                   docker compose down
+                   docker compose up -d --build
                 '''
             }
         }
