@@ -49,14 +49,6 @@ pipeline {
             }
         }
 
-
-        stage('Build & Deploy') {
-            when {
-                expression {
-                    return env.GIT_BRANCH?.contains('develop')
-                }
-            }
-
             stage('Build & Deploy') {
                 when {
                     expression {
