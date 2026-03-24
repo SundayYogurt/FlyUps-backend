@@ -42,7 +42,6 @@ pipeline {
 //            }
 //        }
 
-                stages {
                         stage('Debug Branch') {
                             steps {
                                 sh 'echo BRANCH_NAME=$BRANCH_NAME'
