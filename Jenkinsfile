@@ -1,11 +1,6 @@
 pipeline {
     agent any
 
-    environment {
-        // สามารถเพิ่มตัวแปร Environment ของ Jenkins ได้ที่นี่ถ้าจำเป็น
-        // ตัวอย่าง: DOCKER_IMAGE = 'my-app'
-    }
-
     stages {
         stage('Checkout') {
             steps {
