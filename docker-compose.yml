@@ -1,5 +1,7 @@
 services:
   app:
+    env_file:
+      - /etc/flyup/.env  # ชี้ไปที่ไฟล์นอกโฟลเดอร์โปรเจกต์
     build: .
     ports:
       - "3000:3000"
@@ -7,13 +9,15 @@ services:
       db:
         condition: service_healthy
     environment:
-      HTTP_PORT: ${HTTP_PORT}
-      DSN: ${DSN}
-      APP_SECRET: ${APP_SECRET}
-      RESEND_API_KEY: ${RESEND_API_KEY}
-      EMAIL_FROM: ${EMAIL_FROM}
-      BASE_URL: ${BASE_URL}
-
+      - HTTP_PORT
+      - DSN
+      - APP_SECRET
+      - RESEND_API_KEY
+      - EMAIL_FROM
+      - BASE_URL
+      - CLOUDINARY_CLOUD_NAME
+      - CLOUDINARY_API_KEY
+      - CLOUDINARY_API_SECRET
   db:
     image: postgres:18
     restart: always
