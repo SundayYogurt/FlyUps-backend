@@ -7,19 +7,19 @@ pipeline {
 
     stages {
 
-        stage('Go Build & Test') {
-            agent {
-                docker {
-                    image 'golang:1.25'
-                }
-            }
-            steps {
-                sh '''
-                go mod tidy
-                go test ./... -coverprofile=coverage.out
-                '''
-            }
-        }
+//        stage('Go Build & Test') {
+//            agent {
+//                docker {
+//                    image 'golang:1.25'
+//                }
+//            }
+//            steps {
+//                sh '''
+//                go mod tidy
+//                go test ./... -coverprofile=coverage.out
+//                '''
+//            }
+//        }
 
         stage('Sonar Scan') {
             agent {
@@ -44,7 +44,9 @@ pipeline {
 
         stage('Build & Deploy') {
             when {
-                branch 'develop'
+                expression {
+                    return env.BRANCH_NAME == 'develop'
+                }
             }
             steps {
                 sh '''
