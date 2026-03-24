@@ -135,7 +135,7 @@ func (s *userService) Signup(input dto.UserSignup) (string, error) {
 				log.Printf("email panic: %v", r)
 			}
 		}()
-		verifyLink := s.Config.BaseURL + "/verify?token=" + token
+		verifyLink := strings.TrimRight(s.Config.BaseURL, "/") + "/verify?token=" + token
 
 		notificationClient := notification.NewNotificationClient(s.Config)
 
@@ -241,7 +241,7 @@ func (s *userService) ForgotPassword(email string) error {
 				log.Printf("email panic: %v", r)
 			}
 		}()
-		verifyLink := s.Config.BaseURL + "/reset-password?reset_token=" + plain
+		verifyLink := strings.TrimRight(s.Config.BaseURL, "/") + "/reset-password?reset_token=" + plain
 
 		notificationClient := notification.NewNotificationClient(s.Config)
 
