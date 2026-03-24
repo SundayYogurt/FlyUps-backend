@@ -21,31 +21,41 @@ pipeline {
 //            }
 //        }
 
-        stage('Sonar Scan') {
-            agent {
-                docker {
-                    image 'sonarsource/sonar-scanner-cli:latest'
-                }
-            }
-            steps {
-                withSonarQubeEnv('sonarcloud') {
-                    sh '''
-                    sonar-scanner \
-                      -Dsonar.projectKey=sundayyogurt_flyup \
-                      -Dsonar.organization=sundayyogurt \
-                      -Dsonar.sources=. \
-                      -Dsonar.exclusions=**/*_test.go \
-                      -Dsonar.go.coverage.reportPaths=coverage.out \
-                      -Dsonar.login=$SONAR_TOKEN
-                    '''
-                }
-            }
-        }
+//        stage('Sonar Scan') {
+//            agent {
+//                docker {
+//                    image 'sonarsource/sonar-scanner-cli:latest'
+//                }
+//            }
+//            steps {
+//                withSonarQubeEnv('sonarcloud') {
+//                    sh '''
+//                    sonar-scanner \
+//                      -Dsonar.projectKey=sundayyogurt_flyup \
+//                      -Dsonar.organization=sundayyogurt \
+//                      -Dsonar.sources=. \
+//                      -Dsonar.exclusions=**/*_test.go \
+//                      -Dsonar.go.coverage.reportPaths=coverage.out \
+//                      -Dsonar.login=$SONAR_TOKEN
+//                    '''
+//                }
+//            }
+//        }
 
         stage('Debug Branch') {
             steps {
                 sh 'echo BRANCH_NAME=$BRANCH_NAME'
                 sh 'echo GIT_BRANCH=$GIT_BRANCH'
+            }
+        }
+
+        stage('Cleanup DB Port') {
+            steps {
+                sh '''
+                # stop container เก่าถ้ามี
+                docker ps -q --filter "name=flyup-backend-db-1" | xargs -r docker stop
+                docker ps -a -q --filter "name=flyup-backend-db-1" | xargs -r docker rm
+                '''
             }
         }
 
