@@ -74,11 +74,25 @@ pipeline {
                         stage('Build & Deploy') {
                             steps {
                                 sh '''
-                                # Build ใหม่แบบไม่ใช้ cache
-                                docker compose build --no-cache
+                                # 1. พิสูจน์เรื่องไฟล์ .env (ถ้าไม่มี ให้สร้างสดๆ ตรงนี้เลย)
+                                if [ ! -f .env ]; then
+                                    echo "DSN=host=db user=root password=root dbname=flyup port=5432 sslmode=disable" > .env
+                                    echo "HTTP_PORT=3000" >> .env
+                                    echo "--- Created .env file because it was missing ---"
+                                fi
 
-                                # รันขึ้นมาใหม่
-                                docker compose up -d --force-recreate
+                                # 2. ล้างตัวเก่าให้สะอาด
+                                docker compose down --remove-orphans
+
+                                # 3. รันใหม่และบังคับให้รอ (The Secret Sauce)
+                                docker compose up -d --build
+
+                                echo "Waiting 10 seconds for DB to be READY (Jenkins Context)..."
+                                sleep 10
+
+                                # 4. เช็ค Log เพื่อยืนยัน
+                                docker ps -a
+                                docker logs flyup-backend-app-1
                                 '''
                             }
                         }
