@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flyup/internal/api/rest"
 	"flyup/internal/dto"
+	"flyup/internal/helper"
 	"log"
 	"net/http"
 	"strings"
@@ -18,6 +19,7 @@ import (
 type UserHandler struct {
 	svc       service.UserService
 	validator *validator.Validate
+	auth      helper.Auth
 }
 
 func SetupUserRoutes(rh *rest.RestHandler) {
@@ -25,12 +27,12 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	app := rh.App
 
 	// create an instance of user service & inject to handler
-	svc := service.UserService{
-		Repo:   repository.NewUserRepository(rh.DB),
-		URepo:  repository.NewUniversityRepository(rh.DB),
-		Auth:   rh.Auth,
-		Config: rh.Config,
-	}
+	svc := service.NewUserService(
+		repository.NewUserRepository(rh.DB),
+		repository.NewUniversityRepository(rh.DB),
+		rh.Auth,
+		rh.Config,
+	)
 
 	handler := UserHandler{
 		svc:       svc,
@@ -192,7 +194,7 @@ func (h *UserHandler) SetPassword(ctx fiber.Ctx) error {
 
 func (h *UserHandler) Me(ctx fiber.Ctx) error {
 
-	user := h.svc.Auth.GetCurrentUser(ctx)
+	user := h.auth.GetCurrentUser(ctx)
 
 	if user.ID == 0 {
 		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))

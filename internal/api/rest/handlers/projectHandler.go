@@ -12,13 +12,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
 )
 
 type ProjectHandler struct {
 	svc        service.ProjectService
-	validator  *validator.Validate
+	auth       helper.Auth
 	cloudinary *helper.CloudinaryService
 }
 
@@ -26,14 +25,13 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 
 	app := rh.App
 
-	svc := service.ProjectService{
-		Repo: repository.NewProjectRepository(rh.DB),
-		Auth: rh.Auth,
-	}
+	svc := service.NewProjectService(
+		repository.NewProjectRepository(rh.DB),
+		rh.Auth,
+	)
 
 	handler := ProjectHandler{
 		svc:        svc,
-		validator:  validator.New(),
 		cloudinary: rh.Cloudinary,
 	}
 
@@ -64,7 +62,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 
 func (h *ProjectHandler) CreateProject(ctx fiber.Ctx) error {
 
-	user := h.svc.Auth.GetCurrentUser(ctx)
+	user := h.auth.GetCurrentUser(ctx)
 	log.Println(user)
 
 	project, err := h.svc.CreateProject(user.ID)
@@ -90,7 +88,7 @@ func (h *ProjectHandler) UpdateDraft(ctx fiber.Ctx) error {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
 	}
 
-	user := h.svc.Auth.GetCurrentUser(ctx)
+	user := h.auth.GetCurrentUser(ctx)
 	log.Println(user)
 
 	err = h.svc.UpdateProjectDraft(uint(id), user.ID, req)
@@ -148,7 +146,7 @@ func (h *ProjectHandler) AddMedia(ctx fiber.Ctx) error {
 		Type: "image",
 	}
 
-	user := h.svc.Auth.GetCurrentUser(ctx)
+	user := h.auth.GetCurrentUser(ctx)
 
 	err = h.svc.AddProjectMedia(uint(id), user.ID, req)
 	if err != nil {
@@ -162,7 +160,7 @@ func (h *ProjectHandler) AddMedia(ctx fiber.Ctx) error {
 
 func (h *ProjectHandler) GetMyProjects(ctx fiber.Ctx) error {
 
-	user := h.svc.Auth.GetCurrentUser(ctx)
+	user := h.auth.GetCurrentUser(ctx)
 	log.Println(user)
 
 	projects, err := h.svc.GetProjectsByOwnerResponse(user.ID)
@@ -181,7 +179,7 @@ func (h *ProjectHandler) GetProject(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid id")
 	}
 
-	user := h.svc.Auth.GetCurrentUser(ctx)
+	user := h.auth.GetCurrentUser(ctx)
 	log.Println(user)
 
 	project, err := h.svc.GetProjectByID(uint(id), user.ID)
@@ -201,7 +199,7 @@ func (h *ProjectHandler) AddStory(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
-	user := h.svc.Auth.GetCurrentUser(ctx)
+	user := h.auth.GetCurrentUser(ctx)
 
 	err := h.svc.AddProjectStory(uint(id), user.ID, req)
 	if err != nil {
@@ -221,7 +219,7 @@ func (h *ProjectHandler) AddRisk(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
-	user := h.svc.Auth.GetCurrentUser(ctx)
+	user := h.auth.GetCurrentUser(ctx)
 
 	err := h.svc.AddProjectRisk(uint(id), user.ID, req)
 	if err != nil {
@@ -241,7 +239,7 @@ func (h *ProjectHandler) AddFAQ(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
-	user := h.svc.Auth.GetCurrentUser(ctx)
+	user := h.auth.GetCurrentUser(ctx)
 
 	err := h.svc.AddProjectFAQ(uint(id), user.ID, req)
 	if err != nil {
@@ -260,7 +258,7 @@ func (h *ProjectHandler) CreateMilestone(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
-	user := h.svc.Auth.GetCurrentUser(ctx)
+	user := h.auth.GetCurrentUser(ctx)
 
 	err := h.svc.CreateMilestone(uint(id), user.ID, req)
 	if err != nil {
@@ -280,7 +278,7 @@ func (h *ProjectHandler) SetFundingPolicy(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
-	user := h.svc.Auth.GetCurrentUser(ctx)
+	user := h.auth.GetCurrentUser(ctx)
 
 	err := h.svc.SetFundingPolicy(uint(id), user.ID, req)
 	if err != nil {
@@ -299,7 +297,7 @@ func (h *ProjectHandler) SetProfitPolicy(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
-	user := h.svc.Auth.GetCurrentUser(ctx)
+	user := h.auth.GetCurrentUser(ctx)
 
 	err := h.svc.SetProfitPolicy(uint(id), user.ID, req)
 	if err != nil {
@@ -319,7 +317,7 @@ func (h *ProjectHandler) SubmitProject(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
-	user := h.svc.Auth.GetCurrentUser(ctx)
+	user := h.auth.GetCurrentUser(ctx)
 
 	err := h.svc.SubmitProject(uint(id), user.ID, req)
 	if err != nil {
@@ -333,7 +331,7 @@ func (h *ProjectHandler) GetProjectDetail(ctx fiber.Ctx) error {
 
 	id, _ := strconv.Atoi(ctx.Params("id"))
 
-	user := h.svc.Auth.GetCurrentUser(ctx)
+	user := h.auth.GetCurrentUser(ctx)
 
 	project, err := h.svc.GetProjectDetail(uint(id), user.ID)
 	if err != nil {
@@ -347,7 +345,7 @@ func (h *ProjectHandler) PublishProject(ctx fiber.Ctx) error {
 
 	id, _ := strconv.Atoi(ctx.Params("id"))
 
-	user := h.svc.Auth.GetCurrentUser(ctx)
+	user := h.auth.GetCurrentUser(ctx)
 
 	err := h.svc.PublishProject(uint(id), user.ID)
 	if err != nil {
@@ -366,7 +364,7 @@ func (h *ProjectHandler) ValidateProject(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid project id")
 	}
 
-	user := h.svc.Auth.GetCurrentUser(ctx)
+	user := h.auth.GetCurrentUser(ctx)
 
 	res, err := h.svc.ValidateProject(uint(id), user.ID)
 	if err != nil {

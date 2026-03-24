@@ -13,12 +13,49 @@ import (
 	"gorm.io/gorm"
 )
 
-type ProjectService struct {
+type ProjectService interface {
+	CreateProject(ownerID uint) (*domain.Project, error)
+	UpdateProjectDraft(projectID uint, ownerID uint, input dto.UpdateProjectDraftRequest) error
+	AddProjectMedia(projectID uint, ownerID uint, input dto.AddProjectMediaRequest) error
+	GetProjectsByOwnerResponse(ownerID uint) ([]dto.ProjectResponse, error)
+	GetProjectByID(id uint, ownerID uint) (*domain.Project, error)
+	AddProjectStory(projectID uint, ownerID uint, input dto.AddProjectStoryRequest) error
+	AddProjectRisk(projectID uint, ownerID uint, input dto.AddProjectRiskRequest) error
+	AddProjectFAQ(projectID uint, ownerID uint, input dto.AddProjectFAQRequest) error
+	SetFundingPolicy(projectID uint, ownerID uint, input dto.SetFundingPolicyRequest) error
+	SetProfitPolicy(projectID uint, ownerID uint, input dto.SetProfitPolicyRequest) error
+	CreateMilestone(projectID uint, ownerID uint, input dto.CreateMilestoneRequest) error
+	SubmitProject(projectID uint, ownerID uint, input dto.SubmitProjectRequest) error
+	GetProjectDetail(id uint, ownerID uint) (*dto.ProjectDetailResponse, error)
+	PublishProject(projectID uint, ownerID uint) error
+	ApproveProject(projectID uint) error
+	RejectProject(projectID uint, reason string) error
+	ListProjectsForReview() ([]domain.Project, error)
+	ValidateProject(projectID uint, ownerID uint) (*dto.ProjectValidateResponse, error)
+}
+
+type projectService struct {
 	Repo repository.ProjectRepository
 	Auth helper.Auth
 }
 
-func (s *ProjectService) CreateProject(ownerID uint) (*domain.Project, error) {
+func NewProjectServiceForTest(repo repository.ProjectRepository) ProjectService {
+	return &projectService{
+		Repo: repo,
+	}
+}
+
+func NewProjectService(
+	repo repository.ProjectRepository,
+	auth helper.Auth,
+) ProjectService {
+	return &projectService{
+		Repo: repo,
+		Auth: auth,
+	}
+}
+
+func (s *projectService) CreateProject(ownerID uint) (*domain.Project, error) {
 
 	//slug, err := s.generateUniqueSlug(input.Title)
 	//if err != nil {
@@ -41,7 +78,7 @@ func (s *ProjectService) CreateProject(ownerID uint) (*domain.Project, error) {
 	return &project, nil
 }
 
-func (s *ProjectService) UpdateProjectDraft(
+func (s *projectService) UpdateProjectDraft(
 	projectID uint,
 	ownerID uint,
 	input dto.UpdateProjectDraftRequest,
@@ -85,7 +122,7 @@ func (s *ProjectService) UpdateProjectDraft(
 	return nil
 }
 
-func (s *ProjectService) AddProjectMedia(
+func (s *projectService) AddProjectMedia(
 	projectID uint,
 	ownerID uint,
 	input dto.AddProjectMediaRequest,
@@ -124,7 +161,7 @@ func (s *ProjectService) AddProjectMedia(
 	return s.Repo.CreateMedia(&media)
 }
 
-func (s *ProjectService) GetProjectsByOwnerResponse(ownerID uint) ([]dto.ProjectResponse, error) {
+func (s *projectService) GetProjectsByOwnerResponse(ownerID uint) ([]dto.ProjectResponse, error) {
 
 	projects, err := s.Repo.GetByOwner(ownerID)
 	if err != nil {
@@ -148,7 +185,7 @@ func (s *ProjectService) GetProjectsByOwnerResponse(ownerID uint) ([]dto.Project
 	return res, nil
 }
 
-func (s *ProjectService) GetProjectByID(id uint, ownerID uint) (*domain.Project, error) {
+func (s *projectService) GetProjectByID(id uint, ownerID uint) (*domain.Project, error) {
 
 	project, err := s.Repo.GetByID(id)
 	if err != nil {
@@ -162,7 +199,7 @@ func (s *ProjectService) GetProjectByID(id uint, ownerID uint) (*domain.Project,
 	return project, nil
 }
 
-func (s *ProjectService) generateUniqueSlug(title string) (string, error) {
+func (s *projectService) generateUniqueSlug(title string) (string, error) {
 
 	base := helper.GenerateSlug(title)
 	slug := base
@@ -185,7 +222,7 @@ func (s *ProjectService) generateUniqueSlug(title string) (string, error) {
 	return slug, nil
 }
 
-func (s *ProjectService) getEditableProject(projectID uint, ownerID uint) (*domain.Project, error) {
+func (s *projectService) getEditableProject(projectID uint, ownerID uint) (*domain.Project, error) {
 
 	project, err := s.Repo.GetByID(projectID)
 	if err != nil {
@@ -206,7 +243,7 @@ func (s *ProjectService) getEditableProject(projectID uint, ownerID uint) (*doma
 	return project, nil
 }
 
-func (s *ProjectService) AddProjectStory(projectID uint, ownerID uint, input dto.AddProjectStoryRequest) error {
+func (s *projectService) AddProjectStory(projectID uint, ownerID uint, input dto.AddProjectStoryRequest) error {
 
 	project, err := s.getEditableProject(projectID, ownerID)
 	if err != nil {
@@ -228,7 +265,7 @@ func (s *ProjectService) AddProjectStory(projectID uint, ownerID uint, input dto
 	return s.Repo.CreateStory(&story)
 }
 
-func (s *ProjectService) AddProjectRisk(
+func (s *projectService) AddProjectRisk(
 	projectID uint,
 	ownerID uint,
 	input dto.AddProjectRiskRequest,
@@ -256,7 +293,7 @@ func (s *ProjectService) AddProjectRisk(
 	return s.Repo.CreateRisk(&risk)
 }
 
-func (s *ProjectService) AddProjectFAQ(projectID uint, ownerID uint, input dto.AddProjectFAQRequest) error {
+func (s *projectService) AddProjectFAQ(projectID uint, ownerID uint, input dto.AddProjectFAQRequest) error {
 
 	project, err := s.getEditableProject(projectID, ownerID)
 	if err != nil {
@@ -283,7 +320,7 @@ func (s *ProjectService) AddProjectFAQ(projectID uint, ownerID uint, input dto.A
 	return nil
 }
 
-func (s *ProjectService) SetFundingPolicy(
+func (s *projectService) SetFundingPolicy(
 	projectID uint,
 	ownerID uint,
 	input dto.SetFundingPolicyRequest,
@@ -326,7 +363,7 @@ func (s *ProjectService) SetFundingPolicy(
 	return nil
 }
 
-func (s *ProjectService) SetProfitPolicy(projectID uint, ownerID uint, input dto.SetProfitPolicyRequest) error {
+func (s *projectService) SetProfitPolicy(projectID uint, ownerID uint, input dto.SetProfitPolicyRequest) error {
 
 	project, err := s.getEditableProject(projectID, ownerID)
 	if err != nil {
@@ -360,7 +397,7 @@ func (s *ProjectService) SetProfitPolicy(projectID uint, ownerID uint, input dto
 	return nil
 }
 
-func (s *ProjectService) validateMilestones(milestones []domain.Milestone) error {
+func (s *projectService) validateMilestones(milestones []domain.Milestone) error {
 
 	if len(milestones) != 4 {
 		return errors.New("project must have exactly 4 milestones")
@@ -394,7 +431,7 @@ func (s *ProjectService) validateMilestones(milestones []domain.Milestone) error
 	return nil
 }
 
-func (s *ProjectService) CreateMilestone(projectID uint, ownerID uint, input dto.CreateMilestoneRequest) error {
+func (s *projectService) CreateMilestone(projectID uint, ownerID uint, input dto.CreateMilestoneRequest) error {
 
 	project, err := s.getEditableProject(projectID, ownerID)
 	if err != nil {
@@ -432,7 +469,7 @@ func (s *ProjectService) CreateMilestone(projectID uint, ownerID uint, input dto
 	return s.Repo.CreateMilestone(&milestone)
 }
 
-func (s *ProjectService) validateProjectBeforeSubmit(projectID uint) error {
+func (s *projectService) validateProjectBeforeSubmit(projectID uint) error {
 
 	project, err := s.Repo.GetFullProject(projectID)
 	if err != nil {
@@ -491,7 +528,7 @@ func (s *ProjectService) validateProjectBeforeSubmit(projectID uint) error {
 	return nil
 }
 
-func (s *ProjectService) SubmitProject(projectID uint, ownerID uint, input dto.SubmitProjectRequest) error {
+func (s *projectService) SubmitProject(projectID uint, ownerID uint, input dto.SubmitProjectRequest) error {
 
 	if !input.Confirm {
 		return errors.New("confirmation required")
@@ -523,7 +560,7 @@ func (s *ProjectService) SubmitProject(projectID uint, ownerID uint, input dto.S
 	return nil
 }
 
-func (s *ProjectService) GetProjectDetail(id uint, ownerID uint) (*dto.ProjectDetailResponse, error) {
+func (s *projectService) GetProjectDetail(id uint, ownerID uint) (*dto.ProjectDetailResponse, error) {
 
 	project, err := s.Repo.GetFullProject(id)
 	if err != nil {
@@ -632,7 +669,7 @@ func (s *ProjectService) GetProjectDetail(id uint, ownerID uint) (*dto.ProjectDe
 	return &res, nil
 }
 
-func (s *ProjectService) PublishProject(projectID uint, ownerID uint) error {
+func (s *projectService) PublishProject(projectID uint, ownerID uint) error {
 
 	project, err := s.Repo.GetByID(projectID)
 	if err != nil {
@@ -661,7 +698,7 @@ func (s *ProjectService) PublishProject(projectID uint, ownerID uint) error {
 	return nil
 }
 
-func (s *ProjectService) ApproveProject(projectID uint) error {
+func (s *projectService) ApproveProject(projectID uint) error {
 
 	project, err := s.Repo.GetByID(projectID)
 	if err != nil {
@@ -685,7 +722,7 @@ func (s *ProjectService) ApproveProject(projectID uint) error {
 	return nil
 }
 
-func (s *ProjectService) RejectProject(projectID uint, reason string) error {
+func (s *projectService) RejectProject(projectID uint, reason string) error {
 
 	project, err := s.Repo.GetByID(projectID)
 	if err != nil {
@@ -710,7 +747,7 @@ func (s *ProjectService) RejectProject(projectID uint, reason string) error {
 	return nil
 }
 
-func (s *ProjectService) ListProjectsForReview() ([]domain.Project, error) {
+func (s *projectService) ListProjectsForReview() ([]domain.Project, error) {
 
 	projects, err := s.Repo.GetProjectsForReview()
 	if err != nil {
@@ -720,7 +757,7 @@ func (s *ProjectService) ListProjectsForReview() ([]domain.Project, error) {
 	return projects, nil
 }
 
-func (s *ProjectService) ValidateProject(projectID uint, ownerID uint) (*dto.ProjectValidateResponse, error) {
+func (s *projectService) ValidateProject(projectID uint, ownerID uint) (*dto.ProjectValidateResponse, error) {
 
 	project, err := s.Repo.GetFullProject(projectID)
 	if err != nil {

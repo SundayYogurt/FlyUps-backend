@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'golang:1.25.3'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
+    agent any
 
     environment {
         SONAR_TOKEN = credentials('SonarQubeTokens')
@@ -56,17 +51,14 @@ pipeline {
         stage('Build & Deploy') {
             when {
                 expression {
-                      return env.GIT_BRANCH == 'origin/develop' || env.GIT_BRANCH == 'develop'
-                            }
-                      }
+                    return env.GIT_BRANCH == 'origin/develop' || env.GIT_BRANCH == 'develop'
+                }
+            }
             steps {
                 sh '''
-                        apt-get update
-                        apt-get install -y docker.io docker-compose
-
-                        docker compose down
-                        docker compose up -d --build
-                        '''
+                docker compose down
+                docker compose up -d --build
+                '''
             }
         }
     }

@@ -17,14 +17,37 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserService struct {
+type UserService interface {
+	Signup(input dto.UserSignup) (string, error)
+	Signin(email string, password string) (string, error)
+	VerifyEmail(input dto.VerifyEmailRequest) (string, error)
+	ForgotPassword(email string) error
+	SetPassword(token string, newPassword string) error
+	GetProfile(userID uint) (*domain.User, error)
+}
+
+type userService struct {
 	Repo   repository.UserRepository
 	URepo  repository.UniversityRepository
-	Auth   helper.Auth
+	Auth   helper.AuthService
 	Config config.AppConfig
 }
 
-func (s *UserService) Signup(input dto.UserSignup) (string, error) {
+func NewUserService(
+	repo repository.UserRepository,
+	urepo repository.UniversityRepository,
+	auth helper.AuthService,
+	cfg config.AppConfig,
+) UserService {
+	return &userService{
+		Repo:   repo,
+		URepo:  urepo,
+		Auth:   auth,
+		Config: cfg,
+	}
+}
+
+func (s *userService) Signup(input dto.UserSignup) (string, error) {
 	// ตรวจสอบ Password และ Hash
 	hPassword, err := s.Auth.CreateHashedPassword(input.Password)
 	if err != nil {
@@ -125,7 +148,7 @@ func (s *UserService) Signup(input dto.UserSignup) (string, error) {
 	return "registration successful, please verify your email", nil
 }
 
-func (s *UserService) VerifyEmail(input dto.VerifyEmailRequest) (string, error) {
+func (s *userService) VerifyEmail(input dto.VerifyEmailRequest) (string, error) {
 
 	user, err := s.Repo.FindUserByVerificationToken(input.Token)
 	if err != nil {
@@ -160,14 +183,14 @@ func (s *UserService) VerifyEmail(input dto.VerifyEmailRequest) (string, error) 
 	return "email verified successfully", nil
 }
 
-func (s *UserService) findUserByEmail(email string) (*domain.User, error) {
+func (s *userService) findUserByEmail(email string) (*domain.User, error) {
 	//perform some db operation
 	//business logic
 	user, err := s.Repo.FindUser(email)
 	return user, err
 }
 
-func (s *UserService) Signin(email string, password string) (string, error) {
+func (s *userService) Signin(email string, password string) (string, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	user, err := s.Repo.FindUser(email)
 	if err != nil {
@@ -188,7 +211,7 @@ func (s *UserService) Signin(email string, password string) (string, error) {
 	return s.Auth.GenerateToken(user.ID, user.Email, user.Role)
 }
 
-func (s *UserService) ForgotPassword(email string) error {
+func (s *userService) ForgotPassword(email string) error {
 	email = strings.TrimSpace(strings.ToLower(email))
 
 	user, err := s.Repo.FindUser(email)
@@ -231,7 +254,7 @@ func (s *UserService) ForgotPassword(email string) error {
 	return nil
 }
 
-func (s *UserService) SetPassword(token string, newPassword string) error {
+func (s *userService) SetPassword(token string, newPassword string) error {
 
 	newPassword = strings.TrimSpace(newPassword)
 	token = strings.TrimSpace(token)
@@ -293,7 +316,7 @@ func (s *UserService) SetPassword(token string, newPassword string) error {
 	return s.Repo.UpdateUser(user)
 }
 
-func (s *UserService) GetProfile(userID uint) (*domain.User, error) {
+func (s *userService) GetProfile(userID uint) (*domain.User, error) {
 	if userID == 0 {
 		return nil, errors.New("invalid user id")
 	}
