@@ -6,98 +6,60 @@ pipeline {
     }
 
     stages {
+        stage('Check Go') {
+            steps {
+                sh 'go version'
+            }
+        }
 
-//        stage('Go Build & Test') {
-//            agent {
-//                docker {
-//                    image 'golang:1.25'
-//                }
-//            }
-//            steps {
-//                sh '''
-//                go mod tidy
-//                go test ./... -coverprofile=coverage.out
-//                '''
-//            }
-//        }
+        stage('Install') {
+            steps {
+                sh 'go mod tidy'
+            }
+        }
 
-//        stage('Sonar Scan') {
-//            agent {
-//                docker {
-//                    image 'sonarsource/sonar-scanner-cli:latest'
-//                }
-//            }
-//            steps {
-//                withSonarQubeEnv('sonarcloud') {
-//                    sh '''
-//                    sonar-scanner \
-//                      -Dsonar.projectKey=sundayyogurt_flyup \
-//                      -Dsonar.organization=sundayyogurt \
-//                      -Dsonar.sources=. \
-//                      -Dsonar.exclusions=**/*_test.go \
-//                      -Dsonar.go.coverage.reportPaths=coverage.out \
-//                      -Dsonar.login=$SONAR_TOKEN
-//                    '''
-//                }
-//            }
-//        }
+        stage('Test & Coverage') {
+            steps {
+                sh 'go test ./... -coverprofile=coverage.out'
+            }
+        }
 
-                        stage('Debug Branch') {
-                            steps {
-                                sh 'echo BRANCH_NAME=$BRANCH_NAME'
-                                sh 'echo GIT_BRANCH=$GIT_BRANCH'
-                            }
-                        }
+        stage('Sonar Scan') {
+            steps {
+                withSonarQubeEnv('sonarcloud') {
+                    sh '''
+                    rm -rf sonar-scanner*
 
-                        stage('Force Cleanup Port 5434') {
-                            steps {
-                                sh '''
-                                echo "--- Starting Aggressive Cleanup ---"
+                    apt-get update
+                    apt-get install -y curl unzip
 
-                                # 1. หยุดและลบทุก Container ที่ใช้ Port 5434 (ไม่สนชื่อโปรเจกต์)
-                                # คำสั่งนี้จะหา Container ID ที่ Map พอร์ต 5434 แล้วสั่งลบทิ้งทันที
-                                docker ps -q --filter "publish=5434" | xargs -r docker rm -f || true
+                    curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+                    unzip sonar-scanner.zip
 
-                                # 2. กวาดล้าง Container ที่ชื่อมีคำว่า flyup (ป้องกันเรื่องชื่อมี s หรือไม่มี s)
-                                docker ps -aq --filter "name=flyup" | xargs -r docker rm -f || true
-
-                                # 3. ใช้ docker compose down ตามปกติเพื่อล้าง Network
-                                docker compose down --remove-orphans || true
-
-                                # 4. ตรวจสอบพอร์ตด้วยคำสั่งพื้นฐาน (เผื่อมี process นอก docker)
-                                # ใช้ fuser หรือแก้ด้วยการเช็คผ่าน /proc ถ้า lsof ไม่มี
-                                (ss -lntp | grep :5434 | awk -F, '{print $2}' | awk -F= '{print $2}' | xargs -r kill -9) || true
-                                '''
-                            }
-                        }
-
-                        stage('Build & Deploy') {
-                            steps {
-                                sh '''
-                                # 1. สร้างไฟล์ .env สดๆ ไว้ใน Workspace (วิธีนี้ปลอดภัยและ Jenkins เห็นแน่นอน)
-                                echo "DSN=host=db user=root password=root dbname=flyup port=5432 sslmode=disable" > .env
-                                echo "HTTP_PORT=3000" >> .env
-                                echo "APP_SECRET=flyup-secret-key" >> .env
-                                echo "BASE_URL=http://localhost:5173" >> .env
-                                # ใส่ตัวแปร Cloudinary ที่แอปต้องการ (สำคัญมาก!)
-                                echo "CLOUDINARY_CLOUD_NAME=your_name" >> .env
-                                echo "CLOUDINARY_API_KEY=your_key" >> .env
-                                echo "CLOUDINARY_API_SECRET=your_secret" >> .env
-
-                                # 2. ตรวจสอบว่าไฟล์ถูกสร้างจริงไหม
-                                ls -la .env
-
-                                # 3. รัน Docker Compose (เขียนแยกบรรทัดแบบนี้ Shell จะไม่งง)
-                                docker compose down --remove-orphans
-                                docker compose up -d --build --force-recreate
-
-                                # 4. รอให้ DB พร้อมแล้วเช็ค Log
-                                echo "Waiting for app to start..."
-                                sleep 8
-                                docker ps -a
-                                docker logs flyup-backend-app-1
-                                '''
-                            }
-                        }
-                    }
+                    ./sonar-scanner-*/bin/sonar-scanner \
+                      -Dsonar.projectKey=sundayyogurt_flyup \
+                      -Dsonar.organization=sundayyogurt \
+                      -Dsonar.sources=. \
+                      -Dsonar.exclusions=**/*_test.go \
+                      -Dsonar.go.coverage.reportPaths=coverage.out \
+                      -Dsonar.login=$SONAR_TOKEN
+                    '''
                 }
+            }
+        }
+
+        stage('Build & Deploy') {
+            when {
+                expression {
+                    return env.GIT_BRANCH == 'origin/develop' || env.GIT_BRANCH == 'develop'
+                }
+            }
+            steps {
+                sh '''
+                docker compose down
+                docker compose up -d --build
+                '''
+            }
+        }
+    }
+}
