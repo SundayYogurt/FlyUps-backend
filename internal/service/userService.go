@@ -92,6 +92,7 @@ func (s *userService) Signup(input dto.UserSignup) (string, error) {
 			return "", errors.New("this university is not active")
 		}
 	}
+
 	token, err := s.Auth.GenerateCode() // จะได้ string ยาว 32 ตัวอักษร
 	if err != nil {
 		return "", errors.New("internal server error")
