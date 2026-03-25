@@ -36,19 +36,6 @@ func StartServer(cfg config.AppConfig) {
 		&domain.StudentProfile{},
 
 		// project
-		&domain.Project{},
-		&domain.ProjectCategory{},
-		&domain.ProjectMedia{},
-		&domain.ProjectStorySection{},
-		&domain.ProjectRisk{},
-		&domain.ProjectFAQ{},
-		&domain.ProjectFundingPolicy{},
-		&domain.ProjectProfitPolicy{},
-
-		// milestone
-		&domain.Milestone{},
-		&domain.MilestoneSubmission{},
-		&domain.MilestoneEvidence{},
 	)
 
 	if err != nil {

@@ -1,0 +1,3 @@
+spawn ssh -o StrictHostKeyChecking=no root@178.128.209.121 "cat /etc/flyup/.env"
+expect "*assword:*" { send "Flyup@2026Server\r" }
+expect eof
