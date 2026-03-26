@@ -36,7 +36,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 
 	handler := UserHandler{
 		svc:       svc,
-		validator: validator.New(),
+		validator: rh.Validator,
 	}
 
 	pubRoutes := app.Group("/")

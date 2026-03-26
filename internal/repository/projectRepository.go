@@ -19,10 +19,25 @@ type ProjectRepository interface {
 	UpdateCategory(category *domain.ProjectCategory) (*domain.ProjectCategory, error)
 	DeleteCategory(category *domain.ProjectCategory) error
 	CountProjectsByCategoryID(categoryID uint) (int64, error)
+	CreateProjectMedia(media *domain.ProjectMedia) error
 }
 
 type projectRepository struct {
 	db *gorm.DB
+}
+
+func (p *projectRepository) CreateProjectMedia(media *domain.ProjectMedia) error {
+	var lastSortOrder int
+	p.db.Model(&domain.ProjectMedia{}).Where("project_id = ?", media.ProjectID).Select("COALESCE(MAX(project_id), 0)").Scan(&lastSortOrder)
+
+	if media.SortOrder == 0 {
+		media.SortOrder = lastSortOrder + 1
+	}
+
+	if err := p.db.Create(media).Error; err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *projectRepository) CountProjectsByCategoryID(categoryID uint) (int64, error) {
