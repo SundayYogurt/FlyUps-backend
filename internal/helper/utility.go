@@ -144,10 +144,13 @@ func GetMilestonePercent(phase int) int {
 	case 4:
 		return 35
 	default:
-		return 0
+		panic("invalid milestone phase")
 	}
 }
 
 func CalculateMinInvest(goal float64) float64 {
+	if goal <= 0 {
+		return 0
+	}
 	return goal * 0.01
 }

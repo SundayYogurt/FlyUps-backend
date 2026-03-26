@@ -4,7 +4,6 @@ import (
 	"flyup/config"
 	"flyup/internal/api/rest"
 	"flyup/internal/api/rest/handlers"
-	"flyup/internal/database/seeder"
 	"flyup/internal/domain"
 	"flyup/internal/helper"
 	"flyup/pkg/notification"
@@ -36,19 +35,23 @@ func StartServer(cfg config.AppConfig) {
 		&domain.StudentProfile{},
 
 		// project
+		&domain.Project{},
+		&domain.ProjectMedia{},
+		&domain.StorySection{},
+		&domain.ProjectFAQ{},
+		&domain.Milestone{},
+		&domain.ProjectInvestment{},
+		&domain.ProjectUpdate{},
+		&domain.ProjectThread{},
+		&domain.ProjectThreadMessage{},
+		&domain.ProjectCategory{},
 	)
 
 	if err != nil {
-		log.Fatalf("error on runing migration %v", err.Error())
+		log.Fatalf("error on running migration %v", err.Error())
 	}
 
 	log.Println("migration was successful")
-
-	// run seeders
-	err = seeder.SeedProjectCategories(db)
-	if err != nil {
-		log.Fatalf("error running seeders %v", err)
-	}
 
 	// cors configuration
 	c := cors.New(cors.Config{

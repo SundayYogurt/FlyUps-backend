@@ -67,6 +67,34 @@ func (m Middleware) AuthorizePioneer(ctx fiber.Ctx) error {
 	return ctx.Next()
 }
 
+func (m Middleware) AuthorizeAdmin(ctx fiber.Ctx) error {
+
+	token := m.extractToken(ctx)
+
+	if token == "" {
+		return ctx.Status(401).JSON(fiber.Map{
+			"message": "authorization token missing",
+		})
+	}
+
+	user, err := m.Auth.VerifyToken(token)
+	if err != nil {
+		return ctx.Status(401).JSON(fiber.Map{
+			"message": "authorization failed",
+		})
+	}
+
+	if user.Role != "admin" {
+		return ctx.Status(403).JSON(fiber.Map{
+			"message": "access denied",
+		})
+	}
+
+	ctx.Locals("user", user)
+
+	return ctx.Next()
+}
+
 func (m Middleware) extractToken(ctx fiber.Ctx) string {
 
 	authHeader := ctx.Get("Authorization")
