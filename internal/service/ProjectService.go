@@ -3,7 +3,10 @@ package service
 import (
 	"errors"
 	"flyup/internal/domain"
+	"flyup/internal/helper"
 	"flyup/internal/repository"
+	"mime/multipart"
+	"strings"
 )
 
 type ProjectService interface {
@@ -12,7 +15,7 @@ type ProjectService interface {
 	GetMyProjects(id uint) ([]domain.Project, error)
 	GetPublicProjectByID(id uint) (*domain.Project, error)
 	GetOwnerProjectByID(id uint, ownerID uint) (*domain.Project, error)
-	AddProjectMedia(projectID uint, media *domain.ProjectMedia) error
+	AddProjectMedia(projectID uint, file multipart.File, fileHeader *multipart.FileHeader, media *domain.ProjectMedia) error
 	UpdateStorySection(sectionID uint, data *domain.StorySection) error
 	AddProjectFAQ(projectID uint, faq *domain.ProjectFAQ) error
 	UpdateMilestone(milestoneID uint, data *domain.Milestone) error
@@ -29,11 +32,13 @@ type ProjectService interface {
 
 type projectService struct {
 	projectRepo repository.ProjectRepository
+	cld         *helper.CloudinaryService
 }
 
-func NewProjectService(projectRepo repository.ProjectRepository) ProjectService {
+func NewProjectService(projectRepo repository.ProjectRepository, cld *helper.CloudinaryService) ProjectService {
 	return &projectService{
 		projectRepo: projectRepo,
+		cld:         cld,
 	}
 }
 
@@ -137,9 +142,29 @@ func (p *projectService) UpdateProject(projectID uint, data *domain.Project) (*d
 	return p.projectRepo.UpdateProject(project)
 }
 
-func (p *projectService) AddProjectMedia(projectID uint, media *domain.ProjectMedia) error {
-	//TODO implement me
-	panic("implement me")
+func (p *projectService) AddProjectMedia(projectID uint, file multipart.File, fileHeader *multipart.FileHeader, media *domain.ProjectMedia) error {
+	var url string
+	var err error
+
+	// เช็คประเภทไฟล์จาก Content-Type
+	contentType := fileHeader.Header.Get("Content-Type")
+
+	if strings.HasPrefix(contentType, "video/") {
+		url, err = p.cld.UploadVideo(file)
+		media.Type = "video"
+	} else {
+		url, err = p.cld.UploadImage(file)
+		media.Type = "image"
+	}
+
+	if err != nil {
+		return err
+	}
+
+	media.ProjectID = projectID
+	media.URL = url
+
+	return p.projectRepo.CreateProjectMedia(media)
 }
 
 func (p *projectService) UpdateStorySection(sectionID uint, data *domain.StorySection) error {

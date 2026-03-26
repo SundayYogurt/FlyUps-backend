@@ -36,3 +36,18 @@ func (c *CloudinaryService) UploadImage(file multipart.File) (string, error) {
 
 	return res.SecureURL, nil
 }
+
+func (c *CloudinaryService) UploadVideo(file multipart.File) (string, error) {
+	ctx := context.Background()
+
+	res, err := c.cld.Upload.Upload(ctx, file, uploader.UploadParams{
+		Folder:       "flyup/projects/videos",
+		ResourceType: "video", // ต้องระบุว่าเป็น video
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return res.SecureURL, nil
+}
