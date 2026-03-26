@@ -135,7 +135,7 @@ func (h *ProjectHandler) UpdateCategory(ctx fiber.Ctx) error {
 	}
 
 	if err := h.validator.Struct(body); err != nil {
-		return rest.BadRequestError(ctx, "ชcategory name must be 2-50 characters long")
+		return rest.BadRequestError(ctx, "category name must be 2-50 characters long")
 	}
 
 	// เรียก Service อัปเดต
@@ -201,11 +201,16 @@ func (h *ProjectHandler) UpdateProject(ctx fiber.Ctx) error {
 
 	// parse request body
 	var body struct {
-		Title       *string `json:"title"`
-		Description *string `json:"description"`
-		CategoryID  *uint   `json:"category_id"`
-		Visibility  *string `json:"visibility"`
+		Title           *string  `json:"title"`
+		Description     *string  `json:"description"`
+		CategoryID      *uint    `json:"category_id"`
+		Visibility      *string  `json:"visibility"`
+		FundingGoal     *float64 `json:"funding_goal"`
+		ProfitSharePct  *float64 `json:"profit_share_pct"`
+		MinInvestAmount *float64 `json:"min_invest_amount"`
+		MaxInvestAmount *float64 `json:"max_invest_amount"`
 	}
+
 	if err := ctx.Bind().Body(&body); err != nil {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
@@ -219,6 +224,18 @@ func (h *ProjectHandler) UpdateProject(ctx fiber.Ctx) error {
 	}
 	if body.CategoryID != nil {
 		updateData.CategoryID = body.CategoryID
+	}
+	if body.FundingGoal != nil {
+		updateData.FundingGoal = *body.FundingGoal
+	}
+	if body.ProfitSharePct != nil {
+		updateData.ProfitSharePct = *body.ProfitSharePct
+	}
+	if body.MinInvestAmount != nil {
+		updateData.MinInvestAmount = *body.MinInvestAmount
+	}
+	if body.MaxInvestAmount != nil {
+		updateData.MaxInvestAmount = *body.MaxInvestAmount
 	}
 	if body.Visibility != nil {
 		switch *body.Visibility {
@@ -288,12 +305,11 @@ func (h *ProjectHandler) CreateProject(ctx fiber.Ctx) error {
 		Category:    category,
 		Title:       proj.Title,
 		Description: proj.Description,
-
-		State:      string(proj.State),
-		Status:     string(proj.Status),
-		Visibility: string(proj.Visibility),
-
+		State:       string(proj.State),
+		Status:      string(proj.Status),
+		Visibility:  string(proj.Visibility),
 		FundingGoal: proj.FundingGoal,
+		PlatformFee: proj.PlatformFee,
 		CreatedAt:   proj.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:   proj.UpdatedAt.Format(time.RFC3339),
 	}
@@ -361,23 +377,25 @@ func (h *ProjectHandler) GetPublicProjectByID(ctx fiber.Ctx) error {
 
 func toProjectResponse(proj *domain.Project) dto.ProjectResponse {
 	var category *string
-
 	if proj.Category != nil {
 		c := proj.Category.Name
 		category = &c
 	}
 
 	return dto.ProjectResponse{
-		ID:          proj.ID,
-		OwnerUserID: proj.OwnerUserID,
-		Category:    category,
-		Title:       proj.Title,
-		Description: proj.Description,
-		State:       string(proj.State),
-		Status:      string(proj.Status),
-		Visibility:  string(proj.Visibility),
-		FundingGoal: proj.FundingGoal,
-		CreatedAt:   proj.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:   proj.UpdatedAt.Format(time.RFC3339),
+		ID:              proj.ID,
+		OwnerUserID:     proj.OwnerUserID,
+		Category:        category,
+		Title:           proj.Title,
+		Description:     proj.Description,
+		State:           string(proj.State),
+		Status:          string(proj.Status),
+		Visibility:      string(proj.Visibility),
+		FundingGoal:     proj.FundingGoal,
+		ProfitSharePct:  proj.ProfitSharePct,
+		MinInvestAmount: proj.MinInvestAmount,
+		MaxInvestAmount: proj.MaxInvestAmount,
+		CreatedAt:       proj.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:       proj.UpdatedAt.Format(time.RFC3339),
 	}
 }

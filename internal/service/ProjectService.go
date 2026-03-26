@@ -123,20 +123,35 @@ func (p *projectService) UpdateProject(projectID uint, data *domain.Project) (*d
 		return nil, err
 	}
 
-	// update fields
 	if data.Title != "" {
 		project.Title = data.Title
 	}
 	if data.Description != nil {
 		project.Description = data.Description
 	}
-	if data.Category != nil {
+	if data.CategoryID != nil {
 		project.CategoryID = data.CategoryID
-		project.Category = nil
 	}
-
 	if data.Visibility != "" {
 		project.Visibility = data.Visibility
+	}
+
+	if data.FundingGoal > 0 {
+		project.FundingGoal = data.FundingGoal
+	}
+	if data.ProfitSharePct > 0 {
+		project.ProfitSharePct = data.ProfitSharePct
+	}
+	if data.MinInvestAmount > 0 {
+		project.MinInvestAmount = data.MinInvestAmount
+	}
+	if data.MaxInvestAmount > 0 {
+		project.MaxInvestAmount = data.MaxInvestAmount
+	}
+
+	// Platform Fee ปกติระบบจะเป็นคนคำนวณ แต่อัปเดตได้ถ้าแอดมินสั่ง
+	if data.PlatformFee > 0 {
+		project.PlatformFee = data.PlatformFee
 	}
 
 	return p.projectRepo.UpdateProject(project)
@@ -199,12 +214,15 @@ func (p *projectService) CreateProject(ownerID uint) (*domain.Project, error) {
 
 	project := &domain.Project{
 		OwnerUserID: ownerID,
-
-		// default สำหรับ draft
-		State:      domain.StateDraft,
-		Status:     domain.StatusActive,
-		Visibility: domain.VisibilityPrivate,
-		Title:      "Untitled Project", // กัน null
+		State:       domain.StateDraft,
+		Status:      domain.StatusActive,
+		Visibility:  domain.VisibilityPrivate,
+		Title:       "Untitled Project",
+		// ตั้งค่าเริ่มต้น (Optional)
+		FundingGoal:     0,
+		ProfitSharePct:  0,
+		MinInvestAmount: 100, // ตัวอย่าง: ขั้นต่ำ 100 บาท
+		PlatformFee:     5.0,
 	}
 
 	return p.projectRepo.CreateProject(project)
