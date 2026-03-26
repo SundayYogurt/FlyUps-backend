@@ -34,16 +34,20 @@ const (
 )
 
 type Project struct {
-	ID          uint              `json:"id"`
-	OwnerUserID uint              `json:"owner_user_id"`
-	CategoryID  *uint             `json:"category_id,omitempty"`
-	Category    *ProjectCategory  `json:"category,omitempty"`
-	Title       string            `json:"title"`
-	Description *string           `json:"description,omitempty"`
-	State       ProjectState      `json:"state"`
-	Status      ProjectStatus     `json:"status"`
-	Visibility  ProjectVisibility `json:"visibility"`
-	FundingGoal float64           `json:"funding_goal"`
+	ID              uint              `json:"id"`
+	OwnerUserID     uint              `json:"owner_user_id"`
+	CategoryID      *uint             `json:"category_id,omitempty"`
+	Category        *ProjectCategory  `json:"category,omitempty"`
+	Title           string            `json:"title"`
+	Description     *string           `json:"description,omitempty"`
+	State           ProjectState      `json:"state"`
+	Status          ProjectStatus     `json:"status"`
+	Visibility      ProjectVisibility `json:"visibility"`
+	FundingGoal     float64           `json:"funding_goal"`
+	ProfitSharePct  float64           `json:"profit_share_pct"`
+	MinInvestAmount float64           `json:"min_invest_amount"`
+	MaxInvestAmount float64           `json:"max_invest_amount"`
+	PlatformFee     float64           `json:"platform_fee"`
 	gorm.Model
 }
 
