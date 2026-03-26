@@ -1,8 +1,0 @@
-spawn ssh -o StrictHostKeyChecking=no root@178.128.209.121 "docker stop flyup-backend-app-1 flyups-backend-app-1 flyup_backend-app-1 flyup-backend-db-1 flyups-backend-db-1 flyup_backend-db-1 2>/dev/null; docker rm flyup-backend-app-1 flyups-backend-app-1 flyup_backend-app-1 flyup-backend-db-1 flyups-backend-db-1 flyup_backend-db-1 2>/dev/null; docker ps"
-expect "*assword:*"
-send "Flyup@2026Server\r"
-expect "*?ontinue*" {
-    send "yes\r"
-    exp_continue
-}
-expect eof
