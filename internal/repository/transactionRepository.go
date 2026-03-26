@@ -6,6 +6,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// interface
+
 type TransactionRepository interface {
 	Create(txn *domain.Transaction) error
 }
