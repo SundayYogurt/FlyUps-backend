@@ -6,6 +6,7 @@ import (
 	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/helper"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"time"
@@ -29,11 +30,12 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 
 	svc := service.NewProjectService(
 		repository.NewProjectRepository(rh.DB),
+		rh.Cloudinary,
 	)
 
 	handler := ProjectHandler{
 		svc:       svc,
-		validator: validator.New(),
+		validator: rh.Validator,
 		auth:      rh.Auth,
 	}
 
@@ -51,12 +53,45 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	priv.Get("/", handler.GetMyProjects)
 	priv.Get("/:id", handler.GetMyProjectByID)
 	priv.Patch("/:id", handler.UpdateProject)
+	priv.Post("/:id/media", handler.AddProjectMedia)
 
 	// Admin
 	admin := app.Group("/admin/categories", rh.Middlewares.AuthorizeAdmin)
 	admin.Post("/", handler.CreateCategory)
 	admin.Put("/:id", handler.UpdateCategory)
 	admin.Delete("/:id", handler.DeleteCategory)
+}
+
+func (h *ProjectHandler) AddProjectMedia(ctx fiber.Ctx) error {
+	id, _ := strconv.Atoi(ctx.Params("id"))
+
+	// รับไฟล์ (ใช้ Key "file" แทน "image" เพื่อให้ครอบคลุมทั้งคู่)
+	fileHeader, err := ctx.FormFile("file")
+	if err != nil {
+		return rest.BadRequestError(ctx, "no file uploaded")
+	}
+
+	// จำกัดขนาดไฟล์ (เช่น วิดีโอห้ามเกิน 20MB)
+	if fileHeader.Size > 20*1024*1024 {
+		return rest.BadRequestError(ctx, "file size too large (max 20MB)")
+	}
+
+	file, _ := fileHeader.Open()
+	defer func(file multipart.File) {
+		err := file.Close()
+		if err != nil {
+
+		}
+	}(file)
+
+	media := &domain.ProjectMedia{}
+
+	// ส่ง fileHeader เข้าไปด้วย
+	if err := h.svc.AddProjectMedia(uint(id), file, fileHeader, media); err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "uploaded successfully", media)
 }
 
 func (h *ProjectHandler) CreateCategory(ctx fiber.Ctx) error {
