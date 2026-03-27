@@ -18,6 +18,8 @@ type AppConfig struct {
 	CloudinaryCloudName string
 	CloudinaryAPIKey    string
 	CloudinaryAPISecret string
+	StripeSecretKey     string
+	StripeWebhookSecret string
 }
 
 func SetupEnv() (cfg AppConfig, err error) {
@@ -75,6 +77,9 @@ func SetupEnv() (cfg AppConfig, err error) {
 		return AppConfig{}, errors.New("cloudinary api secret not found")
 	}
 
+	stripeSecretKey := os.Getenv("STRIPE_SECRET_KEY")
+	stripeWebhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
+
 	return AppConfig{
 		ServerPort:          httpPort,
 		Dsn:                 Dsn,
@@ -85,6 +90,8 @@ func SetupEnv() (cfg AppConfig, err error) {
 		CloudinaryCloudName: cloudName,
 		CloudinaryAPIKey:    apiKey,
 		CloudinaryAPISecret: apiSecret,
+		StripeSecretKey:     stripeSecretKey,
+		StripeWebhookSecret: stripeWebhookSecret,
 	}, nil
 
 }
