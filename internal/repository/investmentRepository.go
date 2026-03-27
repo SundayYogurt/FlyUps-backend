@@ -11,9 +11,9 @@ type InvestmentRepository interface {
 	FindByID(id uint) (*domain.Investment, error)
 	FindByReferenceNumber(ref string) (*domain.Investment, error)
 	UpdateStatus(id uint, status domain.InvestmentStatus) error
-	UpdatePaid(investment *domain.Investment) error
+	UpdatePaid(investment *domain.InvestmentStatus) error
 	ListByBoosterUserID(boosterUserID uint) ([]domain.Investment, error)
-	SumActiveByProjectID(projectID uint) (float64, error)
+	GetFundingConfig(projectID uint) (*domain.Project, error)
 }
 
 type investmentRepository struct {
@@ -54,7 +54,7 @@ func (r *investmentRepository) UpdateStatus(id uint, status domain.InvestmentSta
 	return r.db.Model(&domain.Investment{}).Where("id = ?", id).Update("status", status).Error
 }
 
-func (r *investmentRepository) UpdatePaid(investment *domain.Investment) error {
+func (r *investmentRepository) UpdatePaid(investment *domain.InvestmentStatus) error {
 	return r.db.Save(investment).Error
 }
 
@@ -66,14 +66,14 @@ func (r *investmentRepository) ListByBoosterUserID(boosterUserID uint) ([]domain
 	return inv, err
 }
 
-func (r *investmentRepository) SumActiveByProjectID(projectID uint) (float64, error) {
-	var total float64
-	err := r.db.Model(&domain.Investment{}).
-		Where("project_id = ? AND status IN ?", projectID, []string{
-			string(domain.InvestmentPending),
-			string(domain.InvestmentVerified),
-		}).
-		Select("COALESCE(SUM(total_amount), 0)").
-		Scan(&total).Error
-	return total, err
+func (r *investmentRepository) GetFundingConfig(projectID uint) (*domain.Project, error) {
+	config := &domain.Project{}
+
+	err := r.db.Where("project_id = ?", projectID).First(config).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return config, nil
 }
