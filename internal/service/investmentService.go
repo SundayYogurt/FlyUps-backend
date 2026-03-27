@@ -78,17 +78,6 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 		return nil, err
 	}
 
-	if project.FundingGoal > 0 {
-		currentTotal, err := s.investmentRepo.SumActiveByProjectID(req.ProjectID)
-		if err != nil {
-			return nil, errors.New("internal server error")
-		}
-		if currentTotal+req.Amount > project.FundingGoal {
-			remaining := project.FundingGoal - currentTotal
-			return nil, fmt.Errorf("investment exceeds funding goal, remaining ฿%.0f", remaining)
-		}
-	}
-
 	fee, vat, principal := calculateFees(req.Amount, project.PlatformFee)
 
 	refNum, err := generateReferenceNumber()
@@ -213,7 +202,7 @@ func (s *investmentService) createStripePromptPay(amount float64, refNum string,
 	return pi.NextAction.PromptPayDisplayQRCode.ImageURLPNG,
 		pi.ID,
 		pi.ClientSecret,
-		time.Now().Add(5 * time.Minute),
+		time.Now().Add(45 * time.Minute),
 		nil
 }
 
@@ -258,9 +247,8 @@ func (s *investmentService) handlePaymentFailed(intentID string) {
 // // helper functions
 
 func validateAmount(project *domain.Project, amount float64) error {
-	effectiveMin := math.Max(project.MinInvestAmount, project.FundingGoal*0.01)
-	if amount < effectiveMin {
-		return fmt.Errorf("minimum investment is ฿%.0f (1%% of funding goal)", effectiveMin)
+	if amount < project.MinInvestAmount {
+		return fmt.Errorf("minimum investment is ฿%.0f", project.MinInvestAmount)
 	}
 
 	if project.MaxInvestAmount > 0 && amount > project.MaxInvestAmount {

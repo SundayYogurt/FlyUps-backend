@@ -42,20 +42,6 @@ func SetupInvestmentRoutes(rh *rest.RestHandler) {
 	priv.Get("/:id", h.GetInvestment)
 }
 
-// GetInvestment godoc
-// @Summary      Get investment detail
-// @Description  Get a specific investment and its transaction by investment ID (booster only)
-// @Tags         Investments
-// @Accept       json
-// @Produce      json
-// @Security     BearerAuth
-// @Param        id   path      int  true  "Investment ID"
-// @Success      200  {object}  map[string]interface{}  "investment and transaction detail"
-// @Failure      400  {object}  map[string]string       "invalid investment id"
-// @Failure      401  {object}  map[string]string       "unauthorized"
-// @Failure      404  {object}  map[string]string       "investment not found"
-// @Failure      500  {object}  map[string]string       "internal server error"
-// @Router       /investments/{id} [get]
 func (h *InvestmentHandler) GetInvestment(ctx fiber.Ctx) error {
 	currentUser := h.auth.GetCurrentUser(ctx)
 	if currentUser.ID == 0 {
@@ -81,18 +67,6 @@ func (h *InvestmentHandler) GetInvestment(ctx fiber.Ctx) error {
 	})
 }
 
-// CreateInvestment godoc
-// @Summary      Create an investment
-// @Description  Create a new investment for a project and get a PromptPay QR code
-// @Tags         Investments
-// @Accept       json
-// @Produce      json
-// @Security     BearerAuth
-// @Param        body  body      dto.CreateInvestmentRequest  true  "Investment request"
-// @Success      201   {object}  dto.InvestmentResponse       "investment created with QR code"
-// @Failure      400   {object}  map[string]string            "invalid request or business rule violation"
-// @Failure      401   {object}  map[string]string            "unauthorized"
-// @Router       /investments [post]
 func (h *InvestmentHandler) CreateInvestment(ctx fiber.Ctx) error {
 	currentUser := h.auth.GetCurrentUser(ctx)
 	if currentUser.ID == 0 {
@@ -118,16 +92,6 @@ func (h *InvestmentHandler) CreateInvestment(ctx fiber.Ctx) error {
 	})
 }
 
-// ListMyInvestments godoc
-// @Summary      List my investments
-// @Description  Get all investments made by the current booster user
-// @Tags         Investments
-// @Produce      json
-// @Security     BearerAuth
-// @Success      200  {object}  map[string]interface{}  "list of investments"
-// @Failure      401  {object}  map[string]string       "unauthorized"
-// @Failure      500  {object}  map[string]string       "internal server error"
-// @Router       /investments [get]
 func (h *InvestmentHandler) ListMyInvestments(ctx fiber.Ctx) error {
 	currentUser := h.auth.GetCurrentUser(ctx)
 
@@ -143,16 +107,6 @@ func (h *InvestmentHandler) ListMyInvestments(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", investments)
 }
 
-// StripeWebhook godoc
-// @Summary      Stripe webhook
-// @Description  Endpoint for Stripe to send payment events (payment_intent.succeeded, payment_intent.payment_failed)
-// @Tags         Webhooks
-// @Accept       json
-// @Produce      json
-// @Param        Stripe-Signature  header    string  true  "Stripe webhook signature"
-// @Success      200               {object}  map[string]bool    "webhook received"
-// @Failure      400               {object}  map[string]string  "invalid signature or payload"
-// @Router       /stripe/webhook [post]
 func (h *InvestmentHandler) StripeWebhook(ctx fiber.Ctx) error {
 	sig := ctx.Get("Stripe-Signature")
 	payload := ctx.Body()
