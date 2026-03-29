@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
+	"flyup/internal/domain"
 	"fmt"
 	"regexp"
 	"strings"
@@ -133,18 +135,18 @@ func Sha256Hex(s string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func GetMilestonePercent(phase int) int {
+func GetMilestonePercent(phase int) (int, error) {
 	switch phase {
 	case 1:
-		return 15
+		return 15, nil
 	case 2:
-		return 25
+		return 25, nil
 	case 3:
-		return 25
+		return 25, nil
 	case 4:
-		return 35
+		return 35, nil
 	default:
-		panic("invalid milestone phase")
+		return 0, errors.New("invalid milestone phase")
 	}
 }
 
@@ -153,4 +155,53 @@ func CalculateMinInvest(goal float64) float64 {
 		return 0
 	}
 	return goal * 0.01
+}
+
+var stateTransitions = map[domain.ProjectState][]domain.ProjectState{
+	domain.StateDraft: {
+		domain.StatePendingReview,
+		domain.StateCancelled,
+	},
+	domain.StatePendingReview: {
+		domain.StateFunding,
+		domain.StateCancelled,
+	},
+	domain.StateFunding: {
+		domain.StateClosed,
+		domain.StateCancelled,
+	},
+	domain.StateClosed:    {},
+	domain.StateCancelled: {},
+}
+
+func IsValidStateTransition(oldState, newState domain.ProjectState) bool {
+	allowed, ok := stateTransitions[oldState]
+	if !ok {
+		return false
+	}
+
+	for _, s := range allowed {
+		if s == newState {
+			return true
+		}
+	}
+	return false
+}
+
+func IsValidStatusForState(state domain.ProjectState, status domain.ProjectStatus) bool {
+	switch state {
+	case domain.StateDraft:
+		return status == domain.StatusActive
+
+	case domain.StateFunding:
+		return status == domain.StatusActive
+
+	case domain.StateClosed:
+		return status == domain.StatusFunded || status == domain.StatusFailed
+
+	case domain.StateCancelled:
+		return status == domain.StatusCancelled
+	}
+
+	return true
 }
