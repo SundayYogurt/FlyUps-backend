@@ -1,8 +1,18 @@
+// @title           FlyUps API
+// @version         1.0
+// @description     FlyUps crowdfunding platform API
+// @host            localhost:3000
+// @BasePath        /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
 package main
 
 import (
 	"flyup/config"
 	"flyup/internal/api"
+	_ "flyup/docs"
 	"log"
 )
 
