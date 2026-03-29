@@ -1,0 +1,183 @@
+basePath: /
+definitions:
+  dto.CreateInvestmentRequest:
+    properties:
+      amount:
+        type: number
+      project_id:
+        type: integer
+    required:
+    - amount
+    - project_id
+    type: object
+  dto.InvestmentResponse:
+    properties:
+      expires_at:
+        type: string
+      investment_id:
+        type: integer
+      qr_code_image_url:
+        type: string
+      reference_number:
+        type: string
+      title:
+        type: string
+      total_amount:
+        type: number
+    type: object
+host: localhost:3000
+info:
+  contact: {}
+  description: FlyUps crowdfunding platform API
+  title: FlyUps API
+  version: "1.0"
+paths:
+  /investments:
+    get:
+      description: Get all investments made by the current booster user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: list of investments
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List my investments
+      tags:
+      - Investments
+    post:
+      consumes:
+      - application/json
+      description: Create a new investment for a project and get a PromptPay QR code
+      parameters:
+      - description: Investment request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateInvestmentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: investment created with QR code
+          schema:
+            $ref: '#/definitions/dto.InvestmentResponse'
+        "400":
+          description: invalid request or business rule violation
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create an investment
+      tags:
+      - Investments
+  /investments/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a specific investment and its transaction by investment ID
+        (booster only)
+      parameters:
+      - description: Investment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: investment and transaction detail
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid investment id
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: investment not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get investment detail
+      tags:
+      - Investments
+  /stripe/webhook:
+    post:
+      consumes:
+      - application/json
+      description: Endpoint for Stripe to send payment events (payment_intent.succeeded,
+        payment_intent.payment_failed)
+      parameters:
+      - description: Stripe webhook signature
+        in: header
+        name: Stripe-Signature
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: webhook received
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: invalid signature or payload
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Stripe webhook
+      tags:
+      - Webhooks
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

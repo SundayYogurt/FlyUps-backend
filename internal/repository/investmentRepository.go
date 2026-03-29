@@ -13,6 +13,7 @@ type InvestmentRepository interface {
 	UpdateStatus(id uint, status domain.InvestmentStatus) error
 	UpdatePaid(investment *domain.Investment) error
 	ListByBoosterUserID(boosterUserID uint) ([]domain.Investment, error)
+	SumActiveByProjectID(projectID uint) (float64, error)
 }
 
 type investmentRepository struct {
@@ -63,4 +64,16 @@ func (r *investmentRepository) ListByBoosterUserID(boosterUserID uint) ([]domain
 	err := r.db.Where("booster_user_id = ?", boosterUserID).Order("created_at desc").Find(&inv).Error
 
 	return inv, err
+}
+
+func (r *investmentRepository) SumActiveByProjectID(projectID uint) (float64, error) {
+	var total float64
+	err := r.db.Model(&domain.Investment{}).
+		Where("project_id = ? AND status IN ?", projectID, []string{
+			string(domain.InvestmentPending),
+			string(domain.InvestmentVerified),
+		}).
+		Select("COALESCE(SUM(total_amount), 0)").
+		Scan(&total).Error
+	return total, err
 }
