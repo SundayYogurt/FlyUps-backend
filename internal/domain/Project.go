@@ -40,14 +40,24 @@ type Project struct {
 	Category        *ProjectCategory  `json:"category,omitempty"`
 	Title           string            `json:"title"`
 	Description     *string           `json:"description,omitempty"`
+	Risk            *string           `json:"risk,omitempty"`
 	State           ProjectState      `json:"state"`
 	Status          ProjectStatus     `json:"status"`
 	Visibility      ProjectVisibility `json:"visibility"`
 	FundingGoal     float64           `json:"funding_goal"`
+	Softcap         float64           `json:"softcap"`
+	CurrentFunding  float64           `json:"current_funding"`
+	DurationDays    int               `json:"duration_days"`
+	EndDate         time.Time         `json:"end_date"`
 	ProfitSharePct  float64           `json:"profit_share_pct"`
 	MinInvestAmount float64           `json:"min_invest_amount"`
 	MaxInvestAmount float64           `json:"max_invest_amount"`
 	PlatformFee     float64           `json:"platform_fee"`
+	FundingAt       time.Time         `json:"funding_at"`
+	Media           []ProjectMedia    `json:"media" gorm:"foreignKey:ProjectID"`
+	Milestones      []Milestone       `json:"milestones" gorm:"foreignKey:ProjectID"`
+	Stories         []StorySection    `json:"stories" gorm:"foreignKey:ProjectID"`
+	FAQs            []ProjectFAQ      `json:"faqs" gorm:"foreignKey:ProjectID"`
 	gorm.Model
 }
 
@@ -128,13 +138,13 @@ type ProjectInvestment struct {
 }
 
 type ProjectUpdate struct {
-	ID          uint              `json:"id"`
-	ProjectID   uint              `json:"project_id"`
-	MilestoneID *uint             `json:"milestone_id,omitempty"`
-	PostedBy    uint              `json:"posted_by"`
-	Title       string            `json:"title"`
-	Body        string            `json:"body"`
-	Visibility  ProjectVisibility `json:"visibility"`
+	ID          uint              `json:"id" gorm:"primaryKey"`
+	ProjectID   uint              `json:"project_id" gorm:"index;not null"`
+	MilestoneID *uint             `json:"milestone_id,omitempty" gorm:"index"`
+	PostedBy    uint              `json:"posted_by" gorm:"not null"`
+	Title       string            `json:"title" gorm:"type:varchar(255);not null"`
+	Body        string            `json:"body" gorm:"type:text;not null"`
+	Visibility  ProjectVisibility `json:"visibility" gorm:"type:varchar(20);default:'public'"`
 	CreatedAt   time.Time         `json:"created_at"`
 	UpdatedAt   time.Time         `json:"updated_at"`
 }
@@ -154,6 +164,7 @@ type ProjectThread struct {
 	Type      string       `json:"type"`
 	CreatedBy uint         `json:"created_by"`
 	Title     *string      `json:"title,omitempty"`
+	Body      string       `json:"body"`
 	Status    ThreadStatus `json:"status"`
 	CreatedAt time.Time    `json:"created_at"`
 	UpdatedAt time.Time    `json:"updated_at"`
@@ -170,9 +181,10 @@ const (
 type ProjectThreadMessage struct {
 	ID        uint         `json:"id"`
 	ProjectID uint         `json:"project_id"`
+	ThreadID  uint         `json:"thread_id"`
 	Type      string       `json:"type"`
 	CreatedBy uint         `json:"created_by"`
-	Title     *string      `json:"title,omitempty"`
+	Body      string       `json:"body"`
 	Status    ThreadStatus `json:"status"`
 	CreatedAt time.Time    `json:"created_at"`
 	UpdatedAt time.Time    `json:"updated_at"`

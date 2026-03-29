@@ -13,8 +13,9 @@ func ErrorMessage(ctx fiber.Ctx, status int, err error) error {
 }
 
 func InternalError(ctx fiber.Ctx, err error) error {
+	// ปล่อย Error Message แบบตรงไปตรงมาเพื่อให้อ่านง่ายและ Debug สะดวก
 	return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{
-		"message": "internal server error",
+		"message": err.Error(),
 	})
 }
 
