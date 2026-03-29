@@ -91,6 +91,8 @@ func StartServer(cfg config.AppConfig) {
 	app.Use(c)
 
 	app.Get("/", HealthCheck)
+	app.Get("/swagger/doc.json", swaggerJSON)
+	app.Get("/swagger*", swaggerUI)
 
 	notificationClient := notification.NewNotificationClient(cfg)
 	auth := helper.SetupAuth(cfg.AppSecret)
@@ -136,4 +138,36 @@ func HealthCheck(ctx fiber.Ctx) error {
 	return ctx.Status(200).JSON(fiber.Map{
 		"message": "Healthy",
 	})
+}
+
+func swaggerUI(ctx fiber.Ctx) error {
+	html := `<!DOCTYPE html>
+<html>
+  <head>
+    <title>FlyUps API Docs</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script>
+      window.onload = function() {
+        SwaggerUIBundle({
+          url: "/swagger/doc.json",
+          dom_id: '#swagger-ui',
+          presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+          layout: "BaseLayout"
+        })
+      }
+    </script>
+  </body>
+</html>`
+	ctx.Set("Content-Type", "text/html")
+	return ctx.SendString(html)
+}
+
+func swaggerJSON(ctx fiber.Ctx) error {
+	return ctx.SendFile("./docs/swagger.json")
 }
