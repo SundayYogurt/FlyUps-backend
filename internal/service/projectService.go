@@ -1,13 +1,13 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/helper"
 	"flyup/internal/repository"
-	"mime/multipart"
-	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -26,14 +26,14 @@ type ProjectService interface {
 	UpdateProjectStatus(projectID uint, newState domain.ProjectState, newStatus domain.ProjectStatus, user domain.User) error
 
 	// MEDIA
-	AddProjectMedia(projectID uint, file multipart.File, fileHeader *multipart.FileHeader, media *domain.ProjectMedia, user domain.User) error
+	AttachProjectMedia(ctx context.Context, projectID uint, url string, mediaType domain.MediaType, user domain.User) error
 	GetProjectMedia(projectID uint) ([]domain.ProjectMedia, error)
-	UpdateProjectMedia(mediaID uint, data *domain.ProjectMedia, user domain.User) error
+	UpdateProjectMedia(mediaID uint, input *domain.ProjectMedia, user domain.User) error
 	DeleteProjectMedia(mediaID uint, user domain.User) error
 
 	// MILESTONE
-	CreateMilestone(projectID uint, milestone *domain.Milestone, user domain.User) error
-	UpdateMilestone(milestoneID uint, data dto.UpdateMilestoneRequest, user domain.User) error
+	CreateMilestone(projectID uint, input dto.CreateMilestoneRequest, user domain.User) (*domain.Milestone, error)
+	UpdateMilestone(milestoneID uint, input dto.UpdateMilestoneRequest, user domain.User) error
 	DeleteMilestone(milestoneID uint, user domain.User) error
 	GetProjectMilestones(projectID uint) ([]domain.Milestone, error)
 
@@ -156,16 +156,30 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 		project.Softcap = *input.Softcap
 	}
 	if input.DurationDays != nil {
+		project.DurationDays = *input.DurationDays
+	}
+	if input.DurationMonths != nil {
+		project.DurationMonths = *input.DurationMonths
+	}
 
-		if *input.DurationDays <= 0 {
-			return nil, errors.New("duration must be greater than 0")
+	if input.DurationDays != nil {
+		if *input.DurationDays <= 0 || *input.DurationDays > 60 {
+			return nil, errors.New("fundraising duration must be between 1 and 60 days")
 		}
 
-		if *input.DurationDays > 60 {
-			return nil, errors.New("duration cannot exceed 60 days")
+		if project.State == domain.StateFunding && !project.FundingAt.IsZero() {
+			// ถ้าอยู่ในสถานะ funding แล้ว ให้ขยับวันจบนับจากวันที่เริ่ม funding (ระดมทุน)
+			project.EndDate = project.FundingAt.AddDate(0, 0, project.DurationDays)
+		} else if project.State == domain.StateDraft || project.State == domain.StatePendingReview {
+			// ล้างค่า EndDate หากยังไม่ได้รับ approve
+			project.EndDate = time.Time{}
 		}
+	}
 
-		project.EndDate = time.Now().AddDate(0, 0, *input.DurationDays)
+	if input.DurationMonths != nil {
+		if *input.DurationMonths <= 0 {
+			return nil, errors.New("project duration must be greater than 0 months")
+		}
 	}
 
 	if input.ProfitSharePct != nil {
@@ -275,34 +289,22 @@ func (s *projectService) UpdateProjectStatus(projectID uint, newState domain.Pro
 }
 
 // MEDIA
-func (s *projectService) AddProjectMedia(projectID uint, file multipart.File, fileHeader *multipart.FileHeader, media *domain.ProjectMedia, user domain.User) error {
+func (s *projectService) AttachProjectMedia(ctx context.Context, projectID uint, url string, mediaType domain.MediaType, user domain.User) error {
 	project, err := s.projectRepo.FindProjectByID(projectID)
 	if err != nil {
 		return err
 	}
+
 	if project.OwnerUserID != user.ID {
 		return errors.New("permission denied")
 	}
 
-	buffer := make([]byte, 512)
-	file.Read(buffer)
-	file.Seek(0, 0)
-	contentType := http.DetectContentType(buffer)
-
-	var url string
-	if strings.HasPrefix(contentType, "video/") {
-		url, err = s.cld.UploadVideo(file)
-		media.Type = domain.MediaTypeVideo
-	} else {
-		url, err = s.cld.UploadImage(file)
-		media.Type = domain.MediaTypeImage
-	}
-	if err != nil {
-		return err
+	media := &domain.ProjectMedia{
+		ProjectID: projectID,
+		URL:       url,
+		Type:      mediaType,
 	}
 
-	media.ProjectID = projectID
-	media.URL = url
 	return s.projectRepo.CreateProjectMedia(media)
 }
 
@@ -317,7 +319,7 @@ func (s *projectService) GetProjectMedia(projectID uint) ([]domain.ProjectMedia,
 	return media, nil
 }
 
-func (s *projectService) UpdateProjectMedia(mediaID uint, data *domain.ProjectMedia, user domain.User) error {
+func (s *projectService) UpdateProjectMedia(mediaID uint, input *domain.ProjectMedia, user domain.User) error {
 	media, err := s.projectRepo.FindMediaByID(mediaID)
 	if err != nil {
 		return err
@@ -331,14 +333,14 @@ func (s *projectService) UpdateProjectMedia(mediaID uint, data *domain.ProjectMe
 		return errors.New("permission denied")
 	}
 
-	if data.URL != "" {
-		media.URL = data.URL
+	if input.URL != "" {
+		media.URL = input.URL
 	}
-	if data.Type != "" {
-		media.Type = data.Type
+	if input.Type != "" {
+		media.Type = input.Type
 	}
-	if data.SortOrder != 0 {
-		media.SortOrder = data.SortOrder
+	if input.SortOrder != 0 {
+		media.SortOrder = input.SortOrder
 	}
 
 	return s.projectRepo.UpdateProjectMedia(media)
@@ -362,49 +364,137 @@ func (s *projectService) DeleteProjectMedia(mediaID uint, user domain.User) erro
 }
 
 // MILESTONE
-func (s *projectService) CreateMilestone(projectID uint, milestone *domain.Milestone, user domain.User) error {
+func (s *projectService) CreateMilestone(projectID uint, input dto.CreateMilestoneRequest, user domain.User) (*domain.Milestone, error) {
 	project, err := s.projectRepo.FindProjectByID(projectID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if project.OwnerUserID != user.ID {
-		return errors.New("permission denied")
+		return nil, errors.New("permission denied")
 	}
 
-	// เช็คว่ามีแผนงานในโปรเจกต์นี้กี่อันแล้ว (จำกัดสูงสุด 4 เฟส)
-	existingArray, err := s.projectRepo.FindMilestonesByProjectID(projectID)
-	if err == nil && len(existingArray) >= 4 {
-		return errors.New("maximum 4 milestones allowed per project")
+	existing, err := s.projectRepo.FindMilestonesByProjectID(projectID)
+	if err != nil {
+		return nil, err
 	}
 
-	milestone.ProjectID = projectID
-	return s.projectRepo.CreateMilestone(milestone)
+	if len(existing) >= 4 {
+		return nil, errors.New("maximum 4 milestones allowed")
+	}
+
+	phaseNo := len(existing) + 1
+	percent, _ := helper.GetMilestonePercent(phaseNo)
+
+	milestone := &domain.Milestone{
+		ProjectID:      projectID,
+		PhaseNo:        phaseNo,
+		SortOrder:      phaseNo,
+		PercentRelease: percent,
+		Status:         domain.MilestoneDraft,
+	}
+
+	return milestone, s.projectRepo.CreateMilestone(milestone)
 }
 
-func (s *projectService) UpdateMilestone(milestoneID uint, data dto.UpdateMilestoneRequest, user domain.User) error {
+func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMilestoneRequest, user domain.User) error {
 	m, err := s.projectRepo.FindMilestoneByID(milestoneID)
 	if err != nil {
 		return err
 	}
+
 	project, err := s.projectRepo.FindProjectByID(m.ProjectID)
 	if err != nil {
 		return err
 	}
+
 	if project.OwnerUserID != user.ID {
 		return errors.New("permission denied")
 	}
 
-	if data.Title != nil {
-		m.Title = *data.Title
+	if input.Title != nil {
+		m.Title = *input.Title
 	}
-	if data.PhaseNo != nil {
-		m.PhaseNo = *data.PhaseNo
-		percent, err := helper.GetMilestonePercent(*data.PhaseNo)
+
+	if input.Description != nil {
+		m.Description = input.Description
+	}
+
+	if input.PhaseNo != nil {
+		if *input.PhaseNo < 1 || *input.PhaseNo > 4 {
+			return errors.New("phase must be between 1 and 4")
+		}
+
+		m.PhaseNo = *input.PhaseNo
+
+		percent, err := helper.GetMilestonePercent(*input.PhaseNo)
 		if err != nil {
 			return err
 		}
 		m.PercentRelease = percent
 	}
+
+	if input.StartDate != nil {
+		m.StartDate = input.StartDate
+	}
+
+	if input.EndDate != nil {
+		m.EndDate = input.EndDate
+	}
+
+	if input.AcceptanceCriteria != nil {
+		m.AcceptanceCriteria = input.AcceptanceCriteria
+	}
+
+	if input.URL != nil {
+		u, err := url.Parse(*input.URL)
+		if err != nil {
+			return errors.New("invalid url")
+		}
+
+		// ป้องกัน fake URL
+		if !strings.Contains(u.Host, "res.cloudinary.com") {
+			return errors.New("invalid file source")
+		}
+
+		m.URL = *input.URL
+	}
+
+	if input.Type != nil {
+		// milestone รับแค่ excel
+		if *input.Type != domain.MediaTypeRaw {
+			return errors.New("milestone supports only raw file (excel)")
+		}
+		m.Type = *input.Type
+	}
+
+	if input.SortOrder != nil {
+		m.SortOrder = *input.SortOrder
+	}
+
+	if input.Status != nil {
+		validStatuses := map[domain.MilestoneStatus]bool{
+			domain.MilestoneDraft:     true,
+			domain.MilestoneWaiting:   true,
+			domain.MilestoneActive:    true,
+			domain.MilestoneSubmitted: true,
+			domain.MilestoneApproved:  true,
+			domain.MilestoneRejected:  true,
+			domain.MilestonePaid:      true,
+		}
+
+		if !validStatuses[*input.Status] {
+			return errors.New("invalid milestone status")
+		}
+
+		m.Status = *input.Status
+	}
+
+	if m.StartDate != nil && m.EndDate != nil {
+		if m.EndDate.Before(*m.StartDate) {
+			return errors.New("end date cannot be before start date")
+		}
+	}
+
 	return s.projectRepo.UpdateMilestone(m)
 }
 
@@ -814,8 +904,11 @@ func (s *projectService) validateProjectForSubmit(project *domain.Project) error
 	if project.Softcap > project.FundingGoal {
 		return errors.New("softcap cannot be greater than funding goal")
 	}
-	if project.EndDate.IsZero() {
-		return errors.New("end date is required")
+	if project.DurationDays <= 0 {
+		return errors.New("fundraising duration days is required and must be greater than 0")
+	}
+	if project.DurationMonths <= 0 {
+		return errors.New("project duration months is required and must be greater than 0")
 	}
 	media, err := s.projectRepo.FindMediaByProjectID(project.ID)
 	if err != nil {
@@ -885,6 +978,9 @@ func (s *projectService) ApproveProject(projectID uint) error {
 		return err
 	}
 	p.FundingAt = time.Now().UTC()
+	if p.DurationDays > 0 {
+		p.EndDate = p.FundingAt.AddDate(0, 0, p.DurationDays) // ใช้คำนวณแต่วันระดมทุน
+	}
 	p.State = domain.StateFunding
 	p.Status = domain.StatusActive
 	p.Visibility = domain.VisibilityPublic

@@ -10,8 +10,9 @@ import (
 type StudentProfile struct {
 	ID             uint       `json:"id"`
 	UserID         uint       `json:"user_id"`
-	UniversityID   uint       `json:"university_id"`
-	StudentCode    *string    `json:"student_code,omitempty"`
+	UniversityID   uint        `json:"university_id"`
+	University     *University `json:"university,omitempty" gorm:"foreignKey:UniversityID"`
+	StudentCode    *string     `json:"student_code,omitempty"`
 	Faculty        *string    `json:"faculty,omitempty"`
 	Major          *string    `json:"major,omitempty"`
 	Bio            *string    `json:"bio,omitempty"`
