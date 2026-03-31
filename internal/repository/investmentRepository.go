@@ -11,9 +11,8 @@ type InvestmentRepository interface {
 	FindByID(id uint) (*domain.Investment, error)
 	FindByReferenceNumber(ref string) (*domain.Investment, error)
 	UpdateStatus(id uint, status domain.InvestmentStatus) error
-	UpdatePaid(investment *domain.InvestmentStatus) error
+	UpdatePaid(investment *domain.Investment) error
 	ListByBoosterUserID(boosterUserID uint) ([]domain.Investment, error)
-	GetFundingConfig(projectID uint) (*domain.Project, error)
 }
 
 type investmentRepository struct {
@@ -54,7 +53,7 @@ func (r *investmentRepository) UpdateStatus(id uint, status domain.InvestmentSta
 	return r.db.Model(&domain.Investment{}).Where("id = ?", id).Update("status", status).Error
 }
 
-func (r *investmentRepository) UpdatePaid(investment *domain.InvestmentStatus) error {
+func (r *investmentRepository) UpdatePaid(investment *domain.Investment) error {
 	return r.db.Save(investment).Error
 }
 
@@ -64,16 +63,4 @@ func (r *investmentRepository) ListByBoosterUserID(boosterUserID uint) ([]domain
 	err := r.db.Where("booster_user_id = ?", boosterUserID).Order("created_at desc").Find(&inv).Error
 
 	return inv, err
-}
-
-func (r *investmentRepository) GetFundingConfig(projectID uint) (*domain.Project, error) {
-	config := &domain.Project{}
-
-	err := r.db.Where("project_id = ?", projectID).First(config).Error
-
-	if err != nil {
-		return nil, err
-	}
-
-	return config, nil
 }

@@ -45,6 +45,10 @@ func StartServer(cfg config.AppConfig) {
 		&domain.ProjectThread{},
 		&domain.ProjectThreadMessage{},
 		&domain.ProjectCategory{},
+
+		// investment & payment
+		&domain.Investment{},
+		&domain.Transaction{},
 	)
 
 	if err != nil {
@@ -125,7 +129,7 @@ func setupRoutes(rh *rest.RestHandler) {
 	handlers.SetupUserRoutes(rh)
 
 	handlers.SetupProjectRoutes(rh)
-
+	handlers.SetupInvestmentRoutes(rh)
 }
 
 func HealthCheck(ctx fiber.Ctx) error {
