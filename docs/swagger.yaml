@@ -1,5 +1,43 @@
 basePath: /
 definitions:
+  domain.MediaType:
+    enum:
+    - image
+    - video
+    - raw
+    type: string
+    x-enum-varnames:
+    - MediaTypeImage
+    - MediaTypeVideo
+    - MediaTypeRaw
+  domain.MilestoneStatus:
+    enum:
+    - draft
+    - waiting
+    - active
+    - submitted
+    - approved
+    - rejected
+    - paid
+    type: string
+    x-enum-varnames:
+    - MilestoneDraft
+    - MilestoneWaiting
+    - MilestoneActive
+    - MilestoneSubmitted
+    - MilestoneApproved
+    - MilestoneRejected
+    - MilestonePaid
+  domain.ProjectVisibility:
+    enum:
+    - private
+    - public
+    - unlisted
+    type: string
+    x-enum-varnames:
+    - VisibilityPrivate
+    - VisibilityPublic
+    - VisibilityUnlisted
   dto.CreateInvestmentRequest:
     properties:
       amount:
@@ -9,6 +47,47 @@ definitions:
     required:
     - amount
     - project_id
+    type: object
+  dto.CreateMilestoneRequest:
+    properties:
+      acceptance_criteria:
+        type: string
+      description:
+        type: string
+      end_date:
+        type: string
+      phase_no:
+        type: integer
+      sortOrder:
+        type: integer
+      start_date:
+        type: string
+      status:
+        $ref: '#/definitions/domain.MilestoneStatus'
+      title:
+        type: string
+      type:
+        $ref: '#/definitions/domain.MediaType'
+      url:
+        type: string
+    type: object
+  dto.CreateProjectUpdateRequest:
+    properties:
+      content:
+        type: string
+      milestone_id:
+        type: integer
+      title:
+        type: string
+      visibility:
+        $ref: '#/definitions/domain.ProjectVisibility'
+    type: object
+  dto.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
     type: object
   dto.InvestmentResponse:
     properties:
@@ -25,6 +104,106 @@ definitions:
       total_amount:
         type: number
     type: object
+  dto.UpdateMilestoneRequest:
+    properties:
+      acceptance_criteria:
+        type: string
+      description:
+        type: string
+      end_date:
+        type: string
+      phase_no:
+        type: integer
+      sortOrder:
+        type: integer
+      start_date:
+        type: string
+      status:
+        $ref: '#/definitions/domain.MilestoneStatus'
+      title:
+        type: string
+      type:
+        $ref: '#/definitions/domain.MediaType'
+      url:
+        type: string
+    type: object
+  dto.UpdateProjectRequest:
+    properties:
+      category_id:
+        type: integer
+      description:
+        type: string
+      duration_days:
+        type: integer
+      duration_months:
+        type: integer
+      funding_goal:
+        type: number
+      max_invest_amount:
+        type: number
+      min_invest_amount:
+        type: number
+      platform_fee:
+        type: number
+      profit_share_pct:
+        type: number
+      risk:
+        type: string
+      softcap:
+        type: number
+      title:
+        type: string
+      visibility:
+        type: string
+    type: object
+  dto.UpdateProjectUpdateRequest:
+    properties:
+      content:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.UserSignin:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  dto.UserSignup:
+    properties:
+      accept_terms:
+        description: ยอมรับข้อตกลง
+        type: boolean
+      email:
+        type: string
+      first_name:
+        description: ข้อมูลส่วนตัว
+        type: string
+      last_name:
+        type: string
+      password:
+        description: รหัสผ่าน
+        minLength: 8
+        type: string
+      phone:
+        description: เบอร์โทรศัพท์ (ใน UI ไม่มีดอกจัน * แต่ใน DBML ระบุว่า not null
+          ดังนั้นควรบังคับกรอก)
+        type: string
+      role:
+        enum:
+        - pioneer
+        - booster
+        type: string
+    required:
+    - accept_terms
+    - email
+    - first_name
+    - last_name
+    - password
+    - phone
+    - role
+    type: object
 host: localhost:3000
 info:
   contact: {}
@@ -32,6 +211,218 @@ info:
   title: FlyUps API
   version: "1.0"
 paths:
+  /admin/categories:
+    post:
+      consumes:
+      - application/json
+      description: Admin creates a new project category
+      parameters:
+      - description: Category Name
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Category created
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Category
+      tags:
+      - Categories
+  /admin/categories/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Admin deletes a project category
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Category deleted
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete Category
+      tags:
+      - Categories
+    put:
+      consumes:
+      - application/json
+      description: Admin updates an existing project category
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: New Category Name
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Category updated
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Category
+      tags:
+      - Categories
+  /admin/projects/{id}/approve:
+    patch:
+      consumes:
+      - application/json
+      description: Admin approves a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project approved
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Approve Project
+      tags:
+      - Projects
+  /admin/projects/{id}/reject:
+    patch:
+      consumes:
+      - application/json
+      description: Admin rejects a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project rejected
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Reject Project
+      tags:
+      - Projects
+  /admin/projects/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Admin updates the status of a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Status Update Data
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Status updated
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Project Status
+      tags:
+      - Projects
+  /categories:
+    get:
+      consumes:
+      - application/json
+      description: Get list of all project categories
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of categories
+          schema:
+            type: object
+      summary: Get All Categories
+      tags:
+      - Categories
+  /categories/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get specific category by ID
+      parameters:
+      - description: Category ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Category details
+          schema:
+            type: object
+      summary: Get Category by ID
+      tags:
+      - Categories
+  /forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Send password reset link to user email
+      parameters:
+      - description: Forgot Password Request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Reset link sent message
+          schema:
+            type: object
+        "400":
+          description: Invalid email or user not found
+          schema:
+            type: object
+      summary: Forgot Password
+      tags:
+      - Users
   /investments:
     get:
       description: Get all investments made by the current booster user
@@ -144,6 +535,1024 @@ paths:
       summary: Get investment detail
       tags:
       - Investments
+  /pioneer/projects:
+    get:
+      consumes:
+      - application/json
+      description: Pioneer gets list of their own projects
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of projects
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List My Projects
+      tags:
+      - Projects
+    post:
+      consumes:
+      - application/json
+      description: Pioneer creates a new project outline
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Project created
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Project
+      tags:
+      - Projects
+  /pioneer/projects/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Pioneer deletes their whole project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project deleted
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete Project
+      tags:
+      - Projects
+    get:
+      consumes:
+      - application/json
+      description: Pioneer gets details of their specific project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project details
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get My Project by ID
+      tags:
+      - Projects
+    patch:
+      consumes:
+      - application/json
+      description: Pioneer updates their existing project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update Project Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project updated
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Project
+      tags:
+      - Projects
+  /pioneer/projects/{id}/close:
+    patch:
+      consumes:
+      - application/json
+      description: Pioneer or Admin closes a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project closed
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Close Project
+      tags:
+      - Projects
+  /pioneer/projects/{id}/faqs:
+    post:
+      consumes:
+      - application/json
+      description: Pioneer creates a new FAQ for their project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: FAQ Data
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: FAQ created
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Project FAQ
+      tags:
+      - Projects
+  /pioneer/projects/{id}/media:
+    get:
+      consumes:
+      - application/json
+      description: Pioneer gets their project media items
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of project media
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Project Media
+      tags:
+      - Projects
+    post:
+      consumes:
+      - application/json
+      description: Pioneer uploads media (image/video) URL to project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Media Data
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Media attached
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Attach Media to Project
+      tags:
+      - Projects
+  /pioneer/projects/{id}/milestones:
+    get:
+      consumes:
+      - application/json
+      description: Pioneer gets all milestones of a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of milestones
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Project Milestones
+      tags:
+      - Projects
+    post:
+      consumes:
+      - application/json
+      description: Pioneer adds a new milestone to their project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Milestone Data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateMilestoneRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Milestone created
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add Milestone to Project
+      tags:
+      - Projects
+  /pioneer/projects/{id}/stories:
+    get:
+      consumes:
+      - application/json
+      description: Pioneer gets all story sections of a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of stories
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Project Stories
+      tags:
+      - Projects
+    post:
+      consumes:
+      - application/json
+      description: Pioneer adds a story section to their project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Story Section Data
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Story created
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add Story Section to Project
+      tags:
+      - Projects
+  /pioneer/projects/{id}/submit:
+    patch:
+      consumes:
+      - application/json
+      description: Pioneer submits project for admin review
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project submitted
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Submit Project For Review
+      tags:
+      - Projects
+  /pioneer/projects/{id}/threads:
+    post:
+      consumes:
+      - application/json
+      description: User creates a new discussion thread for a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Thread Data
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Thread created
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Project Thread
+      tags:
+      - Projects
+  /pioneer/projects/{id}/updates:
+    post:
+      consumes:
+      - application/json
+      description: Pioneer creates a new project update
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update Data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateProjectUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Update created
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Project Update
+      tags:
+      - Projects
+  /pioneer/projects/faqs/{faq_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Pioneer deletes an existing FAQ
+      parameters:
+      - description: FAQ ID
+        in: path
+        name: faq_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: FAQ deleted
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete Project FAQ
+      tags:
+      - Projects
+    patch:
+      consumes:
+      - application/json
+      description: Pioneer updates an existing FAQ
+      parameters:
+      - description: FAQ ID
+        in: path
+        name: faq_id
+        required: true
+        type: integer
+      - description: FAQ Data
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: FAQ updated
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Project FAQ
+      tags:
+      - Projects
+  /pioneer/projects/media/{media_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Pioneer deletes a project media item
+      parameters:
+      - description: Media ID
+        in: path
+        name: media_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Media deleted
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete Project Media
+      tags:
+      - Projects
+    patch:
+      consumes:
+      - application/json
+      description: Pioneer updates a project media item
+      parameters:
+      - description: Media ID
+        in: path
+        name: media_id
+        required: true
+        type: integer
+      - description: Media Update Data
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Media updated
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Project Media
+      tags:
+      - Projects
+  /pioneer/projects/messages/{message_id}:
+    delete:
+      consumes:
+      - application/json
+      description: User deletes their project thread message
+      parameters:
+      - description: Message ID
+        in: path
+        name: message_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Message deleted
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete Project Thread Message
+      tags:
+      - Projects
+    patch:
+      consumes:
+      - application/json
+      description: User updates their project thread message
+      parameters:
+      - description: Message ID
+        in: path
+        name: message_id
+        required: true
+        type: integer
+      - description: Message Data
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Message updated
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Project Thread Message
+      tags:
+      - Projects
+  /pioneer/projects/milestones/{milestone_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Pioneer deletes a specific milestone
+      parameters:
+      - description: Milestone ID
+        in: path
+        name: milestone_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Milestone deleted
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete Project Milestone
+      tags:
+      - Projects
+    patch:
+      consumes:
+      - application/json
+      description: Pioneer updates a specific milestone
+      parameters:
+      - description: Milestone ID
+        in: path
+        name: milestone_id
+        required: true
+        type: integer
+      - description: Milestone Data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateMilestoneRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Milestone updated
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Project Milestone
+      tags:
+      - Projects
+  /pioneer/projects/stories/{story_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Pioneer deletes an existing story section
+      parameters:
+      - description: Story ID
+        in: path
+        name: story_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Story deleted
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete Story Section
+      tags:
+      - Projects
+    patch:
+      consumes:
+      - application/json
+      description: Pioneer updates an existing story section
+      parameters:
+      - description: Story ID
+        in: path
+        name: story_id
+        required: true
+        type: integer
+      - description: Story Section Data
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Story updated
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Story Section
+      tags:
+      - Projects
+  /pioneer/projects/threads/{thread_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Pioneer deletes an existing project thread
+      parameters:
+      - description: Thread ID
+        in: path
+        name: thread_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Thread deleted
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete Project Thread
+      tags:
+      - Projects
+    patch:
+      consumes:
+      - application/json
+      description: Pioneer updates an existing project thread
+      parameters:
+      - description: Thread ID
+        in: path
+        name: thread_id
+        required: true
+        type: integer
+      - description: Thread Data
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Thread updated
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Project Thread
+      tags:
+      - Projects
+  /pioneer/projects/threads/{thread_id}/messages:
+    post:
+      consumes:
+      - application/json
+      description: User replies to a project thread
+      parameters:
+      - description: Thread ID
+        in: path
+        name: thread_id
+        required: true
+        type: integer
+      - description: Message Data
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Message created
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Project Thread Message
+      tags:
+      - Projects
+  /pioneer/projects/updates/{update_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Pioneer deletes a specific project update
+      parameters:
+      - description: Update ID
+        in: path
+        name: update_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Update deleted
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete Project Update
+      tags:
+      - Projects
+    patch:
+      consumes:
+      - application/json
+      description: Pioneer modifies a specific project update
+      parameters:
+      - description: Update ID
+        in: path
+        name: update_id
+        required: true
+        type: integer
+      - description: Update Data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateProjectUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Update modified
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Modify Project Update
+      tags:
+      - Projects
+  /projects:
+    get:
+      consumes:
+      - application/json
+      description: Get list of all public/approved projects
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of public projects
+          schema:
+            type: object
+      summary: Get Public Projects
+      tags:
+      - Projects
+  /projects/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get specific public project details
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project details
+          schema:
+            type: object
+      summary: Get Public Project by ID
+      tags:
+      - Projects
+  /projects/{id}/faqs:
+    get:
+      consumes:
+      - application/json
+      description: Get public FAQs for a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of FAQs
+          schema:
+            type: object
+      summary: Get Project FAQs
+      tags:
+      - Projects
+  /projects/{id}/threads:
+    get:
+      consumes:
+      - application/json
+      description: Get public discussion threads for a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of threads
+          schema:
+            type: object
+      summary: Get Project Threads
+      tags:
+      - Projects
+  /projects/{id}/updates:
+    get:
+      consumes:
+      - application/json
+      description: Get public updates for a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of updates
+          schema:
+            type: object
+      summary: Get Project Updates
+      tags:
+      - Projects
+  /projects/category/{category_id}:
+    get:
+      consumes:
+      - application/json
+      description: Get public projects filtered by category ID
+      parameters:
+      - description: Category ID
+        in: path
+        name: category_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of projects
+          schema:
+            type: object
+      summary: Get Projects By Category
+      tags:
+      - Projects
+  /projects/threads/{thread_id}/messages:
+    get:
+      consumes:
+      - application/json
+      description: Get public messages in a project thread
+      parameters:
+      - description: Thread ID
+        in: path
+        name: thread_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of messages
+          schema:
+            type: object
+      summary: Get Project Thread Messages
+      tags:
+      - Projects
+  /reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Set a new password using reset token
+      parameters:
+      - description: Reset Token
+        in: query
+        name: reset_token
+        required: true
+        type: string
+      - description: New Password Request, e.g., {\
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password updated successfully
+          schema:
+            type: object
+        "400":
+          description: Invalid input or token
+          schema:
+            type: object
+      summary: Reset Password
+      tags:
+      - Users
+  /signin:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a user and return login token
+      parameters:
+      - description: Signin Request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UserSignin'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token information
+          schema:
+            type: object
+        "400":
+          description: Invalid input
+          schema:
+            type: object
+        "401":
+          description: Incorrect credentials
+          schema:
+            type: object
+        "403":
+          description: Email not verified
+          schema:
+            type: object
+      summary: User Signin
+      tags:
+      - Users
+  /signup:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account
+      parameters:
+      - description: Signup Request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UserSignup'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Success message
+          schema:
+            type: object
+        "400":
+          description: Validation failed
+          schema:
+            type: object
+        "409":
+          description: User already registered
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: Register a new user
+      tags:
+      - Users
   /stripe/webhook:
     post:
       consumes:
@@ -174,6 +1583,87 @@ paths:
       summary: Stripe webhook
       tags:
       - Webhooks
+  /upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload media files (images, doc, pdf, etc.) to Cloudinary
+      parameters:
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: File uploaded URL
+          schema:
+            type: object
+        "400":
+          description: Invalid file
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload File
+      tags:
+      - Upload
+  /user/me:
+    get:
+      consumes:
+      - application/json
+      description: Get current logged-in user profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User Profile Data
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get User Profile
+      tags:
+      - Users
+  /verify-email:
+    get:
+      consumes:
+      - application/json
+      description: Verify email address using the token
+      parameters:
+      - description: Verification Token
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success message
+          schema:
+            type: object
+        "400":
+          description: Token missing or invalid
+          schema:
+            type: object
+      summary: Verify user email
+      tags:
+      - Users
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

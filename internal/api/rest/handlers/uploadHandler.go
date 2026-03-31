@@ -25,6 +25,18 @@ func SetupUploadRoutes(rh *rest.RestHandler) {
 
 }
 
+// UploadFile godoc
+// @Summary Upload File
+// @Description Upload media files (images, doc, pdf, etc.) to Cloudinary
+// @Tags Upload
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param file formData file true "File to upload"
+// @Success 200 {object} object "File uploaded URL"
+// @Failure 400 {object} object "Invalid file"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /upload [post]
 func (h *UploadHandler) UploadFile(ctx fiber.Ctx) error {
 	fileHeader, err := ctx.FormFile("file")
 	if err != nil {
