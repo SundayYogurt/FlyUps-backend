@@ -6,7 +6,6 @@ import (
 	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/helper"
-	"mime/multipart"
 	"net/http"
 	"strconv"
 	"time"
@@ -41,6 +40,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 
 	// Public Project
 	pub := app.Group("/projects")
+	pub.Get("/", handler.GetPublicProjects)
 	pub.Get("/:id", handler.GetPublicProjectByID)
 	pub.Get("/category/:category_id", handler.GetProjectsByCategory)
 	pub.Get("/:id/updates", handler.GetProjectUpdates)
@@ -75,7 +75,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	priv.Delete("/messages/:message_id", handler.DeleteProjectThreadMessage)
 
 	// Media
-	priv.Post("/:id/media", handler.AddProjectMedia)
+	priv.Post("/:id/media", handler.AttachProjectMedia)
 	priv.Get("/:id/media", handler.GetProjectMedia)
 	priv.Patch("/media/:media_id", handler.UpdateProjectMedia)
 	priv.Delete("/media/:media_id", handler.DeleteProjectMedia)
@@ -104,43 +104,41 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	adminProj.Patch("/:id/status", handler.UpdateProjectStatus)
 }
 
-func (h *ProjectHandler) AddProjectMedia(ctx fiber.Ctx) error {
+func (h *ProjectHandler) AttachProjectMedia(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
 		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
 	}
+
 	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil || id <= 0 {
+		return rest.BadRequestError(ctx, "invalid project id")
+	}
+
+	var body struct {
+		URL  string           `json:"url" validate:"required"`
+		Type domain.MediaType `json:"type" validate:"required"`
+	}
+
+	if err := ctx.Bind().Body(&body); err != nil {
+		return rest.BadRequestError(ctx, "invalid body")
+	}
+
+	if err := h.validator.Struct(body); err != nil {
+		return rest.BadRequestError(ctx, "invalid input")
+	}
+
+	media := &domain.ProjectMedia{
+		Type: body.Type,
+		URL:  body.URL,
+	}
+
+	err = h.svc.AttachProjectMedia(ctx.Context(), uint(id), body.URL, body.Type, user)
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
-	}
-
-	// รับไฟล์ (ใช้ Key "file" แทน "image" เพื่อให้ครอบคลุมทั้งคู่)
-	fileHeader, err := ctx.FormFile("file")
-	if err != nil {
-		return rest.BadRequestError(ctx, "no file uploaded")
-	}
-
-	// จำกัดขนาดไฟล์ (เช่น วิดีโอห้ามเกิน 20MB)
-	if fileHeader.Size > 20*1024*1024 {
-		return rest.BadRequestError(ctx, "file size too large (max 20MB)")
-	}
-
-	file, _ := fileHeader.Open()
-	defer func(file multipart.File) {
-		err := file.Close()
-		if err != nil {
-
-		}
-	}(file)
-
-	media := &domain.ProjectMedia{}
-
-	// ส่ง fileHeader เข้าไปด้วย
-	if err := h.svc.AddProjectMedia(uint(id), file, fileHeader, media, user); err != nil {
 		return rest.InternalError(ctx, err)
 	}
 
-	return rest.SuccessResponse(ctx, "uploaded successfully", media)
+	return rest.SuccessResponse(ctx, "media attached", media)
 }
 
 func (h *ProjectHandler) CreateCategory(ctx fiber.Ctx) error {
@@ -268,7 +266,7 @@ func (h *ProjectHandler) UpdateProject(ctx fiber.Ctx) error {
 		return rest.InternalError(ctx, err)
 	}
 
-	return rest.SuccessResponse(ctx, "project updated", toProjectDetailResponse(updatedProject))
+	return rest.SuccessResponse(ctx, "project updated", h.toProjectDetailResponse(updatedProject))
 }
 
 func (h *ProjectHandler) CreateProject(ctx fiber.Ctx) error {
@@ -289,7 +287,7 @@ func (h *ProjectHandler) CreateProject(ctx fiber.Ctx) error {
 		return rest.InternalError(ctx, err)
 	}
 
-	return rest.SuccessResponse(ctx, "project created", toProjectDetailResponse(createdProject))
+	return rest.SuccessResponse(ctx, "project created", h.toProjectDetailResponse(createdProject))
 }
 
 func (h *ProjectHandler) GetMyProjects(ctx fiber.Ctx) error {
@@ -307,7 +305,7 @@ func (h *ProjectHandler) GetMyProjects(ctx fiber.Ctx) error {
 	result := make([]dto.ProjectResponse, 0, len(projects))
 
 	for _, proj := range projects {
-		result = append(result, toProjectResponse(&proj))
+		result = append(result, h.toProjectResponse(&proj))
 	}
 
 	return rest.SuccessResponse(ctx, "success", result)
@@ -331,7 +329,21 @@ func (h *ProjectHandler) GetMyProjectByID(ctx fiber.Ctx) error {
 		return rest.ErrorMessage(ctx, http.StatusForbidden, err)
 	}
 
-	return rest.SuccessResponse(ctx, "success", toProjectDetailResponse(proj))
+	return rest.SuccessResponse(ctx, "success", h.toProjectDetailResponse(proj))
+}
+
+func (h *ProjectHandler) GetPublicProjects(ctx fiber.Ctx) error {
+	projects, err := h.svc.GetPublicProjects()
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	result := make([]dto.ProjectResponse, 0, len(projects))
+	for _, proj := range projects {
+		result = append(result, h.toProjectResponse(&proj))
+	}
+
+	return rest.SuccessResponse(ctx, "success", result)
 }
 
 func (h *ProjectHandler) GetPublicProjectByID(ctx fiber.Ctx) error {
@@ -347,12 +359,12 @@ func (h *ProjectHandler) GetPublicProjectByID(ctx fiber.Ctx) error {
 		return rest.ErrorMessage(ctx, http.StatusNotFound, err)
 	}
 
-	return rest.SuccessResponse(ctx, "success", toProjectDetailResponse(proj))
+	return rest.SuccessResponse(ctx, "success", h.toProjectDetailResponse(proj))
 }
 
-func toProjectDetailResponse(proj *domain.Project) dto.ProjectDetailResponse {
+func (h *ProjectHandler) toProjectDetailResponse(proj *domain.Project) dto.ProjectDetailResponse {
 	return dto.ProjectDetailResponse{
-		ProjectResponse: toProjectResponse(proj),
+		ProjectResponse: h.toProjectResponse(proj),
 		Media:           proj.Media,
 		Milestones:      proj.Milestones,
 		Stories:         proj.Stories,
@@ -360,11 +372,42 @@ func toProjectDetailResponse(proj *domain.Project) dto.ProjectDetailResponse {
 	}
 }
 
-func toProjectResponse(proj *domain.Project) dto.ProjectResponse {
+func (h *ProjectHandler) toProjectResponse(proj *domain.Project) dto.ProjectResponse {
 	var category *string
 	if proj.Category != nil {
 		c := proj.Category.Name
 		category = &c
+	}
+
+	var finalEndDate *time.Time
+	if !proj.EndDate.IsZero() {
+		finalEndDate = &proj.EndDate
+	}
+	var finalFundingAt *time.Time
+	if !proj.FundingAt.IsZero() {
+		finalFundingAt = &proj.FundingAt
+	}
+
+	var ownerProfile *dto.ProjectOwnerProfile
+	if proj.Owner != nil {
+		ownerProjects, _ := h.svc.GetMyProjects(proj.OwnerUserID)
+
+		ownerProfile = &dto.ProjectOwnerProfile{
+			FirstName:    proj.Owner.FirstName,
+			LastName:     proj.Owner.LastName,
+			VerifyStatus: proj.Owner.Status,
+			ProjectCount: len(ownerProjects),
+		}
+		if proj.Owner.StudentProfile != nil {
+			sp := proj.Owner.StudentProfile
+			if sp.University != nil && sp.University.NameTH != nil {
+				ownerProfile.University = *sp.University.NameTH
+			}
+			ownerProfile.Faculty = sp.Faculty
+			ownerProfile.Major = sp.Major
+			ownerProfile.Bio = sp.Bio
+			ownerProfile.VerifyStatus = sp.VerifyStatus
+		}
 	}
 
 	return dto.ProjectResponse{
@@ -381,12 +424,16 @@ func toProjectResponse(proj *domain.Project) dto.ProjectResponse {
 		FundingGoal:     proj.FundingGoal,
 		Softcap:         proj.Softcap,
 		CurrentFunding:  proj.CurrentFunding,
-		EndDate:         proj.EndDate,
+		DurationDays:    proj.DurationDays,
+		DurationMonths:  proj.DurationMonths,
+		EndDate:         finalEndDate,
+		FundingAt:       finalFundingAt,
 		ProfitSharePct:  proj.ProfitSharePct,
 		MinInvestAmount: proj.MinInvestAmount,
 		MaxInvestAmount: proj.MaxInvestAmount,
 		CreatedAt:       proj.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:       proj.UpdatedAt.Format(time.RFC3339),
+		OwnerProfile:    ownerProfile,
 	}
 }
 
@@ -402,16 +449,17 @@ func (h *ProjectHandler) AddProjectMilestone(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid project id")
 	}
 
-	var body domain.Milestone
+	var body dto.CreateMilestoneRequest
 	if err := ctx.Bind().Body(&body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 
-	if err := h.svc.CreateMilestone(uint(projectID), &body, user); err != nil {
+	milestone, err := h.svc.CreateMilestone(uint(projectID), body, user)
+	if err != nil {
 		return rest.InternalError(ctx, err)
 	}
 
-	return rest.SuccessResponse(ctx, "milestone created successfully", body)
+	return rest.SuccessResponse(ctx, "milestone created successfully", milestone)
 }
 
 func (h *ProjectHandler) DeleteProjectMilestone(ctx fiber.Ctx) error {
@@ -611,7 +659,7 @@ func (h *ProjectHandler) GetProjectsByCategory(ctx fiber.Ctx) error {
 	}
 	result := make([]dto.ProjectResponse, 0, len(projects))
 	for _, proj := range projects {
-		result = append(result, toProjectResponse(&proj))
+		result = append(result, h.toProjectResponse(&proj))
 	}
 	return rest.SuccessResponse(ctx, "success", result)
 }

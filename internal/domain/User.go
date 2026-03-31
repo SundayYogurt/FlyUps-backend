@@ -21,7 +21,8 @@ type User struct {
 	VerificationToken          *string    `json:"-"`
 	VerificationTokenExpiresAt *time.Time `json:"-"`
 	ResetTokenHash             *string    `json:"-"`
-	ResetTokenExpiresAt        *time.Time `json:"-"`
+	ResetTokenExpiresAt        *time.Time      `json:"-"`
+	StudentProfile             *StudentProfile `json:"student_profile,omitempty" gorm:"foreignKey:UserID"`
 	gorm.Model
 }
 

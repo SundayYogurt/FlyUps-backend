@@ -36,6 +36,7 @@ const (
 type Project struct {
 	ID              uint              `json:"id"`
 	OwnerUserID     uint              `json:"owner_user_id"`
+	Owner           *User             `json:"owner,omitempty" gorm:"foreignKey:OwnerUserID"`
 	CategoryID      *uint             `json:"category_id,omitempty"`
 	Category        *ProjectCategory  `json:"category,omitempty"`
 	Title           string            `json:"title"`
@@ -48,6 +49,7 @@ type Project struct {
 	Softcap         float64           `json:"softcap"`
 	CurrentFunding  float64           `json:"current_funding"`
 	DurationDays    int               `json:"duration_days"`
+	DurationMonths  int               `json:"duration_months"`
 	EndDate         time.Time         `json:"end_date"`
 	ProfitSharePct  float64           `json:"profit_share_pct"`
 	MinInvestAmount float64           `json:"min_invest_amount"`
@@ -71,6 +73,7 @@ type MediaType string
 const (
 	MediaTypeImage MediaType = "image"
 	MediaTypeVideo MediaType = "video"
+	MediaTypeRaw   MediaType = "raw"
 )
 
 type ProjectMedia struct {
@@ -101,6 +104,7 @@ type MilestoneStatus string
 
 const (
 	MilestoneDraft     MilestoneStatus = "draft"
+	MilestoneWaiting   MilestoneStatus = "waiting"
 	MilestoneActive    MilestoneStatus = "active"
 	MilestoneSubmitted MilestoneStatus = "submitted"
 	MilestoneApproved  MilestoneStatus = "approved"
@@ -109,13 +113,19 @@ const (
 )
 
 type Milestone struct {
-	ID             uint            `json:"id"`
-	ProjectID      uint            `json:"project_id"`
-	PhaseNo        int             `json:"phase_no"`
-	Title          string          `json:"title"`
-	Description    *string         `json:"description,omitempty"`
-	PercentRelease int             `json:"percent_release"`
-	Status         MilestoneStatus `json:"status"`
+	ID                 uint            `json:"id"`
+	ProjectID          uint            `json:"project_id"`
+	PhaseNo            int             `json:"phase_no"`
+	Title              string          `json:"title"`
+	Description        *string         `json:"description"`
+	StartDate          *time.Time      `json:"start_date"`
+	EndDate            *time.Time      `json:"end_date"`
+	AcceptanceCriteria *string         `json:"acceptance_criteria"`
+	Type               MediaType       `json:"type"`
+	URL                string          `json:"url"`
+	SortOrder          int             `json:"sort_order"`
+	PercentRelease     int             `json:"percent_release"`
+	Status             MilestoneStatus `json:"status"`
 }
 
 type InvestmentStatus string

@@ -250,6 +250,7 @@ func (p *projectRepository) FindProjectByID(id uint) (*domain.Project, error) {
 func (p *projectRepository) FindProjectDetailByID(id uint) (*domain.Project, error) {
 	var project domain.Project
 	if err := p.db.Preload("Category").
+		Preload("Owner.StudentProfile.University").
 		Preload("Media", func(db *gorm.DB) *gorm.DB {
 			return db.Order("sort_order ASC")
 		}).
@@ -270,7 +271,10 @@ func (p *projectRepository) FindProjectDetailByID(id uint) (*domain.Project, err
 
 func (p *projectRepository) FindProjects() ([]domain.Project, error) {
 	var projects []domain.Project
-	err := p.db.Order("id DESC").Find(&projects).Error
+	err := p.db.Preload("Category").
+		Preload("Owner.StudentProfile.University").
+		Preload("Media").
+		Order("id DESC").Find(&projects).Error
 	return projects, err
 }
 
