@@ -204,7 +204,7 @@ definitions:
     - phone
     - role
     type: object
-host: localhost:3000
+host: api.flyupapi.dev
 info:
   contact: {}
   description: FlyUps crowdfunding platform API
@@ -1664,6 +1664,9 @@ paths:
       summary: Verify user email
       tags:
       - Users
+schemes:
+- https
+- http
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.
