@@ -22,9 +22,7 @@ func NewCloudinary(cloudName, apiKey, apiSecret string) (*CloudinaryService, err
 	return &CloudinaryService{cld: cld}, nil
 }
 
-func (c *CloudinaryService) UploadImage(file multipart.File) (string, error) {
-
-	ctx := context.Background()
+func (c *CloudinaryService) UploadImage(ctx context.Context, file multipart.File) (string, error) {
 
 	res, err := c.cld.Upload.Upload(ctx, file, uploader.UploadParams{
 		Folder: "flyup/projects",
@@ -37,12 +35,25 @@ func (c *CloudinaryService) UploadImage(file multipart.File) (string, error) {
 	return res.SecureURL, nil
 }
 
-func (c *CloudinaryService) UploadVideo(file multipart.File) (string, error) {
-	ctx := context.Background()
+func (c *CloudinaryService) UploadVideo(ctx context.Context, file multipart.File) (string, error) {
 
 	res, err := c.cld.Upload.Upload(ctx, file, uploader.UploadParams{
 		Folder:       "flyup/projects/videos",
 		ResourceType: "video", // ต้องระบุว่าเป็น video
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return res.SecureURL, nil
+}
+
+func (c *CloudinaryService) UploadRawFile(ctx context.Context, file multipart.File) (string, error) {
+
+	res, err := c.cld.Upload.Upload(ctx, file, uploader.UploadParams{
+		Folder:       "flyup/projects/documents",
+		ResourceType: "raw",
 	})
 
 	if err != nil {

@@ -17,7 +17,9 @@ import (
 )
 
 func StartServer(cfg config.AppConfig) {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		BodyLimit: 50 * 1024 * 1024, // 50 MB
+	})
 
 	log.Println("DSN =", cfg.Dsn)
 	db, err := gorm.Open(postgres.Open(cfg.Dsn), &gorm.Config{})
@@ -129,9 +131,9 @@ func StartServer(cfg config.AppConfig) {
 func setupRoutes(rh *rest.RestHandler) {
 	// user handler
 	handlers.SetupUserRoutes(rh)
-
 	handlers.SetupProjectRoutes(rh)
 	handlers.SetupInvestmentRoutes(rh)
+	handlers.SetupUploadRoutes(rh)
 }
 
 func HealthCheck(ctx fiber.Ctx) error {
