@@ -1,7 +1,8 @@
 // @title           FlyUps API
 // @version         1.0
 // @description     FlyUps crowdfunding platform API
-// @host            localhost:3000
+// @host            api.flyupapi.dev
+// @schemes         https http
 // @BasePath        /
 // @securityDefinitions.apikey BearerAuth
 // @in header
