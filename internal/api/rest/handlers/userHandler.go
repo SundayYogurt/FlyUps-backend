@@ -51,6 +51,18 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	privateRoutes.Get("/me", handler.Me)
 }
 
+// Signup godoc
+// @Summary Register a new user
+// @Description Create a new user account
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param request body dto.UserSignup true "Signup Request body"
+// @Success 201 {object} object "Success message"
+// @Failure 400 {object} object "Validation failed"
+// @Failure 409 {object} object "User already registered"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /signup [post]
 func (h *UserHandler) Signup(ctx fiber.Ctx) error {
 	user := dto.UserSignup{}
 
@@ -95,6 +107,16 @@ func (h *UserHandler) Signup(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, msg, nil)
 }
 
+// VerifyEmail godoc
+// @Summary Verify user email
+// @Description Verify email address using the token
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param token query string true "Verification Token"
+// @Success 200 {object} object "Success message"
+// @Failure 400 {object} object "Token missing or invalid"
+// @Router /verify-email [get]
 func (h *UserHandler) VerifyEmail(ctx fiber.Ctx) error {
 
 	token := ctx.Query("token")
@@ -115,6 +137,18 @@ func (h *UserHandler) VerifyEmail(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, msg, nil)
 }
 
+// Signin godoc
+// @Summary User Signin
+// @Description Authenticate a user and return login token
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param request body dto.UserSignin true "Signin Request body"
+// @Success 200 {object} object "Token information"
+// @Failure 400 {object} object "Invalid input"
+// @Failure 401 {object} object "Incorrect credentials"
+// @Failure 403 {object} object "Email not verified"
+// @Router /signin [post]
 func (h *UserHandler) Signin(ctx fiber.Ctx) error {
 	signinInput := dto.UserSignin{}
 	err := ctx.Bind().Body(&signinInput)
@@ -157,6 +191,16 @@ func (h *UserHandler) Signin(ctx fiber.Ctx) error {
 	})
 }
 
+// ForgotPassword godoc
+// @Summary Forgot Password
+// @Description Send password reset link to user email
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param request body dto.ForgotPasswordRequest true "Forgot Password Request body"
+// @Success 200 {object} object "Reset link sent message"
+// @Failure 400 {object} object "Invalid email or user not found"
+// @Router /forgot-password [post]
 func (h *UserHandler) ForgotPassword(ctx fiber.Ctx) error {
 	var req dto.ForgotPasswordRequest
 	if err := ctx.Bind().Body(&req); err != nil {
@@ -169,6 +213,17 @@ func (h *UserHandler) ForgotPassword(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "reset link sent", nil)
 }
 
+// SetPassword godoc
+// @Summary Reset Password
+// @Description Set a new password using reset token
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param reset_token query string true "Reset Token"
+// @Param request body object true "New Password Request, e.g., {\"new_password\": \"password123\"}"
+// @Success 200 {object} object "Password updated successfully"
+// @Failure 400 {object} object "Invalid input or token"
+// @Router /reset-password [post]
 func (h *UserHandler) SetPassword(ctx fiber.Ctx) error {
 
 	token := strings.TrimSpace(ctx.Query("reset_token"))
@@ -192,6 +247,17 @@ func (h *UserHandler) SetPassword(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "password updated successfully", nil)
 }
 
+// Me godoc
+// @Summary Get User Profile
+// @Description Get current logged-in user profile
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} object "User Profile Data"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /user/me [get]
 func (h *UserHandler) Me(ctx fiber.Ctx) error {
 
 	user := h.auth.GetCurrentUser(ctx)

@@ -14,6 +14,7 @@ FROM alpine
 WORKDIR /app
 
 COPY --from=builder /app/main .
+COPY --from=builder /app/docs ./docs
 
 EXPOSE 3000
 

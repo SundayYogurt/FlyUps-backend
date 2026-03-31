@@ -156,11 +156,24 @@ func swaggerUI(ctx fiber.Ctx) error {
     <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
     <script>
       window.onload = function() {
-        SwaggerUIBundle({
+        window.ui = SwaggerUIBundle({
           url: "/swagger/doc.json",
           dom_id: '#swagger-ui',
           presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
-          layout: "BaseLayout"
+          layout: "BaseLayout",
+          responseInterceptor: function(response) {
+            if (response.url.includes("/signin") && response.status === 200) {
+              try {
+                const data = JSON.parse(response.data);
+                if (data.token) {
+                  window.ui.preauthorizeApiKey("BearerAuth", "Bearer " + data.token);
+                }
+              } catch (e) {
+                console.error("Swagger Auto-Login Error:", e);
+              }
+            }
+            return response;
+          }
         })
       }
     </script>

@@ -104,6 +104,17 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	adminProj.Patch("/:id/status", handler.UpdateProjectStatus)
 }
 
+// AttachProjectMedia godoc
+// @Summary Attach Media to Project
+// @Description Pioneer uploads media (image/video) URL to project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Param request body object true "Media Data"
+// @Success 200 {object} object "Media attached"
+// @Router /pioneer/projects/{id}/media [post]
 func (h *ProjectHandler) AttachProjectMedia(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -141,6 +152,16 @@ func (h *ProjectHandler) AttachProjectMedia(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "media attached", media)
 }
 
+// CreateCategory godoc
+// @Summary Create Category
+// @Description Admin creates a new project category
+// @Tags Categories
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body object true "Category Name"
+// @Success 200 {object} object "Category created"
+// @Router /admin/categories [post]
 func (h *ProjectHandler) CreateCategory(ctx fiber.Ctx) error {
 	// ใช้ Local Struct เพื่อรับเฉพาะค่าที่อนุญาตให้ส่งมา
 	var body struct {
@@ -166,6 +187,17 @@ func (h *ProjectHandler) CreateCategory(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "created category successfully", category)
 }
 
+// UpdateCategory godoc
+// @Summary Update Category
+// @Description Admin updates an existing project category
+// @Tags Categories
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Category ID"
+// @Param request body object true "New Category Name"
+// @Success 200 {object} object "Category updated"
+// @Router /admin/categories/{id} [put]
 func (h *ProjectHandler) UpdateCategory(ctx fiber.Ctx) error {
 	// ดึง ID จาก URL
 	idStr := ctx.Params("id")
@@ -196,6 +228,16 @@ func (h *ProjectHandler) UpdateCategory(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "updated category successfully", category)
 }
 
+// DeleteCategory godoc
+// @Summary Delete Category
+// @Description Admin deletes a project category
+// @Tags Categories
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Category ID"
+// @Success 200 {object} object "Category deleted"
+// @Router /admin/categories/{id} [delete]
 func (h *ProjectHandler) DeleteCategory(ctx fiber.Ctx) error {
 	idStr := ctx.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -213,6 +255,14 @@ func (h *ProjectHandler) DeleteCategory(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "deleted successfully", nil)
 }
 
+// GetAllCategories godoc
+// @Summary Get All Categories
+// @Description Get list of all project categories
+// @Tags Categories
+// @Accept json
+// @Produce json
+// @Success 200 {object} object "List of categories"
+// @Router /categories [get]
 func (h *ProjectHandler) GetAllCategories(ctx fiber.Ctx) error {
 	categories, err := h.svc.GetAllCategories()
 	if err != nil {
@@ -221,6 +271,15 @@ func (h *ProjectHandler) GetAllCategories(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", categories)
 }
 
+// GetCategoryByID godoc
+// @Summary Get Category by ID
+// @Description Get specific category by ID
+// @Tags Categories
+// @Accept json
+// @Produce json
+// @Param id path int true "Category ID"
+// @Success 200 {object} object "Category details"
+// @Router /categories/{id} [get]
 func (h *ProjectHandler) GetCategoryByID(ctx fiber.Ctx) error {
 	idStr := ctx.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -236,6 +295,17 @@ func (h *ProjectHandler) GetCategoryByID(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", category)
 }
 
+// UpdateProject godoc
+// @Summary Update Project
+// @Description Pioneer updates their existing project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Param request body dto.UpdateProjectRequest true "Update Project Request"
+// @Success 200 {object} object "Project updated"
+// @Router /pioneer/projects/{id} [patch]
 func (h *ProjectHandler) UpdateProject(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -269,6 +339,15 @@ func (h *ProjectHandler) UpdateProject(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "project updated", h.toProjectDetailResponse(updatedProject))
 }
 
+// CreateProject godoc
+// @Summary Create Project
+// @Description Pioneer creates a new project outline
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 201 {object} object "Project created"
+// @Router /pioneer/projects [post]
 func (h *ProjectHandler) CreateProject(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 
@@ -290,6 +369,15 @@ func (h *ProjectHandler) CreateProject(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "project created", h.toProjectDetailResponse(createdProject))
 }
 
+// GetMyProjects godoc
+// @Summary List My Projects
+// @Description Pioneer gets list of their own projects
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} object "List of projects"
+// @Router /pioneer/projects [get]
 func (h *ProjectHandler) GetMyProjects(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 
@@ -311,6 +399,16 @@ func (h *ProjectHandler) GetMyProjects(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", result)
 }
 
+// GetMyProjectByID godoc
+// @Summary Get My Project by ID
+// @Description Pioneer gets details of their specific project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "Project details"
+// @Router /pioneer/projects/{id} [get]
 func (h *ProjectHandler) GetMyProjectByID(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 
@@ -332,6 +430,14 @@ func (h *ProjectHandler) GetMyProjectByID(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", h.toProjectDetailResponse(proj))
 }
 
+// GetPublicProjects godoc
+// @Summary Get Public Projects
+// @Description Get list of all public/approved projects
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Success 200 {object} object "List of public projects"
+// @Router /projects [get]
 func (h *ProjectHandler) GetPublicProjects(ctx fiber.Ctx) error {
 	projects, err := h.svc.GetPublicProjects()
 	if err != nil {
@@ -346,6 +452,15 @@ func (h *ProjectHandler) GetPublicProjects(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", result)
 }
 
+// GetPublicProjectByID godoc
+// @Summary Get Public Project by ID
+// @Description Get specific public project details
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "Project details"
+// @Router /projects/{id} [get]
 func (h *ProjectHandler) GetPublicProjectByID(ctx fiber.Ctx) error {
 
 	idStr := ctx.Params("id")
@@ -437,6 +552,17 @@ func (h *ProjectHandler) toProjectResponse(proj *domain.Project) dto.ProjectResp
 	}
 }
 
+// AddProjectMilestone godoc
+// @Summary Add Milestone to Project
+// @Description Pioneer adds a new milestone to their project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Param request body dto.CreateMilestoneRequest true "Milestone Data"
+// @Success 200 {object} object "Milestone created"
+// @Router /pioneer/projects/{id}/milestones [post]
 func (h *ProjectHandler) AddProjectMilestone(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -462,6 +588,16 @@ func (h *ProjectHandler) AddProjectMilestone(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "milestone created successfully", milestone)
 }
 
+// DeleteProjectMilestone godoc
+// @Summary Delete Project Milestone
+// @Description Pioneer deletes a specific milestone
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param milestone_id path int true "Milestone ID"
+// @Success 200 {object} object "Milestone deleted"
+// @Router /pioneer/projects/milestones/{milestone_id} [delete]
 func (h *ProjectHandler) DeleteProjectMilestone(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -481,6 +617,17 @@ func (h *ProjectHandler) DeleteProjectMilestone(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "milestone deleted successfully", nil)
 }
 
+// AddProjectStory godoc
+// @Summary Add Story Section to Project
+// @Description Pioneer adds a story section to their project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Param request body object true "Story Section Data"
+// @Success 200 {object} object "Story created"
+// @Router /pioneer/projects/{id}/stories [post]
 func (h *ProjectHandler) AddProjectStory(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -508,6 +655,17 @@ func (h *ProjectHandler) AddProjectStory(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "story section created successfully", body)
 }
 
+// UpdateProjectStory godoc
+// @Summary Update Story Section
+// @Description Pioneer updates an existing story section
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param story_id path int true "Story ID"
+// @Param request body object true "Story Section Data"
+// @Success 200 {object} object "Story updated"
+// @Router /pioneer/projects/stories/{story_id} [patch]
 func (h *ProjectHandler) UpdateProjectStory(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -535,6 +693,16 @@ func (h *ProjectHandler) UpdateProjectStory(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "story section updated successfully", body)
 }
 
+// DeleteProjectStory godoc
+// @Summary Delete Story Section
+// @Description Pioneer deletes an existing story section
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param story_id path int true "Story ID"
+// @Success 200 {object} object "Story deleted"
+// @Router /pioneer/projects/stories/{story_id} [delete]
 func (h *ProjectHandler) DeleteProjectStory(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -555,6 +723,16 @@ func (h *ProjectHandler) DeleteProjectStory(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "story section deleted successfully", nil)
 }
 
+// DeleteProject godoc
+// @Summary Delete Project
+// @Description Pioneer deletes their whole project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "Project deleted"
+// @Router /pioneer/projects/{id} [delete]
 func (h *ProjectHandler) DeleteProject(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -570,6 +748,16 @@ func (h *ProjectHandler) DeleteProject(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "project deleted successfully", nil)
 }
 
+// GetProjectMedia godoc
+// @Summary Get Project Media
+// @Description Pioneer gets their project media items
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "List of project media"
+// @Router /pioneer/projects/{id}/media [get]
 func (h *ProjectHandler) GetProjectMedia(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
@@ -582,6 +770,17 @@ func (h *ProjectHandler) GetProjectMedia(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", media)
 }
 
+// UpdateProjectMedia godoc
+// @Summary Update Project Media
+// @Description Pioneer updates a project media item
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param media_id path int true "Media ID"
+// @Param request body object true "Media Update Data"
+// @Success 200 {object} object "Media updated"
+// @Router /pioneer/projects/media/{media_id} [patch]
 func (h *ProjectHandler) UpdateProjectMedia(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -598,6 +797,16 @@ func (h *ProjectHandler) UpdateProjectMedia(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "media updated successfully", body)
 }
 
+// DeleteProjectMedia godoc
+// @Summary Delete Project Media
+// @Description Pioneer deletes a project media item
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param media_id path int true "Media ID"
+// @Success 200 {object} object "Media deleted"
+// @Router /pioneer/projects/media/{media_id} [delete]
 func (h *ProjectHandler) DeleteProjectMedia(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -610,6 +819,16 @@ func (h *ProjectHandler) DeleteProjectMedia(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "media deleted successfully", nil)
 }
 
+// GetProjectMilestones godoc
+// @Summary Get Project Milestones
+// @Description Pioneer gets all milestones of a project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "List of milestones"
+// @Router /pioneer/projects/{id}/milestones [get]
 func (h *ProjectHandler) GetProjectMilestones(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
@@ -622,6 +841,17 @@ func (h *ProjectHandler) GetProjectMilestones(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", milestones)
 }
 
+// UpdateProjectMilestone godoc
+// @Summary Update Project Milestone
+// @Description Pioneer updates a specific milestone
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param milestone_id path int true "Milestone ID"
+// @Param request body dto.UpdateMilestoneRequest true "Milestone Data"
+// @Success 200 {object} object "Milestone updated"
+// @Router /pioneer/projects/milestones/{milestone_id} [patch]
 func (h *ProjectHandler) UpdateProjectMilestone(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -638,6 +868,16 @@ func (h *ProjectHandler) UpdateProjectMilestone(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "milestone updated successfully", nil)
 }
 
+// GetProjectStories godoc
+// @Summary Get Project Stories
+// @Description Pioneer gets all story sections of a project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "List of stories"
+// @Router /pioneer/projects/{id}/stories [get]
 func (h *ProjectHandler) GetProjectStories(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
@@ -651,6 +891,15 @@ func (h *ProjectHandler) GetProjectStories(ctx fiber.Ctx) error {
 }
 
 // --- NEW HANDLERS ---
+// GetProjectsByCategory godoc
+// @Summary Get Projects By Category
+// @Description Get public projects filtered by category ID
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Param category_id path int true "Category ID"
+// @Success 200 {object} object "List of projects"
+// @Router /projects/category/{category_id} [get]
 func (h *ProjectHandler) GetProjectsByCategory(ctx fiber.Ctx) error {
 	id, _ := strconv.Atoi(ctx.Params("category_id"))
 	projects, err := h.svc.GetProjectsByCategory(uint(id))
@@ -664,6 +913,17 @@ func (h *ProjectHandler) GetProjectsByCategory(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", result)
 }
 
+// UpdateProjectStatus godoc
+// @Summary Update Project Status
+// @Description Admin updates the status of a project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Param request body object true "Status Update Data"
+// @Success 200 {object} object "Status updated"
+// @Router /admin/projects/{id}/status [patch]
 func (h *ProjectHandler) UpdateProjectStatus(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -686,6 +946,17 @@ func (h *ProjectHandler) UpdateProjectStatus(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "status updated successfully", nil)
 }
 
+// CreateProjectUpdate godoc
+// @Summary Create Project Update
+// @Description Pioneer creates a new project update
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Param request body dto.CreateProjectUpdateRequest true "Update Data"
+// @Success 200 {object} object "Update created"
+// @Router /pioneer/projects/{id}/updates [post]
 func (h *ProjectHandler) CreateProjectUpdate(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -705,6 +976,17 @@ func (h *ProjectHandler) CreateProjectUpdate(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "update created successfully", nil)
 }
 
+// UpdateProjectUpdate godoc
+// @Summary Modify Project Update
+// @Description Pioneer modifies a specific project update
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param update_id path int true "Update ID"
+// @Param request body dto.UpdateProjectUpdateRequest true "Update Data"
+// @Success 200 {object} object "Update modified"
+// @Router /pioneer/projects/updates/{update_id} [patch]
 func (h *ProjectHandler) UpdateProjectUpdate(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	updateID, _ := strconv.Atoi(ctx.Params("update_id"))
@@ -721,6 +1003,16 @@ func (h *ProjectHandler) UpdateProjectUpdate(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "update modified successfully", nil)
 }
 
+// DeleteProjectUpdate godoc
+// @Summary Delete Project Update
+// @Description Pioneer deletes a specific project update
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param update_id path int true "Update ID"
+// @Success 200 {object} object "Update deleted"
+// @Router /pioneer/projects/updates/{update_id} [delete]
 func (h *ProjectHandler) DeleteProjectUpdate(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	updateID, _ := strconv.Atoi(ctx.Params("update_id"))
@@ -732,6 +1024,15 @@ func (h *ProjectHandler) DeleteProjectUpdate(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "update deleted successfully", nil)
 }
 
+// GetProjectUpdates godoc
+// @Summary Get Project Updates
+// @Description Get public updates for a project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "List of updates"
+// @Router /projects/{id}/updates [get]
 func (h *ProjectHandler) GetProjectUpdates(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
@@ -744,6 +1045,15 @@ func (h *ProjectHandler) GetProjectUpdates(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", updates)
 }
 
+// GetProjectFAQs godoc
+// @Summary Get Project FAQs
+// @Description Get public FAQs for a project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "List of FAQs"
+// @Router /projects/{id}/faqs [get]
 func (h *ProjectHandler) GetProjectFAQs(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
@@ -756,6 +1066,17 @@ func (h *ProjectHandler) GetProjectFAQs(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", faqs)
 }
 
+// CreateProjectFAQ godoc
+// @Summary Create Project FAQ
+// @Description Pioneer creates a new FAQ for their project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Param request body object true "FAQ Data"
+// @Success 200 {object} object "FAQ created"
+// @Router /pioneer/projects/{id}/faqs [post]
 func (h *ProjectHandler) CreateProjectFAQ(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	id, err := strconv.Atoi(ctx.Params("id"))
@@ -773,6 +1094,17 @@ func (h *ProjectHandler) CreateProjectFAQ(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "faq created successfully", body)
 }
 
+// UpdateProjectFAQ godoc
+// @Summary Update Project FAQ
+// @Description Pioneer updates an existing FAQ
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param faq_id path int true "FAQ ID"
+// @Param request body object true "FAQ Data"
+// @Success 200 {object} object "FAQ updated"
+// @Router /pioneer/projects/faqs/{faq_id} [patch]
 func (h *ProjectHandler) UpdateProjectFAQ(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	faqID, _ := strconv.Atoi(ctx.Params("faq_id"))
@@ -787,6 +1119,16 @@ func (h *ProjectHandler) UpdateProjectFAQ(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "faq updated successfully", body)
 }
 
+// DeleteProjectFAQ godoc
+// @Summary Delete Project FAQ
+// @Description Pioneer deletes an existing FAQ
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param faq_id path int true "FAQ ID"
+// @Success 200 {object} object "FAQ deleted"
+// @Router /pioneer/projects/faqs/{faq_id} [delete]
 func (h *ProjectHandler) DeleteProjectFAQ(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	faqID, _ := strconv.Atoi(ctx.Params("faq_id"))
@@ -796,6 +1138,15 @@ func (h *ProjectHandler) DeleteProjectFAQ(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "faq deleted successfully", nil)
 }
 
+// GetProjectThreads godoc
+// @Summary Get Project Threads
+// @Description Get public discussion threads for a project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "List of threads"
+// @Router /projects/{id}/threads [get]
 func (h *ProjectHandler) GetProjectThreads(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
@@ -808,6 +1159,17 @@ func (h *ProjectHandler) GetProjectThreads(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", threads)
 }
 
+// CreateProjectThread godoc
+// @Summary Create Project Thread
+// @Description User creates a new discussion thread for a project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Param request body object true "Thread Data"
+// @Success 200 {object} object "Thread created"
+// @Router /pioneer/projects/{id}/threads [post]
 func (h *ProjectHandler) CreateProjectThread(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	id, err := strconv.Atoi(ctx.Params("id"))
@@ -825,6 +1187,17 @@ func (h *ProjectHandler) CreateProjectThread(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "thread created successfully", body)
 }
 
+// UpdateProjectThread godoc
+// @Summary Update Project Thread
+// @Description Pioneer updates an existing project thread
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param thread_id path int true "Thread ID"
+// @Param request body object true "Thread Data"
+// @Success 200 {object} object "Thread updated"
+// @Router /pioneer/projects/threads/{thread_id} [patch]
 func (h *ProjectHandler) UpdateProjectThread(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	threadID, _ := strconv.Atoi(ctx.Params("thread_id"))
@@ -839,6 +1212,16 @@ func (h *ProjectHandler) UpdateProjectThread(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "thread updated successfully", body)
 }
 
+// DeleteProjectThread godoc
+// @Summary Delete Project Thread
+// @Description Pioneer deletes an existing project thread
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param thread_id path int true "Thread ID"
+// @Success 200 {object} object "Thread deleted"
+// @Router /pioneer/projects/threads/{thread_id} [delete]
 func (h *ProjectHandler) DeleteProjectThread(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	threadID, _ := strconv.Atoi(ctx.Params("thread_id"))
@@ -848,6 +1231,15 @@ func (h *ProjectHandler) DeleteProjectThread(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "thread deleted successfully", nil)
 }
 
+// GetProjectThreadMessages godoc
+// @Summary Get Project Thread Messages
+// @Description Get public messages in a project thread
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Param thread_id path int true "Thread ID"
+// @Success 200 {object} object "List of messages"
+// @Router /projects/threads/{thread_id}/messages [get]
 func (h *ProjectHandler) GetProjectThreadMessages(ctx fiber.Ctx) error {
 	threadID, _ := strconv.Atoi(ctx.Params("thread_id"))
 	msgs, err := h.svc.GetProjectThreadMessages(uint(threadID))
@@ -857,6 +1249,17 @@ func (h *ProjectHandler) GetProjectThreadMessages(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", msgs)
 }
 
+// CreateProjectThreadMessage godoc
+// @Summary Create Project Thread Message
+// @Description User replies to a project thread
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param thread_id path int true "Thread ID"
+// @Param request body object true "Message Data"
+// @Success 200 {object} object "Message created"
+// @Router /pioneer/projects/threads/{thread_id}/messages [post]
 func (h *ProjectHandler) CreateProjectThreadMessage(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	threadID, _ := strconv.Atoi(ctx.Params("thread_id"))
@@ -871,6 +1274,17 @@ func (h *ProjectHandler) CreateProjectThreadMessage(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "message created successfully", body)
 }
 
+// UpdateProjectThreadMessage godoc
+// @Summary Update Project Thread Message
+// @Description User updates their project thread message
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param message_id path int true "Message ID"
+// @Param request body object true "Message Data"
+// @Success 200 {object} object "Message updated"
+// @Router /pioneer/projects/messages/{message_id} [patch]
 func (h *ProjectHandler) UpdateProjectThreadMessage(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	msgID, _ := strconv.Atoi(ctx.Params("message_id"))
@@ -885,6 +1299,16 @@ func (h *ProjectHandler) UpdateProjectThreadMessage(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "message updated successfully", body)
 }
 
+// DeleteProjectThreadMessage godoc
+// @Summary Delete Project Thread Message
+// @Description User deletes their project thread message
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param message_id path int true "Message ID"
+// @Success 200 {object} object "Message deleted"
+// @Router /pioneer/projects/messages/{message_id} [delete]
 func (h *ProjectHandler) DeleteProjectThreadMessage(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	msgID, _ := strconv.Atoi(ctx.Params("message_id"))
@@ -894,6 +1318,16 @@ func (h *ProjectHandler) DeleteProjectThreadMessage(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "message deleted successfully", nil)
 }
 
+// SubmitForReview godoc
+// @Summary Submit Project For Review
+// @Description Pioneer submits project for admin review
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "Project submitted"
+// @Router /pioneer/projects/{id}/submit [patch]
 func (h *ProjectHandler) SubmitForReview(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	id, err := strconv.Atoi(ctx.Params("id"))
@@ -906,6 +1340,16 @@ func (h *ProjectHandler) SubmitForReview(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "project submitted for review", nil)
 }
 
+// ApproveProject godoc
+// @Summary Approve Project
+// @Description Admin approves a project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "Project approved"
+// @Router /admin/projects/{id}/approve [patch]
 func (h *ProjectHandler) ApproveProject(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
@@ -917,6 +1361,16 @@ func (h *ProjectHandler) ApproveProject(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "project approved", nil)
 }
 
+// RejectProject godoc
+// @Summary Reject Project
+// @Description Admin rejects a project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "Project rejected"
+// @Router /admin/projects/{id}/reject [patch]
 func (h *ProjectHandler) RejectProject(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
@@ -928,6 +1382,16 @@ func (h *ProjectHandler) RejectProject(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "project rejected", nil)
 }
 
+// CloseProject godoc
+// @Summary Close Project
+// @Description Pioneer or Admin closes a project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "Project closed"
+// @Router /pioneer/projects/{id}/close [patch]
 func (h *ProjectHandler) CloseProject(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	id, err := strconv.Atoi(ctx.Params("id"))
