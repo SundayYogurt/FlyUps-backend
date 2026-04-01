@@ -43,7 +43,7 @@ pipeline {
                     script {
                         echo "Deployment Failed!"
                         def payload = [
-                            job: "env.JOB_NAME",
+                            job: env.JOB_NAME,
                             status: "FAILURE",
                             url: env.BUILD_URL
                         ]
