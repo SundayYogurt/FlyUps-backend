@@ -15,6 +15,8 @@ type UserRepository interface {
 	FindUserByResetToken(token string) (*domain.User, error)
 	FindUserById(id uint) (*domain.User, error)
 	UpdateUser(user *domain.User) error
+	UpdateUserProfile(userID uint, firstName, lastName, phone string, address *string) error
+	UpsertStudentProfileByUserID(profile *domain.StudentProfile) error
 }
 
 type userRepository struct {
@@ -34,6 +36,49 @@ func (r *userRepository) FindUserByVerificationToken(token string) (*domain.User
 
 func (r *userRepository) UpdateUser(user *domain.User) error {
 	return r.db.Save(user).Error
+}
+
+func (r *userRepository) UpdateUserProfile(userID uint, firstName, lastName, phone string, address *string) error {
+	updates := map[string]any{
+		"first_name": firstName,
+		"last_name":  lastName,
+		"phone":      phone,
+	}
+	if address != nil {
+		updates["address"] = address
+	}
+
+	return r.db.Model(&domain.User{}).Where("id = ?", userID).Updates(updates).Error
+}
+
+func (r *userRepository) UpsertStudentProfileByUserID(profile *domain.StudentProfile) error {
+	if profile == nil {
+		return nil
+	}
+
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var existing domain.StudentProfile
+		err := tx.Where("user_id = ?", profile.UserID).First(&existing).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return tx.Create(profile).Error
+		}
+
+		updates := map[string]any{
+			"university_id": profile.UniversityID,
+			"student_code":  profile.StudentCode,
+			"faculty":       profile.Faculty,
+			"major":         profile.Major,
+			"bio":           profile.Bio,
+			"portfolio":     profile.Portfolio,
+			"skills":        profile.Skills,
+			"verify_status": profile.VerifyStatus,
+		}
+		return tx.Model(&domain.StudentProfile{}).Where("user_id = ?", profile.UserID).Updates(updates).Error
+	})
 }
 
 func (r *userRepository) FindUser(email string) (*domain.User, error) {
@@ -86,7 +131,12 @@ func (r *userRepository) FindUserByResetToken(token string) (*domain.User, error
 
 func (r *userRepository) FindUserById(id uint) (*domain.User, error) {
 	var user domain.User
-	err := r.db.Where("id = ?", id).First(&user).Error
+	err := r.db.
+		Preload("StudentProfile").
+		Preload("StudentProfile.University").
+		Preload("BankAccount").
+		Where("id = ?", id).
+		First(&user).Error
 	if err != nil {
 		return nil, err
 	}
