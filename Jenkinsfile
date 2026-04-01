@@ -30,7 +30,8 @@ pipeline {
                         def payload = [
                             job: env.JOB_NAME,
                             status: "SUCCESS",
-                            url: env.BUILD_URL
+                            url: env.BUILD_URL,
+                            build: env.BUILD_NUMBER
                         ]
                         httpRequest acceptType: 'APPLICATION_JSON',
                                     contentType: 'APPLICATION_JSON',
@@ -45,7 +46,8 @@ pipeline {
                         def payload = [
                             job: env.JOB_NAME,
                             status: "FAILURE",
-                            url: env.BUILD_URL
+                            url: env.BUILD_URL,
+                            build: env.BUILD_NUMBER
                         ]
                         httpRequest acceptType: 'APPLICATION_JSON',
                                     contentType: 'APPLICATION_JSON',
