@@ -35,6 +35,7 @@ func StartServer(cfg config.AppConfig) {
 		&domain.UniversityDomain{},
 		&domain.UserConsent{},
 		&domain.StudentProfile{},
+		&domain.BankAccount{},
 
 		// project
 		&domain.Project{},

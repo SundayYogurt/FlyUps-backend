@@ -49,6 +49,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	//private route
 	privateRoutes := app.Group("/user", rh.Middlewares.Authorize)
 	privateRoutes.Get("/me", handler.Me)
+	privateRoutes.Patch("/profile", handler.UpdateProfile)
 }
 
 // Signup godoc
@@ -171,7 +172,7 @@ func (h *UserHandler) Signin(ctx fiber.Ctx) error {
 		log.Println("signin error:", err)
 
 		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{
-			"message": "please provide correct user id password",
+			"message": "please provide correct email and password",
 		})
 	}
 	// set cookie
@@ -272,4 +273,40 @@ func (h *UserHandler) Me(ctx fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, "success", profile)
+}
+
+func (h *UserHandler) UpdateProfile(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+	log.Printf("[UpdateProfile] current user: id=%d email=%s role=%s", user.ID, user.Email, user.Role)
+	// bind JSON body
+	var req dto.ProfileInput
+	if err := ctx.Bind().Body(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid request body: "+err.Error())
+	}
+
+	// validate input
+	if err := h.validator.Struct(req); err != nil {
+		return rest.BadRequestError(ctx, "validation failed: "+err.Error())
+	}
+
+	// call service
+	if err := h.svc.UpdateProfile(user.ID, req); err != nil {
+		// business/input errors -> 400 เพื่อ debug ง่าย
+		errStr := err.Error()
+		if strings.Contains(errStr, "invalid") ||
+			strings.Contains(errStr, "not found") ||
+			strings.Contains(errStr, "cannot") ||
+			strings.Contains(errStr, "validation") ||
+			strings.Contains(errStr, "domain") ||
+			strings.Contains(errStr, "university") {
+			return rest.BadRequestError(ctx, errStr)
+		}
+		return rest.InternalError(ctx, err)
+	}
+
+	// response
+	return rest.SuccessResponse(ctx, "profile updated successfully", nil)
 }
