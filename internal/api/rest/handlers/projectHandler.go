@@ -73,6 +73,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	priv.Post("/threads/:thread_id/messages", handler.CreateProjectThreadMessage)
 	priv.Patch("/messages/:message_id", handler.UpdateProjectThreadMessage)
 	priv.Delete("/messages/:message_id", handler.DeleteProjectThreadMessage)
+	priv.Patch("/:id/cancel", handler.CancelProject)
 
 	// Media
 	priv.Post("/:id/media", handler.AttachProjectMedia)
@@ -102,6 +103,25 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	adminProj.Patch("/:id/approve", handler.ApproveProject)
 	adminProj.Patch("/:id/reject", handler.RejectProject)
 	adminProj.Patch("/:id/status", handler.UpdateProjectStatus)
+}
+
+func (h *ProjectHandler) CancelProject(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil || id <= 0 {
+		return rest.BadRequestError(ctx, "invalid project id")
+	}
+
+	err = h.svc.CancelProject(uint(id), user)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "cancelled successfully", nil)
 }
 
 // AttachProjectMedia godoc
