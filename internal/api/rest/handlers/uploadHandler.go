@@ -33,11 +33,45 @@ func SetupUploadRoutes(rh *rest.RestHandler) {
 // @Produce json
 // @Security BearerAuth
 // @Param file formData file true "File to upload"
+// @Param files formData file false "Files to upload (repeat this key for multiple files)"
 // @Success 200 {object} object "File uploaded URL"
 // @Failure 400 {object} object "Invalid file"
 // @Failure 500 {object} object "Internal Server Error"
 // @Router /upload [post]
 func (h *UploadHandler) UploadFile(ctx fiber.Ctx) error {
+	// Support both:
+	// - single file: key "file"
+	// - multiple files: repeat key "files"
+	if form, err := ctx.MultipartForm(); err == nil && form != nil && len(form.File["files"]) > 0 {
+		fileHeaders := form.File["files"]
+		if len(fileHeaders) > 5 {
+			return rest.BadRequestError(ctx, "too many files (max 5)")
+		}
+		items := make([]fiber.Map, 0, len(fileHeaders))
+
+		for _, fh := range fileHeaders {
+			f, err := fh.Open()
+			if err != nil {
+				return rest.InternalError(ctx, err)
+			}
+			result, err := h.svc.UploadFile(ctx.Context(), f, fh)
+			_ = f.Close()
+			if err != nil {
+				return rest.InternalError(ctx, err)
+			}
+			items = append(items, fiber.Map{
+				"url":      result.URL,
+				"type":     result.Type,
+				"filename": fh.Filename,
+			})
+		}
+
+		return rest.SuccessResponse(ctx, "upload success", fiber.Map{
+			"items": items,
+		})
+	}
+
+	// fallback: single file
 	fileHeader, err := ctx.FormFile("file")
 	if err != nil {
 		return rest.BadRequestError(ctx, "no file uploaded")
@@ -47,12 +81,7 @@ func (h *UploadHandler) UploadFile(ctx fiber.Ctx) error {
 	if err != nil {
 		return rest.InternalError(ctx, err)
 	}
-	defer func(file multipart.File) {
-		err := file.Close()
-		if err != nil {
-
-		}
-	}(file)
+	defer func(file multipart.File) { _ = file.Close() }(file)
 
 	result, err := h.svc.UploadFile(ctx.Context(), file, fileHeader)
 	if err != nil {

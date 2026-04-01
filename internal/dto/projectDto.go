@@ -74,9 +74,9 @@ type UpdateMilestoneRequest struct {
 	AcceptanceCriteria *string                 `json:"acceptance_criteria"`
 	PhaseNo            *int                    `json:"phase_no"`
 	Status             *domain.MilestoneStatus `json:"status,omitempty"`
-	URL                *string
-	Type               *domain.MediaType
-	SortOrder          *int
+	URL                *string                 `json:"url,omitempty"`
+	Type               *domain.MediaType       `json:"type,omitempty"`
+	SortOrder          *int                    `json:"sort_order,omitempty"`
 }
 
 type CreateMilestoneRequest struct {
