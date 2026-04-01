@@ -258,15 +258,23 @@ func (s *projectService) GetMyProjects(ownerID uint) ([]domain.Project, error) {
 }
 
 func (s *projectService) GetPublicProjects() ([]domain.Project, error) {
-	projects, err := s.projectRepo.FindProjects()
+	state := domain.StateFunding
+	status := domain.StatusActive
+	visibility := domain.VisibilityPublic
+	projects, err := s.projectRepo.FindProjects(&state, &status, &visibility)
+
 	if err != nil {
-		return nil, errors.New("failed to retrieve public projects")
+		return nil, err
 	}
+
 	return projects, nil
 }
 
 func (s *projectService) GetProjectDetailByID(id uint) (*domain.Project, error) {
-	project, err := s.projectRepo.FindProjectDetailByID(id)
+	state := domain.StateFunding
+	status := domain.StatusActive
+	visibility := domain.VisibilityPublic
+	project, err := s.projectRepo.FindProjectDetailByID(id, &state, &status, &visibility)
 	if err != nil {
 		return nil, errors.New("project not found")
 	}
@@ -274,7 +282,10 @@ func (s *projectService) GetProjectDetailByID(id uint) (*domain.Project, error) 
 }
 
 func (s *projectService) GetPublicProjectByID(id uint) (*domain.Project, error) {
-	project, err := s.projectRepo.FindProjectDetailByID(id)
+	state := domain.StateFunding
+	status := domain.StatusActive
+	visibility := domain.VisibilityPublic
+	project, err := s.projectRepo.FindProjectDetailByID(id, &state, &status, &visibility)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +298,7 @@ func (s *projectService) GetPublicProjectByID(id uint) (*domain.Project, error) 
 }
 
 func (s *projectService) GetOwnerProjectByID(id uint, ownerID uint) (*domain.Project, error) {
-	project, err := s.projectRepo.FindProjectDetailByID(id)
+	project, err := s.projectRepo.FindProjectByIDAndOwner(id, ownerID)
 	if err != nil {
 		return nil, err
 	}

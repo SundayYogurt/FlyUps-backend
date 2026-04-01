@@ -9,9 +9,10 @@ import (
 type ProjectRepository interface {
 	CreateProject(project *domain.Project) (*domain.Project, error)
 	FindProjectByID(id uint) (*domain.Project, error)
-	FindProjectDetailByID(id uint) (*domain.Project, error)
+	FindProjectDetailByID(id uint, state *domain.ProjectState, status *domain.ProjectStatus, visibility *domain.ProjectVisibility) (*domain.Project, error)
+	FindProjectByIDAndOwner(id uint, ownerID uint) (*domain.Project, error)
 	FindProjectsByOwnerID(ownerID uint) ([]domain.Project, error)
-	FindProjects() ([]domain.Project, error)
+	FindProjects(state *domain.ProjectState, status *domain.ProjectStatus, visibility *domain.ProjectVisibility) ([]domain.Project, error)
 	FindProjectsByCategory(categoryID uint) ([]domain.Project, error)
 	UpdateProject(project *domain.Project) (*domain.Project, error)
 	DeleteProject(projectId uint) error
@@ -77,6 +78,23 @@ type projectRepository struct {
 func NewProjectRepository(db *gorm.DB) ProjectRepository {
 	return &projectRepository{db: db}
 }
+func (p *projectRepository) FindProjectByIDAndOwner(id uint, ownerID uint) (*domain.Project, error) {
+	var project domain.Project
+
+	err := p.db.
+		Preload("Category").
+		Preload("Owner.StudentProfile.University").
+		Preload("Media").
+		Where("id = ? AND owner_user_id = ?", id, ownerID).
+		First(&project).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &project, nil
+}
+
 func (r *projectRepository) FindFAQsByProjectID(projectID uint) ([]domain.ProjectFAQ, error) {
 	var faqs []domain.ProjectFAQ
 	err := r.db.Where("project_id = ?", projectID).Order("sort_order ASC").Find(&faqs).Error
@@ -247,9 +265,11 @@ func (p *projectRepository) FindProjectByID(id uint) (*domain.Project, error) {
 	return &project, nil
 }
 
-func (p *projectRepository) FindProjectDetailByID(id uint) (*domain.Project, error) {
+func (p *projectRepository) FindProjectDetailByID(id uint, state *domain.ProjectState, status *domain.ProjectStatus, visibility *domain.ProjectVisibility) (*domain.Project, error) {
 	var project domain.Project
-	if err := p.db.Preload("Category").
+
+	query := p.db.Model(&domain.Project{}).
+		Preload("Category").
 		Preload("Owner.StudentProfile.University").
 		Preload("Media", func(db *gorm.DB) *gorm.DB {
 			return db.Order("sort_order ASC")
@@ -263,18 +283,51 @@ func (p *projectRepository) FindProjectDetailByID(id uint) (*domain.Project, err
 		Preload("FAQs", func(db *gorm.DB) *gorm.DB {
 			return db.Order("sort_order ASC")
 		}).
-		First(&project, id).Error; err != nil {
+		Where("id = ?", id)
+
+	// filter
+	if state != nil {
+		query = query.Where("state = ?", *state)
+	}
+
+	if status != nil {
+		query = query.Where("status = ?", *status)
+	}
+
+	if visibility != nil {
+		query = query.Where("visibility = ?", *visibility)
+	}
+
+	if err := query.First(&project).Error; err != nil {
 		return nil, err
 	}
+
 	return &project, nil
 }
 
-func (p *projectRepository) FindProjects() ([]domain.Project, error) {
+func (p *projectRepository) FindProjects(state *domain.ProjectState, status *domain.ProjectStatus, visibility *domain.ProjectVisibility,
+) ([]domain.Project, error) {
 	var projects []domain.Project
-	err := p.db.Preload("Category").
+
+	query := p.db.Model(&domain.Project{}).
+		Preload("Category").
 		Preload("Owner.StudentProfile.University").
 		Preload("Media").
-		Order("id DESC").Find(&projects).Error
+		Order("id DESC")
+
+	if state != nil {
+		query = query.Where("state = ?", *state)
+	}
+
+	if status != nil {
+		query = query.Where("status = ?", *status)
+	}
+
+	if visibility != nil {
+		query = query.Where("visibility = ?", *visibility)
+	}
+
+	err := query.Find(&projects).Error
 	return projects, err
 }
 
