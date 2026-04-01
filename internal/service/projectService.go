@@ -77,11 +77,47 @@ type ProjectService interface {
 	ApproveProject(projectID uint) error
 	RejectProject(projectID uint) error
 	CloseProject(projectID uint, user domain.User) error
+	CancelProject(projectID uint, user domain.User) error
 }
 
 type projectService struct {
 	projectRepo repository.ProjectRepository
 	cld         *helper.CloudinaryService
+}
+
+func (s *projectService) CancelProject(projectID uint, user domain.User) error {
+	project, err := s.projectRepo.FindProjectByID(projectID)
+
+	if err != nil {
+		return err
+	}
+
+	if project.OwnerUserID != user.ID {
+		return errors.New("you are not authorized to cancel this project")
+	}
+
+	if project.State == domain.StateCancelled || project.State == domain.StateDraft {
+		return errors.New("project is already cancelled or state is draft")
+	}
+
+	if project.CurrentFunding > 0 {
+		return errors.New("cannot cancel project with existing investments")
+	}
+
+	// update state
+	project.State = domain.StateDraft
+
+	project.Status = domain.StatusActive
+
+	project.Visibility = domain.VisibilityPrivate
+
+	_, err = s.projectRepo.UpdateProject(project)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
 }
 
 func NewProjectService(projectRepo repository.ProjectRepository, cld *helper.CloudinaryService) ProjectService {
@@ -461,7 +497,7 @@ func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMiles
 
 	if input.Type != nil {
 		// milestone รับแค่ excel
-		if *input.Type != domain.MediaTypeRaw {
+		if *input.Type != domain.MediaTypeRaw && *input.Type != domain.MediaTypeImage && *input.Type != domain.MediaTypeVideo {
 			return errors.New("milestone supports only raw file (excel)")
 		}
 		m.Type = *input.Type
