@@ -521,7 +521,7 @@ func (h *ProjectHandler) toProjectResponse(proj *domain.Project) dto.ProjectResp
 			ownerProfile.Faculty = sp.Faculty
 			ownerProfile.Major = sp.Major
 			ownerProfile.Bio = sp.Bio
-			ownerProfile.VerifyStatus = sp.VerifyStatus
+			ownerProfile.VerifyStatus = string(sp.VerifyStatus)
 		}
 	}
 

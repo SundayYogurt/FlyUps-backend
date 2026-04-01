@@ -8,10 +8,21 @@ import (
 
 type UniversityRepository interface {
 	GetUniversityByDomain(domain string) (*domain.UniversityDomain, error)
+	FindUniversityByID(ID uint) (*domain.UniversityDomain, error)
 }
 
 type universityRepository struct {
 	db *gorm.DB
+}
+
+func (u *universityRepository) FindUniversityByID(ID uint) (*domain.UniversityDomain, error) {
+	var university domain.UniversityDomain
+
+	err := u.db.Where("id = ?", ID).First(&university).Error
+	if err != nil {
+		return nil, err
+	}
+	return &university, nil
 }
 
 func (u *universityRepository) GetUniversityByDomain(domainStr string) (*domain.UniversityDomain, error) {

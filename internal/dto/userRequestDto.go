@@ -37,3 +37,31 @@ type AuthResponse struct {
 	Iat    float64 `json:"iat"`
 	Expiry float64 `json:"expiry"`
 }
+
+type ProfileInput struct {
+	// --- ข้อมูลส่วนตัว ---
+	FirstName string  `json:"first_name" validate:"required"`
+	LastName  string  `json:"last_name" validate:"required"`
+	Phone     string  `json:"phone" validate:"required"`
+	Address   *string `json:"address,omitempty"` // optional
+
+	// --- Pioneer only ---
+	// UniversityID: จะถูก derive จาก domain ของ email ที่สมัคร (pioneer)
+	// ยังคงไว้เพื่อ backward compatibility แต่ server จะ ignore ค่า input นี้
+	UniversityID *uint   `json:"university_id,omitempty"`
+	Bio          *string `json:"bio,omitempty"`
+	Portfolio    *string `json:"portfolio,omitempty"`
+	Skills       *string `json:"skills,omitempty"`
+	Faculty      *string `json:"faculty,omitempty"`
+	Major        *string `json:"major,omitempty"`
+
+	// --- เอกสารยืนยันตัวตน ---
+	IDCardFile      *string `json:"id_card_file,omitempty"`      // booster & pioneer
+	StudentCardFile *string `json:"student_card_file,omitempty"` // pioneer only
+
+	// --- ข้อมูลบัญชีธนาคาร ---
+	BankName        *string `json:"bank_name,omitempty"`
+	BankAccountName *string `json:"bank_account_name,omitempty"`
+	BankAccountNo   *string `json:"bank_account_no,omitempty"`
+	BankProofFile   *string `json:"bank_proof_file,omitempty"`
+}

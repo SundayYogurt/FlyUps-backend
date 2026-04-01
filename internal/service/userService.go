@@ -24,6 +24,7 @@ type UserService interface {
 	ForgotPassword(email string) error
 	SetPassword(token string, newPassword string) error
 	GetProfile(userID uint) (*domain.User, error)
+	UpdateProfile(userID uint, input dto.ProfileInput) error
 }
 
 type userService struct {
@@ -328,4 +329,86 @@ func (s *userService) GetProfile(userID uint) (*domain.User, error) {
 	}
 
 	return user, nil
+}
+
+func (s *userService) UpdateProfile(userID uint, input dto.ProfileInput) error {
+	// 1. Validate userID
+	if userID == 0 {
+		return errors.New("invalid user ID")
+	}
+
+	// 2. Find user
+	user, err := s.Repo.FindUserById(userID)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	// 3. Update normal profile
+	firstName := strings.TrimSpace(input.FirstName)
+	lastName := strings.TrimSpace(input.LastName)
+	phone := strings.TrimSpace(input.Phone)
+	var address *string
+	if input.Address != nil {
+		addr := strings.TrimSpace(*input.Address)
+		address = &addr
+	}
+
+	// 4. Pioneer-specific update
+	var studentProfile *domain.StudentProfile
+	if user.Role == "pioneer" {
+		// University ต้องมาจาก domain ของ email ที่สมัครเท่านั้น
+		parts := strings.Split(strings.ToLower(strings.TrimSpace(user.Email)), "@")
+		if len(parts) < 2 {
+			return errors.New("invalid email for university lookup")
+		}
+		domainName := strings.TrimSpace(parts[1])
+
+		uniDomain, err := s.URepo.GetUniversityByDomain(domainName)
+		if err != nil || uniDomain == nil || uniDomain.UniversityID == 0 {
+			return errors.New("university not found for this email domain")
+		}
+		universityID := uniDomain.UniversityID
+		log.Printf("[UpdateProfile] derived university_id=%d from domain=%s (user_id=%d)", universityID, domainName, userID)
+
+		// Build student profile payload (explicit upsert)
+		studentProfile = &domain.StudentProfile{
+			UserID:       userID,
+			UniversityID: universityID,
+			VerifyStatus: domain.VerifyStatusPending,
+		}
+
+		// Update optional student fields
+		if input.Faculty != nil {
+			faculty := strings.TrimSpace(*input.Faculty)
+			studentProfile.Faculty = &faculty
+		}
+		if input.Major != nil {
+			major := strings.TrimSpace(*input.Major)
+			studentProfile.Major = &major
+		}
+		if input.Bio != nil {
+			bio := strings.TrimSpace(*input.Bio)
+			studentProfile.Bio = &bio
+		}
+		if input.Portfolio != nil {
+			portfolio := strings.TrimSpace(*input.Portfolio)
+			studentProfile.Portfolio = &portfolio
+		}
+		if input.Skills != nil {
+			skills := strings.TrimSpace(*input.Skills)
+			studentProfile.Skills = &skills
+		}
+	}
+
+	// 5. Save explicitly (avoid GORM association autosave pitfalls)
+	log.Printf("[UpdateProfile] applying explicit profile update (user_id=%d)", userID)
+	if err := s.Repo.UpdateUserProfile(userID, firstName, lastName, phone, address); err != nil {
+		return err
+	}
+	if studentProfile != nil {
+		if err := s.Repo.UpsertStudentProfileByUserID(studentProfile); err != nil {
+			return err
+		}
+	}
+	return nil
 }
