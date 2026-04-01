@@ -25,10 +25,34 @@ pipeline {
             }
             post {
                 success {
-                    echo "Deployment Successful!"
+                    script {
+                        echo "Deployment Successful!"
+                        def payload = [
+                            job: env.JOB_NAME,
+                            status: "SUCCESS",
+                            url: env.BUILD_URL
+                        ]
+                        httpRequest acceptType: 'APPLICATION_JSON',
+                                    contentType: 'APPLICATION_JSON',
+                                    httpMode: 'POST',
+                                    requestBody: groovy.json.JsonOutput.toJson(payload),
+                                    url: 'https://n8n.flyupapi.dev/webhook/jenkins-alert'
+                    }
                 }
                 failure {
-                    echo "Deployment Failed!"
+                    script {
+                        echo "Deployment Failed!"
+                        def payload = [
+                            job: "env.JOB_NAME",
+                            status: "FAILURE",
+                            url: env.BUILD_URL
+                        ]
+                        httpRequest acceptType: 'APPLICATION_JSON',
+                                    contentType: 'APPLICATION_JSON',
+                                    httpMode: 'POST',
+                                    requestBody: groovy.json.JsonOutput.toJson(payload),
+                                    url: 'https://n8n.flyupapi.dev/webhook/jenkins-alert'
+                    }
                 }
             }
         }
