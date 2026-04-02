@@ -493,25 +493,35 @@ func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMiles
 	}
 
 	if input.URL != nil {
-		u, err := url.Parse(*input.URL)
-		if err != nil {
-			return errors.New("invalid url")
-		}
+		raw := strings.TrimSpace(*input.URL)
+		// allow clearing / ignoring empty string from clients
+		if raw == "" {
+			m.URL = ""
+		} else {
+			u, err := url.Parse(raw)
+			if err != nil {
+				return errors.New("invalid url")
+			}
 
-		// ป้องกัน fake URL
-		if !strings.Contains(u.Host, "res.cloudinary.com") {
-			return errors.New("invalid file source")
-		}
+			// ป้องกัน fake URL
+			if !strings.Contains(u.Host, "res.cloudinary.com") {
+				return errors.New("invalid file source")
+			}
 
-		m.URL = *input.URL
+			m.URL = raw
+		}
 	}
 
 	if input.Type != nil {
+		if strings.TrimSpace(string(*input.Type)) == "" {
+			// ignore empty type from clients
+		} else {
 		// milestone รับแค่ excel
 		if *input.Type != domain.MediaTypeRaw && *input.Type != domain.MediaTypeImage && *input.Type != domain.MediaTypeVideo {
 			return errors.New("milestone supports only raw file (excel)")
 		}
 		m.Type = *input.Type
+		}
 	}
 
 	if input.SortOrder != nil {
