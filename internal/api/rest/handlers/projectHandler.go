@@ -380,8 +380,8 @@ func (h *ProjectHandler) CreateProject(ctx fiber.Ctx) error {
 		return rest.InternalError(ctx, err)
 	}
 
-	// Fetch newly created project detail
-	createdProject, err := h.svc.GetProjectDetailByID(proj.ID)
+	// Fetch newly created project detail (owner view; do not apply public filters)
+	createdProject, err := h.svc.GetOwnerProjectByID(proj.ID, user.ID)
 	if err != nil {
 		return rest.InternalError(ctx, err)
 	}
