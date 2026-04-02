@@ -81,10 +81,21 @@ func NewProjectRepository(db *gorm.DB) ProjectRepository {
 func (p *projectRepository) FindProjectByIDAndOwner(id uint, ownerID uint) (*domain.Project, error) {
 	var project domain.Project
 
-	err := p.db.
+	err := p.db.Model(&domain.Project{}).
 		Preload("Category").
 		Preload("Owner.StudentProfile.University").
-		Preload("Media").
+		Preload("Media", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
+		Preload("Milestones", func(db *gorm.DB) *gorm.DB {
+			return db.Order("phase_no ASC")
+		}).
+		Preload("Stories", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
+		Preload("FAQs", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
 		Where("id = ? AND owner_user_id = ?", id, ownerID).
 		First(&project).Error
 
