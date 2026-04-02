@@ -439,7 +439,7 @@ func (h *ProjectHandler) GetMyProjectByID(ctx fiber.Ctx) error {
 	idStr := ctx.Params("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil || id <= 0 {
-		return rest.BadRequestError(ctx, "invalid project id")
+		return rest.BadRequestError(ctx, "invalid project id.")
 	}
 
 	proj, err := h.svc.GetOwnerProjectByID(uint(id), user.ID)
