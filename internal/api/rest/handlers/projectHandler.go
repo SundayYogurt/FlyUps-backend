@@ -351,7 +351,7 @@ func (h *ProjectHandler) UpdateProject(ctx fiber.Ctx) error {
 	}
 
 	// Fetch updated project detail
-	updatedProject, err := h.svc.GetProjectDetailByID(uint(projectID))
+	updatedProject, err := h.svc.GetOwnerProjectByID(uint(projectID), user.ID)
 	if err != nil {
 		return rest.InternalError(ctx, err)
 	}
