@@ -38,7 +38,6 @@ type ProjectOwnerProfile struct {
 	Faculty      *string `json:"faculty"`
 	Major        *string `json:"major"`
 	Bio          *string `json:"bio"`
-	VerifyStatus string  `json:"verify_status"`
 	ProjectCount int     `json:"project_count"`
 }
 
