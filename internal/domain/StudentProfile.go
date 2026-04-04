@@ -6,29 +6,19 @@ import (
 	"gorm.io/gorm"
 )
 
-type VerifyStatus string
-
-const (
-	VerifyStatusPending  VerifyStatus = "pending"
-	VerifyStatusApproved VerifyStatus = "approved"
-	VerifyStatusRejected VerifyStatus = "rejected"
-)
-
 // StudentProfile represents extended details for pioneer users (students)
 type StudentProfile struct {
-	ID             uint         `json:"id"`
-	UserID         uint         `json:"user_id"`
-	UniversityID   uint         `json:"university_id"`
-	University     *University  `json:"university,omitempty" gorm:"foreignKey:UniversityID"`
-	StudentCode    *string      `json:"student_code,omitempty"`
-	Faculty        *string      `json:"faculty,omitempty"`
-	Major          *string      `json:"major,omitempty"`
-	Bio            *string      `json:"bio,omitempty"`
-	Portfolio      *string      `json:"portfolio,omitempty"`
-	Skills         *string      `json:"skills,omitempty"`
-	ReviewedBy     *uint        `json:"reviewed_by,omitempty"`
-	StudentCardURL *string      `json:"student_card_url,omitempty"`
-	VerifyStatus   VerifyStatus `json:"verify_status"` // pending|approved|rejected
-	VerifiedAt     *time.Time   `json:"verified_at,omitempty"`
+	ID           uint        `json:"id"`
+	UserID       uint        `json:"user_id"`
+	UniversityID uint        `json:"university_id"`
+	University   *University `json:"university,omitempty" gorm:"foreignKey:UniversityID"`
+	StudentCode  *string     `json:"student_code,omitempty"`
+	Faculty      *string     `json:"faculty,omitempty"`
+	Major        *string     `json:"major,omitempty"`
+	Bio          *string     `json:"bio,omitempty"`
+	Portfolio    *string     `json:"portfolio,omitempty"`
+	Skills       *string     `json:"skills,omitempty"`
+	ReviewedBy   *uint       `json:"reviewed_by,omitempty"`
+	VerifiedAt   *time.Time  `json:"verified_at,omitempty"`
 	gorm.Model
 }

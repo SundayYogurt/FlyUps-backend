@@ -9,7 +9,7 @@ import (
 )
 
 type UserRepository interface {
-	CreateUser(usr domain.User, consent domain.UserConsent) (*domain.User, error)
+	CreateUser(usr *domain.User, consent *domain.UserConsent) (*domain.User, error)
 	FindUser(email string) (*domain.User, error)
 	FindUserByVerificationToken(token string) (*domain.User, error)
 	FindUserByResetToken(token string) (*domain.User, error)
@@ -17,10 +17,58 @@ type UserRepository interface {
 	UpdateUser(user *domain.User) error
 	UpdateUserProfile(userID uint, firstName, lastName, phone string, address *string) error
 	UpsertStudentProfileByUserID(profile *domain.StudentProfile) error
+	CreateVerificationRequests(idCard *domain.IdCardVerification, studentCard *domain.StudentCardVerification, consent []*domain.UserConsent) error
+	HasPendingVerification(userID uint, verifyType string) (bool, error)
 }
 
 type userRepository struct {
 	db *gorm.DB
+}
+
+func (r *userRepository) HasPendingVerification(userID uint, verifyType string) (bool, error) {
+	var count int64
+	var err error
+
+	if verifyType == "id_card" {
+		err = r.db.Model(&domain.IdCardVerification{}).
+			Where("user_id = ? AND status IN ?", userID, []string{"pending", "approved"}).
+			Count(&count).Error
+	} else if verifyType == "student_card" {
+		err = r.db.Model(&domain.StudentCardVerification{}).
+			Where("user_id = ? AND status IN ?", userID, []string{"pending", "approved"}).
+			Count(&count).Error
+	}
+
+	return count > 0, err
+}
+
+func (r *userRepository) CreateVerificationRequests(idVerify *domain.IdCardVerification, studentVerify *domain.StudentCardVerification, consent []*domain.UserConsent) error {
+
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(idVerify).Error; err != nil {
+			return err
+		}
+
+		if studentVerify != nil {
+			if err := tx.Create(&studentVerify).Error; err != nil {
+				return err
+			}
+		}
+
+		if consent != nil {
+			if err := tx.Create(&consent).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *userRepository) FindUserByVerificationToken(token string) (*domain.User, error) {
@@ -75,7 +123,6 @@ func (r *userRepository) UpsertStudentProfileByUserID(profile *domain.StudentPro
 			"bio":           profile.Bio,
 			"portfolio":     profile.Portfolio,
 			"skills":        profile.Skills,
-			"verify_status": profile.VerifyStatus,
 		}
 		return tx.Model(&domain.StudentProfile{}).Where("user_id = ?", profile.UserID).Updates(updates).Error
 	})
@@ -94,18 +141,18 @@ func (r *userRepository) FindUser(email string) (*domain.User, error) {
 	return &user, nil
 }
 
-func (r *userRepository) CreateUser(usr domain.User, consent domain.UserConsent) (*domain.User, error) {
+func (r *userRepository) CreateUser(usr *domain.User, consent *domain.UserConsent) (*domain.User, error) {
 	// ใช้ Transaction เพื่อกันข้อมูลไม่ครบ เช่น สมัครแล้วเน็ตดับ
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		// create user
-		if err := tx.Create(&usr).Error; err != nil { //ใช้ tx แทน db เหมือนลองก่อน แล้ว create address ของ usr แล้ว return error ถ้ามี error แล้ว ก็ return ออกไปยกเลิก การ create
+		if err := tx.Create(usr).Error; err != nil { //ใช้ tx แทน db เหมือนลองก่อน แล้ว create address ของ usr แล้ว return error ถ้ามี error แล้ว ก็ return ออกไปยกเลิก การ create
 			return err
 		}
 		// เอา id ที่ได้มาใส่ consent
 		consent.UserID = usr.ID
 
 		// สร้าง consent
-		if err := tx.Create(&consent).Error; err != nil {
+		if err := tx.Create(consent).Error; err != nil {
 			return err
 		}
 
@@ -115,7 +162,7 @@ func (r *userRepository) CreateUser(usr domain.User, consent domain.UserConsent)
 	if err != nil {
 		return nil, err
 	}
-	return &usr, nil
+	return usr, nil
 }
 
 func (r *userRepository) FindUserByResetToken(token string) (*domain.User, error) {
