@@ -492,23 +492,29 @@ func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMiles
 		m.AcceptanceCriteria = input.AcceptanceCriteria
 	}
 
-	if input.URL != nil {
-		raw := strings.TrimSpace(*input.URL)
-		// allow clearing / ignoring empty string from clients
-		if raw == "" {
-			m.URL = ""
+	if input.URLs != nil {
+		if len(input.URLs) == 0 {
+			m.URLs = []string{}
 		} else {
-			u, err := url.Parse(raw)
-			if err != nil {
-				return errors.New("invalid url")
-			}
+			var validURLs []string
+			for _, rawURL := range input.URLs {
+				raw := strings.TrimSpace(rawURL)
+				if raw == "" {
+					continue
+				}
+				u, err := url.Parse(raw)
+				if err != nil {
+					return errors.New("invalid url")
+				}
 
-			// ป้องกัน fake URL
-			if !strings.Contains(u.Host, "res.cloudinary.com") {
-				return errors.New("invalid file source")
-			}
+				// ป้องกัน fake URL (รองรับแต่ cloudinary)
+				if !strings.Contains(u.Host, "res.cloudinary.com") {
+					return errors.New("invalid file source")
+				}
 
-			m.URL = raw
+				validURLs = append(validURLs, raw)
+			}
+			m.URLs = validURLs
 		}
 	}
 
