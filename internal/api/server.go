@@ -34,6 +34,8 @@ func StartServer(cfg config.AppConfig) {
 		&domain.UserConsent{},
 		&domain.StudentProfile{},
 		&domain.BankAccount{},
+		&domain.IdCardVerification{},
+		&domain.StudentCardVerification{},
 
 		// project
 		&domain.Project{},

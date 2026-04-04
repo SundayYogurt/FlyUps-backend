@@ -6,6 +6,13 @@ import (
 	"gorm.io/gorm"
 )
 
+type status string
+
+const (
+	ACTIVE    status = "active"
+	SUSPENDED status = "suspended"
+)
+
 // User represents the core user entity
 type User struct {
 	ID                         uint            `json:"id"`
@@ -16,7 +23,7 @@ type User struct {
 	LastName                   string          `json:"last_name"`
 	Phone                      string          `json:"phone"`
 	Address                    *string         `json:"address,omitempty"`
-	Status                     string          `json:"status"` // active|suspended|deleted
+	Status                     string          `json:"status"` // active|suspended
 	Role                       string          `json:"role"`
 	EmailVerifiedAt            *time.Time      `json:"email_verified_at,omitempty"`
 	VerificationToken          *string         `json:"-"`
@@ -39,9 +46,9 @@ type UserConsent struct {
 }
 
 const (
-	ConsentTerm        = "TERM"
-	ConsentAcceptTrue  = true
-	ConsentPioneerTerm = "PIONEER_TERM"
+	ConsentTerm         = "TERM"
+	ConsentPioneerTerm  = "PIONEER_TERM"
+	ConsentDeclareTruth = "DECLARE_TRUTH"
 )
 
 type BankAccount struct {
@@ -57,26 +64,46 @@ type BankAccount struct {
 	gorm.Model
 }
 
-type IdentityVerification struct {
-	ID         uint
-	UserID     uint
-	Type       string // "student_card" หรือ "id_card"
-	Document   string // URL
-	Status     string // pending|approved|rejected
-	VerifiedAt *time.Time
-	ReviewedBy *uint
+type VerifyStatus string
+
+const (
+	VerifyStatusPending  VerifyStatus = "pending"
+	VerifyStatusApproved VerifyStatus = "approved"
+	VerifyStatusRejected VerifyStatus = "rejected"
+)
+
+type IdCardVerification struct {
+	ID         uint         `json:"id"`
+	UserID     uint         `json:"user_id"`
+	Document   string       `json:"document"`   // URL รูปบัตรประชาชน
+	SelfieURL  *string      `json:"selfie_url"` // URL รูปเซลฟี่ (หน้าคู่บัตร)
+	Status     VerifyStatus `json:"status"`     // pending|approved|rejected
+	VerifiedAt *time.Time   `json:"verified_at,omitempty"`
+	ReviewedBy *uint        `json:"reviewed_by,omitempty"`
+	OcrPayload *string      `json:"ocr_payload,omitempty"`
+	FaceScore  *float64     `json:"face_score,omitempty"`
+	gorm.Model
+}
+
+type StudentCardVerification struct {
+	ID         uint         `json:"id"`
+	UserID     uint         `json:"user_id"`
+	Document   string       `json:"document"` // URL รูปบัตรนักศึกษา
+	Status     VerifyStatus `json:"status"`   // pending|approved|rejected
+	VerifiedAt *time.Time   `json:"verified_at,omitempty"`
+	ReviewedBy *uint        `json:"reviewed_by,omitempty"` // แอดมินเป็นคนตรวจ
 	gorm.Model
 }
 
 type BankVerification struct {
-	ID            uint
-	UserID        uint
-	BankName      string
-	AccountName   string
-	AccountNumber string
-	Proof         string // URL
-	Status        string // pending|approved|rejected
-	VerifiedAt    *time.Time
-	ReviewedBy    *uint
+	ID            uint       `json:"id"`
+	UserID        uint       `json:"user_id"`
+	BankName      string     `json:"bank_name"`
+	AccountName   string     `json:"account_name"`
+	AccountNumber string     `json:"account_number"`
+	Proof         string     `json:"proof"`  // URL
+	Status        string     `json:"status"` // pending|approved|rejected
+	VerifiedAt    *time.Time `json:"verified_at,omitempty"`
+	ReviewedBy    *uint      `json:"reviewed_by,omitempty"`
 	gorm.Model
 }

@@ -50,6 +50,8 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	privateRoutes := app.Group("/user", rh.Middlewares.Authorize)
 	privateRoutes.Get("/me", handler.Me)
 	privateRoutes.Patch("/profile", handler.UpdateProfile)
+	privateRoutes.Post("/student-verify", handler.VerifyStudent)
+	privateRoutes.Post("/id-verify", handler.VerifyIDCard)
 }
 
 // Signup godoc
@@ -309,4 +311,52 @@ func (h *UserHandler) UpdateProfile(ctx fiber.Ctx) error {
 
 	// response
 	return rest.SuccessResponse(ctx, "profile updated successfully", nil)
+}
+
+func (h *UserHandler) VerifyStudent(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	var req dto.VerifyStudentInput
+	if err := ctx.Bind().Body(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid request body: "+err.Error())
+	}
+
+	// validate input
+	if err := h.validator.Struct(req); err != nil {
+		return rest.BadRequestError(ctx, "validation failed: "+err.Error())
+	}
+
+	err := h.svc.VerifyStudent(user.ID, req)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "successfully submit verify to admin!", nil)
+}
+
+func (h *UserHandler) VerifyIDCard(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	var req dto.VerifyIDInput
+	if err := ctx.Bind().Body(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid request body: "+err.Error())
+	}
+
+	// validate input
+	if err := h.validator.Struct(req); err != nil {
+		return rest.BadRequestError(ctx, "validation failed: "+err.Error())
+	}
+
+	err := h.svc.VerifyID(user.ID, req)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "identity verification approved successfully!", nil)
 }

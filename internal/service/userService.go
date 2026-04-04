@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 	"flyup/config"
 	"flyup/internal/domain"
@@ -8,6 +9,7 @@ import (
 	"flyup/internal/helper"
 	"flyup/internal/repository"
 	"flyup/pkg/notification"
+	"fmt"
 	"log"
 	"regexp"
 	"strings"
@@ -25,6 +27,8 @@ type UserService interface {
 	SetPassword(token string, newPassword string) error
 	GetProfile(userID uint) (*domain.User, error)
 	UpdateProfile(userID uint, input dto.ProfileInput) error
+	VerifyStudent(userID uint, input dto.VerifyStudentInput) error
+	VerifyID(userID uint, input dto.VerifyIDInput) error
 }
 
 type userService struct {
@@ -103,20 +107,20 @@ func (s *userService) Signup(input dto.UserSignup) (string, error) {
 	verifyToken := token
 	expireAt := time.Now().Add(time.Hour * 24)
 
-	newUser := domain.User{
+	newUser := &domain.User{
 		Email:                      email,
 		PasswordHash:               hPassword,
 		FirstName:                  input.FirstName,
 		LastName:                   input.LastName,
 		Phone:                      input.Phone,
 		Role:                       input.Role, // pioneer หรือ booster
-		Status:                     "pending",
+		Status:                     string(domain.StatusActive),
 		VerificationToken:          &verifyToken,
 		VerificationTokenExpiresAt: &expireAt,
 	}
 
 	// สร้างก้อน Consent จาก AcceptTerms ใน DTO
-	consent := domain.UserConsent{
+	consent := &domain.UserConsent{
 		ConsentCode: domain.ConsentTerm,
 		Accepted:    input.AcceptTerms,
 		AcceptedAt:  time.Now(),
@@ -374,7 +378,6 @@ func (s *userService) UpdateProfile(userID uint, input dto.ProfileInput) error {
 		studentProfile = &domain.StudentProfile{
 			UserID:       userID,
 			UniversityID: universityID,
-			VerifyStatus: domain.VerifyStatusPending,
 		}
 
 		// Update optional student fields
@@ -411,4 +414,142 @@ func (s *userService) UpdateProfile(userID uint, input dto.ProfileInput) error {
 		}
 	}
 	return nil
+}
+
+func (s *userService) VerifyStudent(userID uint, input dto.VerifyStudentInput) error {
+
+	if userID == 0 {
+		return errors.New("invalid user ID")
+	}
+
+	user, err := s.Repo.FindUserById(userID)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	if user.Role != "pioneer" {
+		return errors.New("only pioneer")
+	}
+
+	if input.StudentCardURL == nil {
+		return errors.New("student card required")
+	}
+
+	if input.AcceptPioneerTerms == nil {
+		return errors.New("must accept terms")
+	}
+
+	if input.DeclareTruth == nil {
+		return errors.New("must confirm information is true")
+	}
+
+	// กัน submit ซ้ำ
+	exists, _ := s.Repo.HasPendingVerification(userID, "student_card")
+	if exists {
+		return errors.New("verification is already pending or approved")
+	}
+
+	verify := &domain.StudentCardVerification{
+		UserID:   userID,
+		Document: *input.StudentCardURL,
+		Status:   domain.VerifyStatusPending,
+	}
+
+	consents := []*domain.UserConsent{
+		{
+			UserID:      userID,
+			ConsentCode: domain.ConsentPioneerTerm,
+			Accepted:    true,
+			AcceptedAt:  time.Now(),
+		},
+		{
+			UserID:      userID,
+			ConsentCode: domain.ConsentDeclareTruth,
+			Accepted:    true,
+			AcceptedAt:  time.Now(),
+		},
+	}
+
+	return s.Repo.CreateVerificationRequests(nil, verify, consents)
+}
+
+func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
+
+	if userID == 0 {
+		return errors.New("invalid user ID")
+	}
+
+	if input.IDCardURL == nil {
+		return errors.New("ID card required")
+	}
+
+	if input.SelfieURL == nil {
+		return errors.New("selfie image required")
+	}
+
+	if input.DeclareTruth == nil || !*input.DeclareTruth {
+		return errors.New("must confirm information is true")
+	}
+
+	// กัน submit ซ้ำ
+	exists, _ := s.Repo.HasPendingVerification(userID, "id_card")
+	if exists {
+		return errors.New("verification is already pending or approved")
+	}
+
+	iappAPIKey := s.Config.IAppAPIKey
+	iappSvc := helper.NewIAppService(iappAPIKey)
+
+	// โยน URL ของรูปไปเข้า OCR ที่ IAPP
+	ocrPayload, err := iappSvc.VerifyFaceAndIDCard(*input.IDCardURL, *input.SelfieURL)
+
+	if err != nil {
+		return fmt.Errorf("failed to verify IDCard AND Face: %v", err)
+	}
+
+	// สร้าง struct มารับค่าชั่วคราวเพื่อเช็คเงื่อนไข
+	var iAppResult struct {
+		Total struct {
+			IsSamePerson string  `json:"isSamePerson"`
+			Confidence   float64 `json:"confidence"`
+		} `json:"total"`
+	}
+
+	// แกะ JSON ที่ iApp คืนมา ใส่ตัวแปร iAppResult
+	_ = json.Unmarshal([]byte(ocrPayload), &iAppResult)
+
+	// ตั้งค่าเริ่มต้นเป็น Rejected
+	finalStatus := domain.VerifyStatusRejected
+	var faceScore *float64
+
+	// ถ้าหน้าตรงกัน และมีความมั่นใจมากกว่าเกณฑ์ (เช่นตั้งไว้ 50%) ให้ผ่าน!
+	if iAppResult.Total.IsSamePerson == "true" && iAppResult.Total.Confidence >= 50.0 {
+		finalStatus = domain.VerifyStatusApproved
+	} else if iAppResult.Total.IsSamePerson == "false" || iAppResult.Total.Confidence < 50.0 {
+		// ถ้าหน้าไม่เหมือนกัน ตีตกทันทีและชี้เป้า Error ให้ Frontend ไปด่าผู้ใช้
+		return errors.New("face match failed: selfie and ID card do not match")
+	}
+
+	conf := iAppResult.Total.Confidence
+	faceScore = &conf
+
+	verify := &domain.IdCardVerification{
+		UserID:     userID,
+		Document:   *input.IDCardURL,
+		SelfieURL:  input.SelfieURL,
+		Status:     finalStatus,
+		FaceScore:  faceScore,
+		OcrPayload: &ocrPayload,
+	}
+
+	consents := []*domain.UserConsent{
+		{
+			UserID:      userID,
+			ConsentCode: domain.ConsentDeclareTruth,
+			Accepted:    true,
+			AcceptedAt:  time.Now(),
+		},
+	}
+
+	return s.Repo.CreateVerificationRequests(verify, nil, consents)
 }

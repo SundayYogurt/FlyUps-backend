@@ -20,6 +20,7 @@ type AppConfig struct {
 	CloudinaryAPISecret string
 	StripeSecretKey     string
 	StripeWebhookSecret string
+	IAppAPIKey          string
 }
 
 func SetupEnv() (cfg AppConfig, err error) {
@@ -80,6 +81,10 @@ func SetupEnv() (cfg AppConfig, err error) {
 	stripeSecretKey := os.Getenv("STRIPE_SECRET_KEY")
 	stripeWebhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
 
+	iappAPIKey := os.Getenv("IAPP_API_KEY")
+	if len(iappAPIKey) < 1 {
+		return AppConfig{}, errors.New("iapp api key not found")
+	}
 	return AppConfig{
 		ServerPort:          httpPort,
 		Dsn:                 Dsn,
@@ -92,6 +97,7 @@ func SetupEnv() (cfg AppConfig, err error) {
 		CloudinaryAPISecret: apiSecret,
 		StripeSecretKey:     stripeSecretKey,
 		StripeWebhookSecret: stripeWebhookSecret,
+		IAppAPIKey:          iappAPIKey,
 	}, nil
 
 }

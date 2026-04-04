@@ -530,7 +530,6 @@ func (h *ProjectHandler) toProjectResponse(proj *domain.Project) dto.ProjectResp
 		ownerProfile = &dto.ProjectOwnerProfile{
 			FirstName:    proj.Owner.FirstName,
 			LastName:     proj.Owner.LastName,
-			VerifyStatus: proj.Owner.Status,
 			ProjectCount: len(ownerProjects),
 		}
 		if proj.Owner.StudentProfile != nil {
@@ -541,7 +540,6 @@ func (h *ProjectHandler) toProjectResponse(proj *domain.Project) dto.ProjectResp
 			ownerProfile.Faculty = sp.Faculty
 			ownerProfile.Major = sp.Major
 			ownerProfile.Bio = sp.Bio
-			ownerProfile.VerifyStatus = string(sp.VerifyStatus)
 		}
 	}
 
