@@ -122,7 +122,7 @@ type Milestone struct {
 	EndDate            *time.Time      `json:"end_date"`
 	AcceptanceCriteria *string         `json:"acceptance_criteria"`
 	Type               MediaType       `json:"type"`
-	URL                string          `json:"url"`
+	URLs               []string        `json:"urls" gorm:"type:json;serializer:json"`
 	SortOrder          int             `json:"sort_order"`
 	PercentRelease     int             `json:"percent_release"`
 	Status             MilestoneStatus `json:"status"`
