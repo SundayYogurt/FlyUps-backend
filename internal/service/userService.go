@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,6 +30,9 @@ type UserService interface {
 	UpdateProfile(userID uint, input dto.ProfileInput) error
 	VerifyStudent(userID uint, input dto.VerifyStudentInput) error
 	VerifyID(userID uint, input dto.VerifyIDInput) error
+	AddBankAccount(userID uint, input dto.BankRequest) error
+	UpdateBankAccount(userID uint, bankID uint, input dto.BankRequest) error
+	FindBankByUserID(id uint) ([]domain.BankAccount, error)
 }
 
 type userService struct {
@@ -50,6 +54,133 @@ func NewUserService(
 		Auth:   auth,
 		Config: cfg,
 	}
+}
+
+func (s *userService) FindBankByUserID(userID uint) ([]domain.BankAccount, error) {
+	if userID == 0 {
+		return nil, errors.New("invalid id")
+	}
+
+	userBank, err := s.Repo.FindBankByUserId(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(userBank) == 0 {
+		return nil, errors.New("bank not found")
+	}
+
+	return userBank, nil
+}
+
+func (s *userService) UpdateBankAccount(userID uint, bankID uint, input dto.BankRequest) error {
+	if userID == 0 || bankID == 0 {
+		return errors.New("invalid id")
+	}
+	// 1. หา bank
+	bank, err := s.Repo.FindBankById(bankID)
+	if err != nil {
+		return err
+	}
+	if bank == nil {
+		return errors.New("bank not found")
+	}
+
+	// 2. เช็ค ownership
+	if bank.UserID != userID {
+		return errors.New("not your bank account")
+	}
+
+	// 3. validate + normalize
+	if input.BankName != nil {
+		name := strings.TrimSpace(*input.BankName)
+		if name == "" {
+			return errors.New("bank name is required")
+		}
+		bank.BankName = name
+	}
+
+	if input.AccountName != nil {
+		name := strings.TrimSpace(*input.AccountName)
+		if name == "" {
+			return errors.New("account name is required")
+		}
+		bank.AccountName = name
+	}
+
+	if input.AccountNumber != nil {
+		number := strings.TrimSpace(*input.AccountNumber)
+
+		if number == "" {
+			return errors.New("account number is required")
+		}
+
+		if _, err := strconv.Atoi(number); err != nil {
+			return errors.New("account number must be numeric")
+		}
+
+		if len(number) < 8 || len(number) > 15 {
+			return errors.New("invalid account number length")
+		}
+
+		bank.AccountNumber = number
+	}
+
+	// 5. save
+	return s.Repo.UpdateBankAccount(bank)
+}
+
+func (s *userService) AddBankAccount(userID uint, input dto.BankRequest) error {
+	if userID == 0 {
+		return errors.New("invalid user ID")
+	}
+
+	user, err := s.Repo.FindUserById(userID)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return errors.New("user not found")
+	}
+
+	if input.BankName == nil || strings.TrimSpace(*input.BankName) == "" {
+		return errors.New("bank name is required")
+	}
+
+	if input.AccountName == nil || strings.TrimSpace(*input.AccountName) == "" {
+		return errors.New("account name is required")
+	}
+
+	if input.AccountNumber == nil || strings.TrimSpace(*input.AccountNumber) == "" {
+		return errors.New("account number is required")
+	}
+
+	if _, err := strconv.Atoi(*input.AccountNumber); err != nil {
+		return errors.New("account number must be numeric")
+	}
+
+	if len(*input.AccountNumber) < 8 || len(*input.AccountNumber) > 15 {
+		return errors.New("invalid account number length")
+	}
+
+	existing, err := s.Repo.FindBankByAccountNumber(*input.AccountNumber)
+	if err != nil {
+		return err
+	}
+
+	if existing != nil {
+		return errors.New("account number already exists")
+	}
+
+	bank := &domain.BankAccount{
+		UserID:        userID,
+		BankName:      *input.BankName,
+		AccountName:   *input.AccountName,
+		AccountNumber: *input.AccountNumber,
+	}
+
+	return s.Repo.CreateBankAccount(bank)
+
 }
 
 func (s *userService) Signup(input dto.UserSignup) (string, error) {

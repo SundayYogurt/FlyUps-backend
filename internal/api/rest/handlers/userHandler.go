@@ -7,6 +7,7 @@ import (
 	"flyup/internal/helper"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"flyup/internal/repository"
@@ -52,6 +53,12 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	privateRoutes.Patch("/profile", handler.UpdateProfile)
 	privateRoutes.Post("/student-verify", handler.VerifyStudent)
 	privateRoutes.Post("/id-verify", handler.VerifyIDCard)
+	privateRoutes.Post("/add-bank", handler.AddBankAccount)
+	privateRoutes.Patch("/update-bank/:id", handler.UpdateBankAccount)
+
+	//admin route
+	adminRoutes := app.Group("/admin", rh.Middlewares.AuthorizeAdmin)
+	adminRoutes.Get("/user-banks/:id", handler.GetBankUserAccounts)
 }
 
 // Signup godoc
@@ -294,6 +301,8 @@ func (h *UserHandler) UpdateProfile(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "validation failed: "+err.Error())
 	}
 
+	log.Printf("REQ: %+v", req)
+
 	// call service
 	if err := h.svc.UpdateProfile(user.ID, req); err != nil {
 		// business/input errors -> 400 เพื่อ debug ง่าย
@@ -359,4 +368,62 @@ func (h *UserHandler) VerifyIDCard(ctx fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, "identity verification approved successfully!", nil)
+}
+
+func (h *UserHandler) AddBankAccount(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	var req dto.BankRequest
+	if err := ctx.Bind().Body(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid request body: "+err.Error())
+	}
+
+	err := h.svc.AddBankAccount(user.ID, req)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "bank account added successfully", nil)
+}
+
+func (h *UserHandler) UpdateBankAccount(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	bankId := ctx.Params("id")
+	bankIdParsed, err := strconv.ParseUint(bankId, 10, 64)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid Bank ID: "+err.Error())
+	}
+
+	var req dto.BankRequest
+	if err := ctx.Bind().Body(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid request body: "+err.Error())
+	}
+
+	err = h.svc.UpdateBankAccount(user.ID, uint(bankIdParsed), req)
+	if err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+	return rest.SuccessResponse(ctx, "bank account updated successfully", nil)
+}
+
+func (h *UserHandler) GetBankUserAccounts(ctx fiber.Ctx) error {
+	user := ctx.Params("id")
+	userParsed, err := strconv.ParseUint(user, 10, 64)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid user ID: "+err.Error())
+	}
+
+	users, err := h.svc.FindBankByUserID(uint(userParsed))
+	if err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "success", users)
 }

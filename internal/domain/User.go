@@ -52,15 +52,11 @@ const (
 )
 
 type BankAccount struct {
-	ID            uint       `json:"id"`
-	UserID        uint       `json:"user_id"`
-	BankName      string     `json:"bank_name"`
-	AccountName   string     `json:"account_name"`
-	AccountNumber string     `json:"account_number"` // เข้ารหัสก่อนเก็บ
-	VerifyStatus  string     `json:"verify_status"`  // pending|approved|rejected
-	VerifiedAt    *time.Time `json:"verified_at,omitempty"`
-	ReviewedBy    *uint      `json:"reviewed_by,omitempty"` // admin ID
-	ProofURL      *string    `json:"proof_url,omitempty"`   // ไฟล์ bank proof
+	ID            uint   `json:"id"`
+	UserID        uint   `json:"user_id"`
+	BankName      string `json:"bank_name"`
+	AccountName   string `json:"account_name"`
+	AccountNumber string `json:"account_number"`
 	gorm.Model
 }
 
@@ -92,18 +88,5 @@ type StudentCardVerification struct {
 	Status     VerifyStatus `json:"status"`   // pending|approved|rejected
 	VerifiedAt *time.Time   `json:"verified_at,omitempty"`
 	ReviewedBy *uint        `json:"reviewed_by,omitempty"` // แอดมินเป็นคนตรวจ
-	gorm.Model
-}
-
-type BankVerification struct {
-	ID            uint       `json:"id"`
-	UserID        uint       `json:"user_id"`
-	BankName      string     `json:"bank_name"`
-	AccountName   string     `json:"account_name"`
-	AccountNumber string     `json:"account_number"`
-	Proof         string     `json:"proof"`  // URL
-	Status        string     `json:"status"` // pending|approved|rejected
-	VerifiedAt    *time.Time `json:"verified_at,omitempty"`
-	ReviewedBy    *uint      `json:"reviewed_by,omitempty"`
 	gorm.Model
 }

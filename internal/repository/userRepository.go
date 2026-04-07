@@ -19,10 +19,59 @@ type UserRepository interface {
 	UpsertStudentProfileByUserID(profile *domain.StudentProfile) error
 	CreateVerificationRequests(idCard *domain.IdCardVerification, studentCard *domain.StudentCardVerification, consent []*domain.UserConsent) error
 	HasPendingVerification(userID uint, verifyType string) (bool, error)
+	CreateBankAccount(bank *domain.BankAccount) error
+	UpdateBankAccount(bank *domain.BankAccount) error
+	FindBankByUserId(userID uint) ([]domain.BankAccount, error)
+	FindBankById(id uint) (*domain.BankAccount, error)
+	FindBankByAccountNumber(accountNumber string) (*domain.BankAccount, error)
 }
 
 type userRepository struct {
 	db *gorm.DB
+}
+
+func (r *userRepository) FindBankByAccountNumber(accountNumber string) (*domain.BankAccount, error) {
+	var account domain.BankAccount
+	err := r.db.Where("account_number = ?", accountNumber).First(&account).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // ยังไม่มี
+		}
+		return nil, err // error จริง
+	}
+	return &account, nil
+}
+
+func (r *userRepository) FindBankById(id uint) (*domain.BankAccount, error) {
+	var account domain.BankAccount
+	err := r.db.First(&account, "id = ?", id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // ไม่เจอ = ไม่ใช่ error
+		}
+		return nil, err // error จริง เช่น DB ล่ม
+	}
+
+	return &account, nil
+}
+
+func (r *userRepository) CreateBankAccount(bank *domain.BankAccount) error {
+	return r.db.Create(bank).Error
+}
+
+func (r *userRepository) FindBankByUserId(userID uint) ([]domain.BankAccount, error) {
+	var banks []domain.BankAccount
+
+	err := r.db.Where("user_id = ?", userID).Find(&banks).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return banks, nil
+}
+
+func (r *userRepository) UpdateBankAccount(bank *domain.BankAccount) error {
+	return r.db.Save(bank).Error
 }
 
 func (r *userRepository) HasPendingVerification(userID uint, verifyType string) (bool, error) {
