@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"flyup/internal/domain"
 
 	"gorm.io/gorm"
@@ -21,6 +22,8 @@ type ProjectRepository interface {
 	FindProjectUpdateByID(updateID uint) (*domain.ProjectUpdate, error)
 	UpdateProjectUpdate(update *domain.ProjectUpdate) error
 	DeleteProjectUpdate(updateID uint) error
+	GetApprovedIdCard(userID uint) (*domain.IdCardVerification, error)
+	GetApprovedStudentCard(userID uint) (*domain.StudentCardVerification, error)
 
 	FindMediaByProjectID(projectID uint) ([]domain.ProjectMedia, error)
 	FindMediaByID(id uint) (*domain.ProjectMedia, error)
@@ -78,6 +81,35 @@ type projectRepository struct {
 func NewProjectRepository(db *gorm.DB) ProjectRepository {
 	return &projectRepository{db: db}
 }
+
+func (p *projectRepository) GetApprovedStudentCard(userID uint) (*domain.StudentCardVerification, error) {
+	var v domain.StudentCardVerification
+
+	err := p.db.Where("user_id = ? AND status = ?", userID, "approved").First(&v).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &v, nil
+}
+
+func (p *projectRepository) GetApprovedIdCard(userID uint) (*domain.IdCardVerification, error) {
+	var v domain.IdCardVerification
+
+	err := p.db.Where("user_id = ? AND status = ?", userID, "approved").First(&v).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &v, nil
+}
+
 func (p *projectRepository) FindProjectByIDAndOwner(id uint, ownerID uint) (*domain.Project, error) {
 	var project domain.Project
 

@@ -82,47 +82,14 @@ type ProjectService interface {
 
 type projectService struct {
 	projectRepo repository.ProjectRepository
+	userRepo    repository.UserRepository
 	cld         *helper.CloudinaryService
 }
 
-func (s *projectService) CancelProject(projectID uint, user domain.User) error {
-	project, err := s.projectRepo.FindProjectByID(projectID)
-
-	if err != nil {
-		return err
-	}
-
-	if project.OwnerUserID != user.ID {
-		return errors.New("you are not authorized to cancel this project")
-	}
-
-	if project.State == domain.StateCancelled || project.State == domain.StateDraft {
-		return errors.New("project is already cancelled or state is draft")
-	}
-
-	if project.CurrentFunding > 0 {
-		return errors.New("cannot cancel project with existing investments")
-	}
-
-	// update state
-	project.State = domain.StateDraft
-
-	project.Status = domain.StatusActive
-
-	project.Visibility = domain.VisibilityPrivate
-
-	_, err = s.projectRepo.UpdateProject(project)
-	if err != nil {
-		return err
-	}
-
-	return nil
-
-}
-
-func NewProjectService(projectRepo repository.ProjectRepository, cld *helper.CloudinaryService) ProjectService {
+func NewProjectService(projectRepo repository.ProjectRepository, userRepo repository.UserRepository, cld *helper.CloudinaryService) ProjectService {
 	return &projectService{
 		projectRepo: projectRepo,
+		userRepo:    userRepo,
 		cld:         cld,
 	}
 }
@@ -131,6 +98,33 @@ func NewProjectService(projectRepo repository.ProjectRepository, cld *helper.Clo
 func (s *projectService) CreateProject(ownerID uint) (*domain.Project, error) {
 	if ownerID == 0 {
 		return nil, errors.New("owner is required")
+	}
+
+	// เช็ค Id Card
+	idCard, err := s.projectRepo.GetApprovedIdCard(ownerID)
+	if err != nil {
+		return nil, err
+	}
+	if idCard == nil {
+		return nil, errors.New("id card not verified")
+	}
+
+	// เช็ค Student Card
+	studentCard, err := s.projectRepo.GetApprovedStudentCard(ownerID)
+	if err != nil {
+		return nil, err
+	}
+	if studentCard == nil {
+		return nil, errors.New("student card not verified")
+	}
+
+	bank, err := s.userRepo.FindBankByUserId(ownerID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(bank) == 0 {
+		return nil, errors.New("bank account needed. please add your bank account first")
 	}
 
 	project := &domain.Project{
@@ -522,11 +516,11 @@ func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMiles
 		if strings.TrimSpace(string(*input.Type)) == "" {
 			// ignore empty type from clients
 		} else {
-		// milestone รับแค่ excel
-		if *input.Type != domain.MediaTypeRaw && *input.Type != domain.MediaTypeImage && *input.Type != domain.MediaTypeVideo {
-			return errors.New("milestone supports only raw file (excel)")
-		}
-		m.Type = *input.Type
+			// milestone รับแค่ excel
+			if *input.Type != domain.MediaTypeRaw && *input.Type != domain.MediaTypeImage && *input.Type != domain.MediaTypeVideo {
+				return errors.New("milestone supports only raw file (excel)")
+			}
+			m.Type = *input.Type
 		}
 	}
 
@@ -1108,4 +1102,39 @@ func (s *projectService) CloseProject(projectID uint, user domain.User) error {
 
 	_, err = s.projectRepo.UpdateProject(p)
 	return err
+}
+
+func (s *projectService) CancelProject(projectID uint, user domain.User) error {
+	project, err := s.projectRepo.FindProjectByID(projectID)
+
+	if err != nil {
+		return err
+	}
+
+	if project.OwnerUserID != user.ID {
+		return errors.New("you are not authorized to cancel this project")
+	}
+
+	if project.State == domain.StateCancelled || project.State == domain.StateDraft {
+		return errors.New("project is already cancelled or state is draft")
+	}
+
+	if project.CurrentFunding > 0 {
+		return errors.New("cannot cancel project with existing investments")
+	}
+
+	// update state
+	project.State = domain.StateDraft
+
+	project.Status = domain.StatusActive
+
+	project.Visibility = domain.VisibilityPrivate
+
+	_, err = s.projectRepo.UpdateProject(project)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
 }
