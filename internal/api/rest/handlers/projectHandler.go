@@ -29,6 +29,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 
 	svc := service.NewProjectService(
 		repository.NewProjectRepository(rh.DB),
+		repository.NewUserRepository(rh.DB),
 		rh.Cloudinary,
 	)
 
