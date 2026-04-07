@@ -40,9 +40,9 @@ type AuthResponse struct {
 
 type ProfileInput struct {
 	// --- ข้อมูลส่วนตัว ---
-	FirstName string  `json:"first_name" validate:"required"`
-	LastName  string  `json:"last_name" validate:"required"`
-	Phone     string  `json:"phone" validate:"required"`
+	FirstName string  `json:"first_name"`
+	LastName  string  `json:"last_name"`
+	Phone     string  `json:"phone"`
 	Address   *string `json:"address,omitempty"` // optional
 
 	// --- Pioneer only ---
@@ -54,12 +54,6 @@ type ProfileInput struct {
 	Skills       *string `json:"skills,omitempty"`
 	Faculty      *string `json:"faculty,omitempty"`
 	Major        *string `json:"major,omitempty"`
-
-	// --- ข้อมูลบัญชีธนาคาร ---
-	BankName        *string `json:"bank_name,omitempty"`
-	BankAccountName *string `json:"bank_account_name,omitempty"`
-	BankAccountNo   *string `json:"bank_account_no,omitempty"`
-	BankProofFile   *string `json:"bank_proof_file,omitempty"`
 }
 
 type VerifyStudentInput struct {
@@ -72,4 +66,10 @@ type VerifyIDInput struct {
 	IDCardURL    *string `json:"id_card_url,omitempty" validate:"required"`
 	SelfieURL    *string `json:"selfie_url,omitempty" validate:"required"`
 	DeclareTruth *bool   `json:"declare_truth"`
+}
+
+type BankRequest struct {
+	BankName      *string `json:"bank_name,omitempty"`
+	AccountName   *string `json:"account_name,omitempty"`
+	AccountNumber *string `json:"account_number"`
 }
