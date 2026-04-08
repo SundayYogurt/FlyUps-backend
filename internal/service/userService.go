@@ -9,7 +9,6 @@ import (
 	"flyup/internal/helper"
 	"flyup/internal/repository"
 	"flyup/pkg/notification"
-	"fmt"
 	"log"
 	"regexp"
 	"strconv"
@@ -33,6 +32,10 @@ type UserService interface {
 	AddBankAccount(userID uint, input dto.BankRequest) error
 	UpdateBankAccount(userID uint, bankID uint, input dto.BankRequest) error
 	FindBankByUserID(id uint) ([]domain.BankAccount, error)
+	ApproveIdCard(userID uint, adminID uint) error
+	ApproveStudentCard(userID uint, adminID uint) error
+	RejectIdCard(userID uint, adminID uint) error
+	RejectStudentCard(userID uint, adminID uint) error
 }
 
 type userService struct {
@@ -54,6 +57,179 @@ func NewUserService(
 		Auth:   auth,
 		Config: cfg,
 	}
+}
+
+func (s *userService) RejectIdCard(userID uint, adminID uint) error {
+	if userID == 0 {
+		return errors.New("invalid id")
+	}
+
+	if adminID == 0 {
+		return errors.New("invalid adminId")
+	}
+
+	_, err := s.Repo.FindUserById(userID)
+	if err != nil {
+		return err
+	}
+
+	student, err := s.Repo.FindIdCardStatus(userID)
+	if err != nil {
+		return err
+	}
+
+	if student == nil {
+		return errors.New("no student verification found")
+	}
+
+	switch student.Status {
+	case domain.VerifyStatusPending:
+
+	case domain.VerifyStatusApproved:
+		return errors.New("student is already verified")
+
+	case domain.VerifyStatusRejected:
+		return errors.New("verification was rejected, user must resubmit")
+	}
+
+	v := &domain.IdCardVerification{
+		UserID:     userID,
+		Status:     domain.VerifyStatusRejected,
+		ReviewedBy: &adminID,
+	}
+
+	return s.Repo.UpdateIdCardVerification(v)
+}
+
+func (s *userService) RejectStudentCard(userID uint, adminID uint) error {
+	if userID == 0 {
+		return errors.New("invalid id")
+	}
+
+	if adminID == 0 {
+		return errors.New("invalid adminId")
+	}
+
+	_, err := s.Repo.FindUserById(userID)
+	if err != nil {
+		return err
+	}
+
+	student, err := s.Repo.FindStudentStatus(userID)
+	if err != nil {
+		return err
+	}
+
+	if student == nil {
+		return errors.New("no student verification found")
+	}
+
+	switch student.Status {
+	case domain.VerifyStatusPending:
+
+	case domain.VerifyStatusApproved:
+		return errors.New("student is already verified")
+
+	case domain.VerifyStatusRejected:
+		return errors.New("verification was rejected, user must resubmit")
+	}
+
+	v := &domain.StudentCardVerification{
+		UserID:     userID,
+		Status:     domain.VerifyStatusRejected,
+		ReviewedBy: &adminID,
+	}
+
+	return s.Repo.UpdateStudentCardVerification(v)
+}
+
+func (s *userService) ApproveStudentCard(userID uint, adminID uint) error {
+	if userID == 0 {
+		return errors.New("invalid id")
+	}
+
+	if adminID == 0 {
+		return errors.New("invalid adminId")
+	}
+
+	_, err := s.Repo.FindUserById(userID)
+	if err != nil {
+		return err
+	}
+
+	student, err := s.Repo.FindStudentStatus(userID)
+	if err != nil {
+		return err
+	}
+
+	if student == nil {
+		return errors.New("no student verification found")
+	}
+
+	switch student.Status {
+	case domain.VerifyStatusPending:
+
+	case domain.VerifyStatusApproved:
+		return errors.New("student is already verified")
+
+	case domain.VerifyStatusRejected:
+		return errors.New("verification was rejected, user must resubmit")
+	}
+
+	now := time.Now()
+
+	v := &domain.StudentCardVerification{
+		UserID:     userID,
+		Status:     domain.VerifyStatusApproved,
+		VerifiedAt: &now,
+		ReviewedBy: &adminID,
+	}
+
+	return s.Repo.UpdateStudentCardVerification(v)
+}
+
+func (s *userService) ApproveIdCard(userID uint, adminID uint) error {
+	if userID == 0 {
+		return errors.New("invalid id")
+	}
+
+	if adminID == 0 {
+		return errors.New("invalid adminId")
+	}
+
+	_, err := s.Repo.FindUserById(userID)
+	if err != nil {
+		return err
+	}
+
+	student, err := s.Repo.FindIdCardStatus(userID)
+	if err != nil {
+		return err
+	}
+
+	if student == nil {
+		return errors.New("no student verification found")
+	}
+
+	switch student.Status {
+	case domain.VerifyStatusPending:
+
+	case domain.VerifyStatusApproved:
+		return errors.New("student is already verified")
+
+	case domain.VerifyStatusRejected:
+		return errors.New("verification was rejected, user must resubmit")
+	}
+
+	now := time.Now()
+
+	v := &domain.IdCardVerification{
+		UserID:     userID,
+		Status:     domain.VerifyStatusApproved,
+		VerifiedAt: &now,
+		ReviewedBy: &adminID,
+	}
+	return s.Repo.UpdateIdCardVerification(v)
 }
 
 func (s *userService) FindBankByUserID(userID uint) ([]domain.BankAccount, error) {
@@ -566,18 +742,29 @@ func (s *userService) VerifyStudent(userID uint, input dto.VerifyStudentInput) e
 		return errors.New("student card required")
 	}
 
-	if input.AcceptPioneerTerms == nil {
+	if input.AcceptPioneerTerms == nil || !*input.AcceptPioneerTerms {
 		return errors.New("must accept terms")
 	}
 
-	if input.DeclareTruth == nil {
+	if input.DeclareTruth == nil || !*input.DeclareTruth {
 		return errors.New("must confirm information is true")
 	}
 
-	// กัน submit ซ้ำ
-	exists, _ := s.Repo.HasPendingVerification(userID, "student_card")
-	if exists {
-		return errors.New("verification is already pending or approved")
+	// หา record ล่าสุด
+	existing, err := s.Repo.FindLatestStudentVerification(userID)
+	if err != nil {
+		return err
+	}
+
+	// กัน state
+	if existing != nil {
+		switch existing.Status {
+		case domain.VerifyStatusPending:
+			return errors.New("verification is already pending")
+
+		case domain.VerifyStatusApproved:
+			return errors.New("already verified")
+		}
 	}
 
 	verify := &domain.StudentCardVerification{
@@ -601,7 +788,21 @@ func (s *userService) VerifyStudent(userID uint, input dto.VerifyStudentInput) e
 		},
 	}
 
-	return s.Repo.CreateVerificationRequests(nil, verify, consents)
+	// create vs update
+	if existing == nil {
+		// ครั้งแรก
+		if err := s.Repo.CreateStudentVerification(verify); err != nil {
+			return err
+		}
+	} else {
+		// rejected → update
+		verify.ID = existing.ID
+		if err := s.Repo.UpdateStudentVerification(verify); err != nil {
+			return err
+		}
+	}
+
+	return s.Repo.CreateConsents(consents)
 }
 
 func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
@@ -622,48 +823,59 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 		return errors.New("must confirm information is true")
 	}
 
-	// กัน submit ซ้ำ
-	exists, _ := s.Repo.HasPendingVerification(userID, "id_card")
-	if exists {
-		return errors.New("verification is already pending or approved")
+	// หา record ล่าสุด
+	existing, err := s.Repo.FindLatestIdVerification(userID)
+	if err != nil {
+		return err
 	}
 
-	iappAPIKey := s.Config.IAppAPIKey
-	iappSvc := helper.NewIAppService(iappAPIKey)
+	// กัน state
+	if existing != nil {
+		switch existing.Status {
+		case domain.VerifyStatusPending:
+			return errors.New("verification is already pending")
 
-	// โยน URL ของรูปไปเข้า OCR ที่ IAPP
+		case domain.VerifyStatusApproved:
+			return errors.New("already verified")
+		}
+	}
+
+	iappSvc := helper.NewIAppService(s.Config.IAppAPIKey)
+
 	ocrPayload, err := iappSvc.VerifyFaceAndIDCard(*input.IDCardURL, *input.SelfieURL)
 
-	if err != nil {
-		return fmt.Errorf("failed to verify IDCard AND Face: %v", err)
-	}
-
-	// สร้าง struct มารับค่าชั่วคราวเพื่อเช็คเงื่อนไข
-	var iAppResult struct {
-		Total struct {
-			IsSamePerson string  `json:"isSamePerson"`
-			Confidence   float64 `json:"confidence"`
-		} `json:"total"`
-	}
-
-	// แกะ JSON ที่ iApp คืนมา ใส่ตัวแปร iAppResult
-	_ = json.Unmarshal([]byte(ocrPayload), &iAppResult)
-
-	// ตั้งค่าเริ่มต้นเป็น Rejected
-	finalStatus := domain.VerifyStatusRejected
+	// default = pending
+	finalStatus := domain.VerifyStatusPending
+	var verifiedAt *time.Time
 	var faceScore *float64
 
-	// ถ้าหน้าตรงกัน และมีความมั่นใจมากกว่าเกณฑ์ (เช่นตั้งไว้ 50%) ให้ผ่าน!
-	if iAppResult.Total.IsSamePerson == "true" && iAppResult.Total.Confidence >= 50.0 {
-		finalStatus = domain.VerifyStatusApproved
-	} else if iAppResult.Total.IsSamePerson == "false" || iAppResult.Total.Confidence < 50.0 {
-		// ถ้าหน้าไม่เหมือนกัน ตีตกทันทีและชี้เป้า Error ให้ Frontend ไปด่าผู้ใช้
-		return errors.New("face match failed: selfie and ID card do not match")
+	// fallback ถ้า OCR พัง
+	if err != nil {
+		log.Printf("[VerifyID] OCR error: %v", err)
+	} else {
+
+		var iAppResult struct {
+			Total struct {
+				IsSamePerson string  `json:"isSamePerson"`
+				Confidence   float64 `json:"confidence"`
+			} `json:"total"`
+		}
+
+		if err := json.Unmarshal([]byte(ocrPayload), &iAppResult); err != nil {
+			log.Printf("[VerifyID] JSON parse error: %v", err)
+		} else {
+			conf := iAppResult.Total.Confidence
+			faceScore = &conf
+
+			if iAppResult.Total.IsSamePerson == "true" && conf >= 80.0 {
+				finalStatus = domain.VerifyStatusApproved
+				now := time.Now()
+				verifiedAt = &now
+			}
+		}
 	}
 
-	conf := iAppResult.Total.Confidence
-	faceScore = &conf
-
+	// สร้าง object
 	verify := &domain.IdCardVerification{
 		UserID:     userID,
 		Document:   *input.IDCardURL,
@@ -671,8 +883,24 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 		Status:     finalStatus,
 		FaceScore:  faceScore,
 		OcrPayload: &ocrPayload,
+		VerifiedAt: verifiedAt,
 	}
 
+	// ตัดสินใจ: create vs update
+	if existing == nil {
+		// create ครั้งแรก
+		if err := s.Repo.CreateIdVerification(verify); err != nil {
+			return err
+		}
+	} else {
+		// ejected → update
+		verify.ID = existing.ID
+		if err := s.Repo.UpdateIdVerification(verify); err != nil {
+			return err
+		}
+	}
+
+	// consent (log ใหม่ได้)
 	consents := []*domain.UserConsent{
 		{
 			UserID:      userID,
@@ -682,5 +910,5 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 		},
 	}
 
-	return s.Repo.CreateVerificationRequests(verify, nil, consents)
+	return s.Repo.CreateConsents(consents)
 }

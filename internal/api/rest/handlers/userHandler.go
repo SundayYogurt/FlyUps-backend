@@ -59,6 +59,11 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	//admin route
 	adminRoutes := app.Group("/admin", rh.Middlewares.AuthorizeAdmin)
 	adminRoutes.Get("/user-banks/:id", handler.GetBankUserAccounts)
+	adminRoutes.Patch("/approve-student-card/:id", handler.ApproveStudentCard)
+	adminRoutes.Patch("/approve-id-card/:id", handler.ApproveCardID)
+	adminRoutes.Patch("/reject-student-card/:id", handler.RejectStudentCard)
+	adminRoutes.Patch("/reject-id-card/:id", handler.RejectCardID)
+
 }
 
 // Signup godoc
@@ -340,7 +345,7 @@ func (h *UserHandler) VerifyStudent(ctx fiber.Ctx) error {
 
 	err := h.svc.VerifyStudent(user.ID, req)
 	if err != nil {
-		return rest.InternalError(ctx, err)
+		return rest.BadRequestError(ctx, err.Error())
 	}
 
 	return rest.SuccessResponse(ctx, "successfully submit verify to admin!", nil)
@@ -364,10 +369,10 @@ func (h *UserHandler) VerifyIDCard(ctx fiber.Ctx) error {
 
 	err := h.svc.VerifyID(user.ID, req)
 	if err != nil {
-		return rest.InternalError(ctx, err)
+		return rest.BadRequestError(ctx, err.Error())
 	}
 
-	return rest.SuccessResponse(ctx, "identity verification approved successfully!", nil)
+	return rest.SuccessResponse(ctx, "verification submitted successfully", nil)
 }
 
 func (h *UserHandler) AddBankAccount(ctx fiber.Ctx) error {
@@ -426,4 +431,96 @@ func (h *UserHandler) GetBankUserAccounts(ctx fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, "success", users)
+}
+
+func (h *UserHandler) ApproveStudentCard(ctx fiber.Ctx) error {
+	admin := h.auth.GetCurrentUser(ctx)
+	if admin.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	userIDParam := ctx.Params("id")
+
+	userID, err := strconv.ParseUint(userIDParam, 10, 64)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid user ID: "+err.Error())
+	}
+
+	err = h.svc.ApproveStudentCard(uint(userID), admin.ID)
+	if err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "student card approved", map[string]interface{}{
+		"user_id": userID,
+	})
+}
+
+func (h *UserHandler) ApproveCardID(ctx fiber.Ctx) error {
+	admin := h.auth.GetCurrentUser(ctx)
+	if admin.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	userIDParam := ctx.Params("id")
+
+	userID, err := strconv.ParseUint(userIDParam, 10, 64)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid user ID: "+err.Error())
+	}
+
+	err = h.svc.ApproveIdCard(uint(userID), admin.ID)
+	if err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "id card approved", map[string]interface{}{
+		"user_id": userID,
+	})
+}
+
+func (h *UserHandler) RejectStudentCard(ctx fiber.Ctx) error {
+	admin := h.auth.GetCurrentUser(ctx)
+	if admin.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	userIDParam := ctx.Params("id")
+
+	userID, err := strconv.ParseUint(userIDParam, 10, 64)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid user ID: "+err.Error())
+	}
+
+	err = h.svc.RejectStudentCard(uint(userID), admin.ID)
+	if err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "student card rejected", map[string]interface{}{
+		"user_id": userID,
+	})
+}
+
+func (h *UserHandler) RejectCardID(ctx fiber.Ctx) error {
+	admin := h.auth.GetCurrentUser(ctx)
+	if admin.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	userIDParam := ctx.Params("id")
+
+	userID, err := strconv.ParseUint(userIDParam, 10, 64)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid user ID: "+err.Error())
+	}
+
+	err = h.svc.RejectIdCard(uint(userID), admin.ID)
+	if err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "student card rejected", map[string]interface{}{
+		"user_id": userID,
+	})
 }
