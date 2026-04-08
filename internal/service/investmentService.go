@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/stripe/stripe-go/v85"
+	"github.com/stripe/stripe-go/v85/charge"
 	"github.com/stripe/stripe-go/v85/paymentintent"
 	"github.com/stripe/stripe-go/v85/paymentmethod"
 	"github.com/stripe/stripe-go/v85/webhook"
@@ -25,18 +26,22 @@ type InvestmentService interface {
 	CreateInvestment(boosterUserID uint, boosterEmail string, req dto.CreateInvestmentRequest) (*dto.InvestmentResponse, error)
 	ListUserInvestments(boosterUserID uint) ([]domain.Investment, error)
 	HandleStripeWebhook(payload []byte, sigHeader string) error
+	RefundInvestment(boosterUserID uint, investmentID uint) (*dto.RefundResponse, error)
+	ApproveRefund(investmentID uint) error
+	ListRefundRequests() ([]dto.RefundRequestItem, error)
 }
 
 type investmentService struct {
 	projectRepo     repository.ProjectRepository
 	investmentRepo  repository.InvestmentRepository
 	transactionRepo repository.TransactionRepository
+	userRepo        repository.UserRepository
 	stripeSecretKey string
 	webhookSecret   string
 }
 
-func NewInvestmentService(projectRepo repository.ProjectRepository, investmentRepo repository.InvestmentRepository, transactionRepo repository.TransactionRepository, stripeSecretKey string, webhookSecret string) InvestmentService {
-	return &investmentService{projectRepo, investmentRepo, transactionRepo, stripeSecretKey, webhookSecret}
+func NewInvestmentService(projectRepo repository.ProjectRepository, investmentRepo repository.InvestmentRepository, transactionRepo repository.TransactionRepository, userRepo repository.UserRepository, stripeSecretKey string, webhookSecret string) InvestmentService {
+	return &investmentService{projectRepo, investmentRepo, transactionRepo, userRepo, stripeSecretKey, webhookSecret}
 }
 
 func (s *investmentService) GetInvestment(boosterUserID uint, investmentID uint) (*domain.Investment, *domain.Transaction, error) {
@@ -151,6 +156,116 @@ func (s *investmentService) ListUserInvestments(boosterUserID uint) ([]domain.In
 	return s.investmentRepo.ListByBoosterUserID(boosterUserID)
 }
 
+func (s *investmentService) RefundInvestment(boosterUserID uint, investmentID uint) (*dto.RefundResponse, error) {
+	investment, err := s.investmentRepo.FindByID(investmentID)
+	if err != nil {
+		return nil, errors.New("investment not found")
+	}
+
+	if investment.BoosterUserID != boosterUserID {
+		return nil, errors.New("investment not found")
+	}
+
+	if investment.Status != domain.InvestmentVerified {
+		return nil, errors.New("only verified investments can be refunded")
+	}
+
+	project, err := s.projectRepo.FindProjectByID(investment.ProjectID)
+	if err != nil {
+		return nil, errors.New("project not found")
+	}
+
+	if project.State != domain.StateFunding {
+		return nil, errors.New("refund is only allowed while project project is in funding state")
+	}
+
+	refundAmount := investment.PrincipalAmount
+
+	now := time.Now()
+	investment.Status = domain.InvestmentRefundPending
+	investment.RefundAmount = refundAmount
+	investment.RefundedAt = &now
+
+	if err := s.investmentRepo.UpdateRefunded(investment); err != nil {
+		log.Printf("[RefundInvestment] db update error: %v", err)
+		return nil, errors.New("refund processed but failed to update record")
+	}
+
+	if err := s.investmentRepo.IncrementProjectFunding(investment.ProjectID, -investment.TotalAmount); err != nil {
+		log.Printf("[RefundInvestment] deccrement current_funding error: %v", err)
+	}
+
+	feesDeducted := investment.TotalAmount - refundAmount
+	return &dto.RefundResponse{
+		InvestmentID:    investment.ID,
+		ReferenceNumber: investment.ReferenceNumber,
+		RefundAmount:    refundAmount,
+		TotalPaid:       investment.TotalAmount,
+		FeesDeducted:    math.Round(feesDeducted*100) / 100,
+	}, nil
+}
+
+func (s *investmentService) ListRefundRequests() ([]dto.RefundRequestItem, error) {
+	investments, err := s.investmentRepo.ListRefundPending()
+	if err != nil {
+		return nil, errors.New("internal server error")
+	}
+
+	var result []dto.RefundRequestItem
+	for _, inv := range investments {
+		item := dto.RefundRequestItem{
+			InvestmentID:    inv.ID,
+			ReferenceNumber: inv.ReferenceNumber,
+			BoosterUserID:   inv.BoosterUserID,
+			RefundAmount:    inv.RefundAmount,
+			TotalPaid:       inv.TotalAmount,
+		}
+
+		if inv.RefundedAt != nil {
+			item.RequestedAt = inv.RefundedAt.Format(time.RFC3339)
+		}
+
+		user, err := s.userRepo.FindUserById(inv.BoosterUserID)
+		if err == nil {
+			item.BoosterName = user.FirstName + " " + user.LastName
+			if user.BankAccount != nil {
+				item.BankAccount = &dto.RefundBankAccount{
+					BankName:      user.BankAccount.BankName,
+					AccountName:   user.BankAccount.AccountName,
+					AccountNumber: user.BankAccount.AccountNumber,
+				}
+			}
+		}
+		result = append(result, item)
+	}
+	return result, nil
+}
+
+func (s *investmentService) ApproveRefund(investmentID uint) error {
+	investment, err := s.investmentRepo.FindByID(investmentID)
+	if err != nil {
+		return errors.New("investment not found")
+	}
+
+	if investment.Status != domain.InvestmentRefundPending {
+		return errors.New("investment is not pending refund")
+	}
+
+	now := time.Now()
+	investment.Status = domain.InvestmentRefunded
+	investment.RefundedAt = &now
+
+	if err := s.investmentRepo.UpdateRefunded(investment); err != nil {
+		return errors.New("failed to approve refund")
+	}
+
+	if err := s.investmentRepo.IncrementProjectFunding(investment.ProjectID, -investment.TotalAmount); err != nil {
+		log.Printf("[ApproveRefund] decrement current_funding error: %v", err)
+	}
+
+	return nil
+}
+
 func (s *investmentService) HandleStripeWebhook(payload []byte, sigHeader string) error {
 	event, err := webhook.ConstructEventWithOptions(payload, sigHeader, s.webhookSecret, webhook.ConstructEventOptions{
 		IgnoreAPIVersionMismatch: true,
@@ -229,6 +344,12 @@ func (s *investmentService) handlePaymentSucceeded(intentID string) {
 		return
 	}
 
+	stripe.Key = s.stripeSecretKey
+	stripeFee, stripeFeeVAT, netAmount := s.fetchStripeFeesFromIntent(intentID)
+	if err := s.transactionRepo.UpdateStripeFeesAndNet(txn.ID, stripeFee, stripeFeeVAT, netAmount); err != nil {
+		log.Printf("[Webhook] update stripe fees error: %v", err)
+	}
+
 	investment, err := s.investmentRepo.FindByID(txn.InvestmentID)
 	if err != nil {
 		log.Printf("[Webhook] investment not found: %v", err)
@@ -236,12 +357,58 @@ func (s *investmentService) handlePaymentSucceeded(intentID string) {
 	}
 
 	now := time.Now()
-	investment.Status = domain.InvestmentVerified // "verified" ตาม friend's constant
+	investment.Status = domain.InvestmentVerified
 	investment.PaidAt = &now
+	// principal ที่แท้จริง = net จาก Stripe - platform_fee - vat
+	if netAmount > 0 {
+		investment.PrincipalAmount = math.Round((netAmount-investment.PlatformFee-investment.VATAmount)*100) / 100
+	}
 
 	if err := s.investmentRepo.UpdatePaid(investment); err != nil {
 		log.Printf("[Webhook] update investment error: %v", err)
 	}
+
+	if err := s.investmentRepo.IncrementProjectFunding(investment.ProjectID, investment.TotalAmount); err != nil {
+		log.Printf("[Webhook] update project current_funding error: %v", err)
+	}
+}
+
+func (s *investmentService) fetchStripeFeesFromIntent(intentID string) (stripeFee, stripeFeeVAT, netAmount float64) {
+	pi, err := paymentintent.Get(intentID, &stripe.PaymentIntentParams{
+		Params: stripe.Params{
+			Expand: []*string{stripe.String("latest_charge.balance_transaction")},
+		},
+	})
+
+	if err != nil {
+		log.Printf("[Webhook] fetch payment intent error: %v", err)
+		return
+	}
+
+	if pi.LatestCharge == nil {
+		return
+	}
+
+	ch, err := charge.Get(pi.LatestCharge.ID, &stripe.ChargeParams{
+		Params: stripe.Params{
+			Expand: []*string{stripe.String("balance_transaction")},
+		},
+	})
+	if err != nil || ch.BalanceTransaction == nil {
+		log.Printf("[Webhook] fetch charge/balance_transaction error: %v", err)
+		return
+	}
+
+	bt := ch.BalanceTransaction
+	netAmount = float64(bt.Net) / 100
+	for _, detail := range bt.FeeDetails {
+		if detail.Type == "tax" {
+			stripeFeeVAT += float64(detail.Amount) / 100
+		} else {
+			stripeFee += float64(detail.Amount) / 100
+		}
+	}
+	return
 }
 
 func (s *investmentService) handlePaymentFailed(intentID string) {

@@ -39,3 +39,28 @@ type InvestmentDetailResponse struct {
 	Investment  interface{} `json:"investment"`
 	Transaction interface{} `json:"transaction"`
 }
+
+type RefundResponse struct {
+	InvestmentID    uint    `json:"investment_id"`
+	ReferenceNumber string  `json:"reference_number"`
+	RefundAmount    float64 `json:"refund_amount"`
+	TotalPaid       float64 `json:"total_paid"`
+	FeesDeducted    float64 `json:"fees_deducted"`
+}
+
+type RefundBankAccount struct {
+	BankName      string `json:"bank_name"`
+	AccountName   string `json:"account_name"`
+	AccountNumber string `json:"account_number"`
+}
+
+type RefundRequestItem struct {
+	InvestmentID    uint               `json:"investment_id"`
+	ReferenceNumber string             `json:"reference_number"`
+	BoosterUserID   uint               `json:"booster_user_id"`
+	BoosterName     string             `json:"booster_name"`
+	RefundAmount    float64            `json:"refund_amount"`
+	TotalPaid       float64            `json:"total_paid"`
+	RequestedAt     string             `json:"requested_at"`
+	BankAccount     *RefundBankAccount `json:"bank_account"`
+}

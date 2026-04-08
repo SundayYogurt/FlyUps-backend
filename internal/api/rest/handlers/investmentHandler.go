@@ -24,6 +24,7 @@ func SetupInvestmentRoutes(rh *rest.RestHandler) {
 		repository.NewProjectRepository(rh.DB),
 		repository.NewInvestmentRepository(rh.DB),
 		repository.NewTransactionRepository(rh.DB),
+		repository.NewUserRepository(rh.DB),
 		rh.Config.StripeSecretKey,
 		rh.Config.StripeWebhookSecret,
 	)
@@ -40,6 +41,11 @@ func SetupInvestmentRoutes(rh *rest.RestHandler) {
 	priv.Post("/", h.CreateInvestment)
 	priv.Get("/", h.ListMyInvestments)
 	priv.Get("/:id", h.GetInvestment)
+	priv.Post("/:id/refund", h.RefundInvestment)
+
+	admin := rh.App.Group("/admin/investments", rh.Middlewares.AuthorizeAdmin)
+	admin.Get("/refund-requests", h.ListRefundRequests)
+	admin.Patch("/:id/approve-refund", h.ApproveRefund)
 }
 
 // GetInvestment godoc
@@ -141,6 +147,82 @@ func (h *InvestmentHandler) ListMyInvestments(ctx fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, "success", investments)
+}
+
+// ListRefundRequests godoc
+// @Summary      List pending refund requests (admin only)
+// @Description  Get all investments with refund_pending status including booster bank account
+// @Tags         Admin
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object}  map[string]interface{}  "list of refund requests"
+// @Failure      403  {object}  map[string]string       "access denied"
+// @Router       /admin/investments/refund-requests [get]
+func (h *InvestmentHandler) ListRefundRequests(ctx fiber.Ctx) error {
+	result, err := h.svc.ListRefundRequests()
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "success", result)
+}
+
+// ApproveRefund godoc
+// @Summary      Approve a refund request (admin only)
+// @Description  Mark a refund_pending investment as refunded after manual bank transfer
+// @Tags         Admin
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      int  true  "Investment ID"
+// @Success      200  {object}  map[string]string  "refund approved"
+// @Failure      400  {object}  map[string]string  "invalid id or business rule violation"
+// @Failure      403  {object}  map[string]string  "access denied"
+// @Router       /admin/investments/{id}/approve-refund [patch]
+func (h *InvestmentHandler) ApproveRefund(ctx fiber.Ctx) error {
+	id, err := strconv.ParseUint(ctx.Params("id"), 10, 32)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid investment id")
+	}
+
+	if err := h.svc.ApproveRefund(uint(id)); err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "refund approved successfully", nil)
+}
+
+// RefundInvestment godoc
+// @Summary      Refund an investment
+// @Description  Refund a verified investment while project is in funding state. Platform fee and VAT are non-refundable.
+// @Tags         Investments
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id   path      int  true  "Investment ID"
+// @Success      200  {object}  dto.RefundResponse         "refund processed"
+// @Failure      400  {object}  map[string]string          "invalid id or business rule violation"
+// @Failure      401  {object}  map[string]string          "unauthorized"
+// @Failure      404  {object}  map[string]string          "investment not found"
+// @Router       /investments/{id}/refund [post]
+func (h *InvestmentHandler) RefundInvestment(ctx fiber.Ctx) error {
+	currentUser := h.auth.GetCurrentUser(ctx)
+	if currentUser.ID == 0 {
+		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
+	}
+
+	id, err := strconv.ParseUint(ctx.Params("id"), 10, 32)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid investment id")
+	}
+
+	result, err := h.svc.RefundInvestment(currentUser.ID, uint(id))
+	if err != nil {
+		if err.Error() == "investment not found" {
+			return ctx.Status(http.StatusNotFound).JSON(fiber.Map{"message": err.Error()})
+		}
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "refund processed successfully", result)
 }
 
 // StripeWebhook godoc
