@@ -289,6 +289,19 @@ func (h *UserHandler) Me(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", profile)
 }
 
+// UpdateProfile godoc
+// @Summary Update User Profile
+// @Description Update the current user's profile information
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.ProfileInput true "Profile Update Map"
+// @Success 200 {object} object "profile updated successfully"
+// @Failure 400 {object} object "Validation failed or invalid input"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /user/profile [patch]
 func (h *UserHandler) UpdateProfile(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -327,6 +340,18 @@ func (h *UserHandler) UpdateProfile(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "profile updated successfully", nil)
 }
 
+// VerifyStudent godoc
+// @Summary Submit student verification
+// @Description Submit request to verify user's student status
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.VerifyStudentInput true "Student Verification Input"
+// @Success 200 {object} object "successfully submit verify to admin!"
+// @Failure 400 {object} object "Invalid input"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /user/student-verify [post]
 func (h *UserHandler) VerifyStudent(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -351,6 +376,18 @@ func (h *UserHandler) VerifyStudent(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "successfully submit verify to admin!", nil)
 }
 
+// VerifyIDCard godoc
+// @Summary Submit ID card verification
+// @Description Submit ID card info for verification
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.VerifyIDInput true "ID Card Verification Input"
+// @Success 200 {object} object "verification submitted successfully"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /user/id-verify [post]
 func (h *UserHandler) VerifyIDCard(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -375,6 +412,19 @@ func (h *UserHandler) VerifyIDCard(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "verification submitted successfully", nil)
 }
 
+// AddBankAccount godoc
+// @Summary Add bank account
+// @Description Add a new bank account to user profile
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.BankRequest true "Bank Account Request"
+// @Success 200 {object} object "bank account added successfully"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Error"
+// @Router /user/add-bank [post]
 func (h *UserHandler) AddBankAccount(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -394,6 +444,19 @@ func (h *UserHandler) AddBankAccount(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "bank account added successfully", nil)
 }
 
+// UpdateBankAccount godoc
+// @Summary Update bank account
+// @Description Update an existing bank account
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Bank Account ID"
+// @Param request body dto.BankRequest true "Bank Account Details"
+// @Success 200 {object} object "bank account updated successfully"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /user/update-bank/{id} [patch]
 func (h *UserHandler) UpdateBankAccount(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -418,6 +481,16 @@ func (h *UserHandler) UpdateBankAccount(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "bank account updated successfully", nil)
 }
 
+// GetBankUserAccounts godoc
+// @Summary Admin get user bank accounts
+// @Description Get bank accounts for a user (admin only)
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "User ID"
+// @Success 200 {object} object "List of bank accounts"
+// @Failure 400 {object} object "Invalid request"
+// @Router /admin/user-banks/{id} [get]
 func (h *UserHandler) GetBankUserAccounts(ctx fiber.Ctx) error {
 	user := ctx.Params("id")
 	userParsed, err := strconv.ParseUint(user, 10, 64)
@@ -433,6 +506,17 @@ func (h *UserHandler) GetBankUserAccounts(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", users)
 }
 
+// ApproveStudentCard godoc
+// @Summary Approve student card
+// @Description Admin approves a student card verification
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "User ID"
+// @Success 200 {object} object "student card approved"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/approve-student-card/{id} [patch]
 func (h *UserHandler) ApproveStudentCard(ctx fiber.Ctx) error {
 	admin := h.auth.GetCurrentUser(ctx)
 	if admin.ID == 0 {
@@ -456,6 +540,17 @@ func (h *UserHandler) ApproveStudentCard(ctx fiber.Ctx) error {
 	})
 }
 
+// ApproveCardID godoc
+// @Summary Approve ID card
+// @Description Admin approves an ID card verification
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "User ID"
+// @Success 200 {object} object "id card approved"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/approve-id-card/{id} [patch]
 func (h *UserHandler) ApproveCardID(ctx fiber.Ctx) error {
 	admin := h.auth.GetCurrentUser(ctx)
 	if admin.ID == 0 {
@@ -479,6 +574,17 @@ func (h *UserHandler) ApproveCardID(ctx fiber.Ctx) error {
 	})
 }
 
+// RejectStudentCard godoc
+// @Summary Reject student card
+// @Description Admin rejects a student card verification
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "User ID"
+// @Success 200 {object} object "student card rejected"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/reject-student-card/{id} [patch]
 func (h *UserHandler) RejectStudentCard(ctx fiber.Ctx) error {
 	admin := h.auth.GetCurrentUser(ctx)
 	if admin.ID == 0 {
@@ -502,6 +608,17 @@ func (h *UserHandler) RejectStudentCard(ctx fiber.Ctx) error {
 	})
 }
 
+// RejectCardID godoc
+// @Summary Reject ID card
+// @Description Admin rejects an ID card verification
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "User ID"
+// @Success 200 {object} object "id card rejected"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/reject-id-card/{id} [patch]
 func (h *UserHandler) RejectCardID(ctx fiber.Ctx) error {
 	admin := h.auth.GetCurrentUser(ctx)
 	if admin.ID == 0 {
