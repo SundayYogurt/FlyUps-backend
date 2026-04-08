@@ -106,6 +106,16 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	adminProj.Patch("/:id/status", handler.UpdateProjectStatus)
 }
 
+// CancelProject godoc
+// @Summary Cancel Project
+// @Description Pioneer cancels their project
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "Project cancelled"
+// @Router /pioneer/projects/{id}/cancel [patch]
 func (h *ProjectHandler) CancelProject(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
