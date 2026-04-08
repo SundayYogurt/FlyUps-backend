@@ -15,6 +15,98 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/approve-id-card/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin approves an ID card verification",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Approve ID card",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "id card approved",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/approve-student-card/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin approves a student card verification",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Approve student card",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "student card approved",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/categories": {
             "post": {
                 "security": [
@@ -248,6 +340,138 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "Status updated",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/reject-id-card/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin rejects an ID card verification",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Reject ID card",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "id card rejected",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/reject-student-card/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin rejects a student card verification",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Reject student card",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "student card rejected",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/user-banks/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get bank accounts for a user (admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Admin get user bank accounts",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of bank accounts",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
                         "schema": {
                             "type": "object"
                         }
@@ -1306,6 +1530,43 @@ const docTemplate = `{
                 }
             }
         },
+        "/pioneer/projects/{id}/cancel": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Pioneer cancels their project",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Cancel Project",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Project ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Project cancelled",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/pioneer/projects/{id}/close": {
             "patch": {
                 "security": [
@@ -2196,6 +2457,12 @@ const docTemplate = `{
                         "name": "file",
                         "in": "formData",
                         "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Files to upload (repeat this key for multiple files)",
+                        "name": "files",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
@@ -2213,6 +2480,114 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/add-bank": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Add a new bank account to user profile",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Add bank account",
+                "parameters": [
+                    {
+                        "description": "Bank Account Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.BankRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "bank account added successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/id-verify": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Submit ID card info for verification",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Submit ID card verification",
+                "parameters": [
+                    {
+                        "description": "ID Card Verification Input",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.VerifyIDInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "verification submitted successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object"
                         }
@@ -2253,6 +2628,172 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/profile": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update the current user's profile information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Update User Profile",
+                "parameters": [
+                    {
+                        "description": "Profile Update Map",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ProfileInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "profile updated successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Validation failed or invalid input",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/student-verify": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Submit request to verify user's student status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Submit student verification",
+                "parameters": [
+                    {
+                        "description": "Student Verification Input",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.VerifyStudentInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "successfully submit verify to admin!",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/update-bank/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing bank account",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Update bank account",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Bank Account ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Bank Account Details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.BankRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "bank account updated successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object"
                         }
@@ -2347,6 +2888,20 @@ const docTemplate = `{
                 "VisibilityUnlisted"
             ]
         },
+        "dto.BankRequest": {
+            "type": "object",
+            "properties": {
+                "account_name": {
+                    "type": "string"
+                },
+                "account_number": {
+                    "type": "string"
+                },
+                "bank_name": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.CreateInvestmentRequest": {
             "type": "object",
             "required": [
@@ -2392,8 +2947,11 @@ const docTemplate = `{
                 "type": {
                     "$ref": "#/definitions/domain.MediaType"
                 },
-                "url": {
-                    "type": "string"
+                "urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -2448,6 +3006,44 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ProfileInput": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "description": "optional",
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
+                "faculty": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "description": "--- ข้อมูลส่วนตัว ---",
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "major": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "portfolio": {
+                    "type": "string"
+                },
+                "skills": {
+                    "type": "string"
+                },
+                "university_id": {
+                    "description": "--- Pioneer only ---\nUniversityID: จะถูก derive จาก domain ของ email ที่สมัคร (pioneer)\nยังคงไว้เพื่อ backward compatibility แต่ server จะ ignore ค่า input นี้",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.UpdateMilestoneRequest": {
             "type": "object",
             "properties": {
@@ -2463,7 +3059,7 @@ const docTemplate = `{
                 "phase_no": {
                     "type": "integer"
                 },
-                "sortOrder": {
+                "sort_order": {
                     "type": "integer"
                 },
                 "start_date": {
@@ -2478,8 +3074,11 @@ const docTemplate = `{
                 "type": {
                     "$ref": "#/definitions/domain.MediaType"
                 },
-                "url": {
-                    "type": "string"
+                "urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -2590,6 +3189,41 @@ const docTemplate = `{
                         "pioneer",
                         "booster"
                     ]
+                }
+            }
+        },
+        "dto.VerifyIDInput": {
+            "type": "object",
+            "required": [
+                "id_card_url",
+                "selfie_url"
+            ],
+            "properties": {
+                "declare_truth": {
+                    "type": "boolean"
+                },
+                "id_card_url": {
+                    "type": "string"
+                },
+                "selfie_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.VerifyStudentInput": {
+            "type": "object",
+            "required": [
+                "student_card_url"
+            ],
+            "properties": {
+                "accept_pioneer_terms": {
+                    "type": "boolean"
+                },
+                "declare_truth": {
+                    "type": "boolean"
+                },
+                "student_card_url": {
+                    "type": "string"
                 }
             }
         }

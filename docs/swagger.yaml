@@ -38,6 +38,15 @@ definitions:
     - VisibilityPrivate
     - VisibilityPublic
     - VisibilityUnlisted
+  dto.BankRequest:
+    properties:
+      account_name:
+        type: string
+      account_number:
+        type: string
+      bank_name:
+        type: string
+    type: object
   dto.CreateInvestmentRequest:
     properties:
       amount:
@@ -68,8 +77,10 @@ definitions:
         type: string
       type:
         $ref: '#/definitions/domain.MediaType'
-      url:
-        type: string
+      urls:
+        items:
+          type: string
+        type: array
     type: object
   dto.CreateProjectUpdateRequest:
     properties:
@@ -104,6 +115,35 @@ definitions:
       total_amount:
         type: number
     type: object
+  dto.ProfileInput:
+    properties:
+      address:
+        description: optional
+        type: string
+      bio:
+        type: string
+      faculty:
+        type: string
+      first_name:
+        description: '--- ข้อมูลส่วนตัว ---'
+        type: string
+      last_name:
+        type: string
+      major:
+        type: string
+      phone:
+        type: string
+      portfolio:
+        type: string
+      skills:
+        type: string
+      university_id:
+        description: |-
+          --- Pioneer only ---
+          UniversityID: จะถูก derive จาก domain ของ email ที่สมัคร (pioneer)
+          ยังคงไว้เพื่อ backward compatibility แต่ server จะ ignore ค่า input นี้
+        type: integer
+    type: object
   dto.UpdateMilestoneRequest:
     properties:
       acceptance_criteria:
@@ -114,7 +154,7 @@ definitions:
         type: string
       phase_no:
         type: integer
-      sortOrder:
+      sort_order:
         type: integer
       start_date:
         type: string
@@ -124,8 +164,10 @@ definitions:
         type: string
       type:
         $ref: '#/definitions/domain.MediaType'
-      url:
-        type: string
+      urls:
+        items:
+          type: string
+        type: array
     type: object
   dto.UpdateProjectRequest:
     properties:
@@ -204,6 +246,29 @@ definitions:
     - phone
     - role
     type: object
+  dto.VerifyIDInput:
+    properties:
+      declare_truth:
+        type: boolean
+      id_card_url:
+        type: string
+      selfie_url:
+        type: string
+    required:
+    - id_card_url
+    - selfie_url
+    type: object
+  dto.VerifyStudentInput:
+    properties:
+      accept_pioneer_terms:
+        type: boolean
+      declare_truth:
+        type: boolean
+      student_card_url:
+        type: string
+    required:
+    - student_card_url
+    type: object
 host: api.flyupapi.dev
 info:
   contact: {}
@@ -211,6 +276,64 @@ info:
   title: FlyUps API
   version: "1.0"
 paths:
+  /admin/approve-id-card/{id}:
+    patch:
+      description: Admin approves an ID card verification
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: id card approved
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Approve ID card
+      tags:
+      - Admin
+  /admin/approve-student-card/{id}:
+    patch:
+      description: Admin approves a student card verification
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: student card approved
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Approve student card
+      tags:
+      - Admin
   /admin/categories:
     post:
       consumes:
@@ -361,6 +484,89 @@ paths:
       summary: Update Project Status
       tags:
       - Projects
+  /admin/reject-id-card/{id}:
+    patch:
+      description: Admin rejects an ID card verification
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: id card rejected
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Reject ID card
+      tags:
+      - Admin
+  /admin/reject-student-card/{id}:
+    patch:
+      description: Admin rejects a student card verification
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: student card rejected
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Reject student card
+      tags:
+      - Admin
+  /admin/user-banks/{id}:
+    get:
+      description: Get bank accounts for a user (admin only)
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of bank accounts
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Admin get user bank accounts
+      tags:
+      - Admin
   /categories:
     get:
       consumes:
@@ -639,6 +845,29 @@ paths:
       security:
       - BearerAuth: []
       summary: Update Project
+      tags:
+      - Projects
+  /pioneer/projects/{id}/cancel:
+    patch:
+      consumes:
+      - application/json
+      description: Pioneer cancels their project
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project cancelled
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Cancel Project
       tags:
       - Projects
   /pioneer/projects/{id}/close:
@@ -1594,6 +1823,10 @@ paths:
         name: file
         required: true
         type: file
+      - description: Files to upload (repeat this key for multiple files)
+        in: formData
+        name: files
+        type: file
       produces:
       - application/json
       responses:
@@ -1614,6 +1847,74 @@ paths:
       summary: Upload File
       tags:
       - Upload
+  /user/add-bank:
+    post:
+      consumes:
+      - application/json
+      description: Add a new bank account to user profile
+      parameters:
+      - description: Bank Account Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.BankRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: bank account added successfully
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add bank account
+      tags:
+      - Users
+  /user/id-verify:
+    post:
+      consumes:
+      - application/json
+      description: Submit ID card info for verification
+      parameters:
+      - description: ID Card Verification Input
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.VerifyIDInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: verification submitted successfully
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Submit ID card verification
+      tags:
+      - Users
   /user/me:
     get:
       consumes:
@@ -1637,6 +1938,111 @@ paths:
       security:
       - BearerAuth: []
       summary: Get User Profile
+      tags:
+      - Users
+  /user/profile:
+    patch:
+      consumes:
+      - application/json
+      description: Update the current user's profile information
+      parameters:
+      - description: Profile Update Map
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ProfileInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: profile updated successfully
+          schema:
+            type: object
+        "400":
+          description: Validation failed or invalid input
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update User Profile
+      tags:
+      - Users
+  /user/student-verify:
+    post:
+      consumes:
+      - application/json
+      description: Submit request to verify user's student status
+      parameters:
+      - description: Student Verification Input
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.VerifyStudentInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: successfully submit verify to admin!
+          schema:
+            type: object
+        "400":
+          description: Invalid input
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Submit student verification
+      tags:
+      - Users
+  /user/update-bank/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Update an existing bank account
+      parameters:
+      - description: Bank Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Bank Account Details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.BankRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: bank account updated successfully
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update bank account
       tags:
       - Users
   /verify-email:
