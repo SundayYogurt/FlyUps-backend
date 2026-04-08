@@ -24,5 +24,8 @@ type Transaction struct {
 	QRCodeImageURL        string            `json:"qr_code_image_url"`
 	ExpiresAt             time.Time         `json:"expires_at"`
 	Status                TransactionStatus `json:"status" gorm:"default:'pending'"`
+	StripeFee             float64           `json:"stripe_fee"`
+	StripeFeeVAT          float64           `json:"stripe_fee_vat"`
+	NetAmount             float64           `json:"net_amount"`
 	gorm.Model
 }

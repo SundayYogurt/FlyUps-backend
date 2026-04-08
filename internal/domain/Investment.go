@@ -18,5 +18,7 @@ type Investment struct {
 	ProfitSharePct  float64          `json:"profit_share_pct"`
 	Status          InvestmentStatus `json:"status" gorm:"default:'pending_payment'"`
 	PaidAt          *time.Time       `json:"paid_at,omitempty"`
+	RefundAmount    float64          `json:"refund_amount"`
+	RefundedAt      *time.Time       `json:"refunded_at,omitempty"`
 	gorm.Model
 }

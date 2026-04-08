@@ -131,10 +131,11 @@ type Milestone struct {
 type InvestmentStatus string
 
 const (
-	InvestmentPending  InvestmentStatus = "pending_payment"
-	InvestmentVerified InvestmentStatus = "verified"
-	InvestmentRejected InvestmentStatus = "rejected"
-	InvestmentRefunded InvestmentStatus = "refunded"
+	InvestmentPending       InvestmentStatus = "pending_payment"
+	InvestmentVerified      InvestmentStatus = "verified"
+	InvestmentRejected      InvestmentStatus = "rejected"
+	InvestmentRefundPending InvestmentStatus = "refund_pending"
+	InvestmentRefunded      InvestmentStatus = "refunded"
 )
 
 type ProjectInvestment struct {
