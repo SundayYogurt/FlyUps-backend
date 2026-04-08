@@ -17,17 +17,100 @@ type UserRepository interface {
 	UpdateUser(user *domain.User) error
 	UpdateUserProfile(userID uint, firstName, lastName, phone string, address *string) error
 	UpsertStudentProfileByUserID(profile *domain.StudentProfile) error
-	CreateVerificationRequests(idCard *domain.IdCardVerification, studentCard *domain.StudentCardVerification, consent []*domain.UserConsent) error
-	HasPendingVerification(userID uint, verifyType string) (bool, error)
 	CreateBankAccount(bank *domain.BankAccount) error
 	UpdateBankAccount(bank *domain.BankAccount) error
 	FindBankByUserId(userID uint) ([]domain.BankAccount, error)
 	FindBankById(id uint) (*domain.BankAccount, error)
 	FindBankByAccountNumber(accountNumber string) (*domain.BankAccount, error)
+	UpdateIdCardVerification(v *domain.IdCardVerification) error
+	UpdateStudentCardVerification(v *domain.StudentCardVerification) error
+	FindStudentStatus(userID uint) (*domain.StudentCardVerification, error)
+	FindIdCardStatus(userID uint) (*domain.IdCardVerification, error)
+	CreateIdVerification(v *domain.IdCardVerification) error
+	CreateConsents(consents []*domain.UserConsent) error
+	UpdateIdVerification(v *domain.IdCardVerification) error
+	FindLatestIdVerification(userID uint) (*domain.IdCardVerification, error)
+	UpdateStudentVerification(v *domain.StudentCardVerification) error
+	FindLatestStudentVerification(userID uint) (*domain.StudentCardVerification, error)
+	CreateStudentVerification(v *domain.StudentCardVerification) error
 }
 
 type userRepository struct {
 	db *gorm.DB
+}
+
+func (r *userRepository) UpdateStudentVerification(v *domain.StudentCardVerification) error {
+	return r.db.Model(&domain.StudentCardVerification{}).
+		Where("id = ?", v.ID).
+		Updates(map[string]interface{}{
+			"document":    v.Document,
+			"status":      v.Status,
+			"verified_at": v.VerifiedAt,
+			"reviewed_by": v.ReviewedBy,
+		}).Error
+}
+
+func (r *userRepository) FindLatestStudentVerification(userID uint) (*domain.StudentCardVerification, error) {
+	var v domain.StudentCardVerification
+
+	err := r.db.
+		Where("user_id = ?", userID).
+		Order("created_at DESC").
+		First(&v).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+
+	return &v, err
+}
+
+func (r *userRepository) CreateStudentVerification(v *domain.StudentCardVerification) error {
+	return r.db.Create(v).Error
+}
+
+func (r *userRepository) FindIdCardStatus(userID uint) (*domain.IdCardVerification, error) {
+	idCard := &domain.IdCardVerification{}
+	err := r.db.Where("user_id = ?", userID).Order("created_at DESC").First(idCard).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return idCard, nil
+}
+
+func (r *userRepository) FindStudentStatus(userID uint) (*domain.StudentCardVerification, error) {
+	student := &domain.StudentCardVerification{}
+	err := r.db.Where("user_id = ?", userID).Order("created_at DESC").First(student).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return student, nil
+}
+
+func (r *userRepository) UpdateIdCardVerification(v *domain.IdCardVerification) error {
+	return r.db.Model(&domain.IdCardVerification{}).
+		Where("user_id = ?", v.UserID).
+		Updates(map[string]interface{}{
+			"status":      v.Status,
+			"verified_at": v.VerifiedAt,
+			"reviewed_by": v.ReviewedBy,
+		}).Error
+}
+
+func (r *userRepository) UpdateStudentCardVerification(v *domain.StudentCardVerification) error {
+	return r.db.Model(&domain.StudentCardVerification{}).
+		Where("user_id = ?", v.UserID).
+		Updates(map[string]interface{}{
+			"status":      v.Status,
+			"verified_at": v.VerifiedAt,
+			"reviewed_by": v.ReviewedBy,
+		}).Error
 }
 
 func (r *userRepository) FindBankByAccountNumber(accountNumber string) (*domain.BankAccount, error) {
@@ -74,52 +157,39 @@ func (r *userRepository) UpdateBankAccount(bank *domain.BankAccount) error {
 	return r.db.Save(bank).Error
 }
 
-func (r *userRepository) HasPendingVerification(userID uint, verifyType string) (bool, error) {
-	var count int64
-	var err error
-
-	if verifyType == "id_card" {
-		err = r.db.Model(&domain.IdCardVerification{}).
-			Where("user_id = ? AND status IN ?", userID, []string{"pending", "approved"}).
-			Count(&count).Error
-	} else if verifyType == "student_card" {
-		err = r.db.Model(&domain.StudentCardVerification{}).
-			Where("user_id = ? AND status IN ?", userID, []string{"pending", "approved"}).
-			Count(&count).Error
-	}
-
-	return count > 0, err
+func (r *userRepository) CreateIdVerification(v *domain.IdCardVerification) error {
+	return r.db.Create(v).Error
 }
 
-func (r *userRepository) CreateVerificationRequests(idVerify *domain.IdCardVerification, studentVerify *domain.StudentCardVerification, consent []*domain.UserConsent) error {
-
-	err := r.db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(idVerify).Error; err != nil {
-			return err
-		}
-
-		if studentVerify != nil {
-			if err := tx.Create(&studentVerify).Error; err != nil {
-				return err
-			}
-		}
-
-		if consent != nil {
-			if err := tx.Create(&consent).Error; err != nil {
-				return err
-			}
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (r *userRepository) CreateConsents(consents []*domain.UserConsent) error {
+	return r.db.Create(&consents).Error
 }
 
+func (r *userRepository) UpdateIdVerification(v *domain.IdCardVerification) error {
+	return r.db.Model(&domain.IdCardVerification{}).
+		Where("id = ?", v.ID).
+		Updates(map[string]interface{}{
+			"document":    v.Document,
+			"selfie_url":  v.SelfieURL,
+			"status":      v.Status,
+			"face_score":  v.FaceScore,
+			"ocr_payload": v.OcrPayload,
+			"verified_at": v.VerifiedAt,
+		}).Error
+}
+
+func (r *userRepository) FindLatestIdVerification(userID uint) (*domain.IdCardVerification, error) {
+	var v domain.IdCardVerification
+	err := r.db.
+		Where("user_id = ?", userID).
+		Order("created_at DESC").
+		First(&v).Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &v, err
+}
 func (r *userRepository) FindUserByVerificationToken(token string) (*domain.User, error) {
 	var user domain.User
 
