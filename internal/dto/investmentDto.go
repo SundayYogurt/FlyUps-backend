@@ -1,5 +1,7 @@
 package dto
 
+import "time"
+
 type CreateInvestmentRequest struct {
 	ProjectID uint    `json:"project_id" validate:"required"`
 	Amount    float64 `json:"amount" validate:"required,gt=0"`
@@ -63,4 +65,26 @@ type RefundRequestItem struct {
 	TotalPaid       float64            `json:"total_paid"`
 	RequestedAt     string             `json:"requested_at"`
 	BankAccount     *RefundBankAccount `json:"bank_account"`
+}
+
+type ProjectInvestorItem struct {
+	UserID          uint       `json:"user_id"`
+	FirstName       string     `json:"first_name"`
+	LastName        string     `json:"last_name"`
+	Email           string     `json:"email"`
+	PrincipalAmount float64    `json:"principal_amount"`
+	TotalAmount     float64    `json:"total_amount"`
+	InvestmentCount int        `json:"investment_count"`
+	FirstInvestedAt *time.Time `json:"first_invested_at"`
+}
+
+type InvestedProjectItem struct {
+	ProjectID       uint       `json:"project_id"`
+	Title           string     `json:"title"`
+	Status          string     `json:"state"`
+	ProfitSharePct  float64    `json:"profit_share_pct"`
+	TotalAmount     float64    `json:"total_amount"`
+	PrincipalAmount float64    `json:"principal_amount"`
+	InvestmentCount int        `json:"investment_count"`
+	FirstInvestedAt *time.Time `json:"first_invested_at"`
 }

@@ -36,10 +36,12 @@ func SetupInvestmentRoutes(rh *rest.RestHandler) {
 	}
 
 	rh.App.Post("/stripe/webhook", h.StripeWebhook)
+	rh.App.Get("/investments/projects/:projectId/investors", h.GetProjectInvestors)
 
 	priv := rh.App.Group("/investments", rh.Middlewares.Authorize)
 	priv.Post("/", h.CreateInvestment)
 	priv.Get("/", h.ListMyInvestments)
+	priv.Get("/my-projects", h.ListMyInvestedProjects)
 	priv.Get("/:id", h.GetInvestment)
 	priv.Post("/:id/refund", h.RefundInvestment)
 
@@ -244,4 +246,38 @@ func (h *InvestmentHandler) StripeWebhook(ctx fiber.Ctx) error {
 	}
 
 	return ctx.Status(http.StatusOK).JSON(fiber.Map{"received": true})
+}
+
+func (h *InvestmentHandler) GetProjectInvestors(ctx fiber.Ctx) error {
+	projectID, err := strconv.ParseUint(ctx.Params("projectId"), 10, 32)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid project id")
+	}
+	investors, err := h.svc.GetProjectInvestors(uint(projectID))
+	if err != nil {
+		if err.Error() == "project not found" {
+			return ctx.Status(http.StatusNotFound).JSON(fiber.Map{"message": err.Error()})
+		}
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "success", fiber.Map{
+		"project_id": projectID,
+		"total":      len(investors),
+		"investors":  investors,
+	})
+}
+
+func (h *InvestmentHandler) ListMyInvestedProjects(ctx fiber.Ctx) error {
+	currentUser := h.auth.GetCurrentUser(ctx)
+	if currentUser.ID == 0 {
+		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
+	}
+
+	projects, err := h.svc.ListInvestedProjects(currentUser.ID)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "success", projects)
 }

@@ -29,6 +29,8 @@ type InvestmentService interface {
 	RefundInvestment(boosterUserID uint, investmentID uint) (*dto.RefundResponse, error)
 	ApproveRefund(investmentID uint) error
 	ListRefundRequests() ([]dto.RefundRequestItem, error)
+	GetProjectInvestors(projectID uint) ([]dto.ProjectInvestorItem, error)
+	ListInvestedProjects(boosterUserID uint) ([]dto.InvestedProjectItem, error)
 }
 
 type investmentService struct {
@@ -286,6 +288,18 @@ func (s *investmentService) HandleStripeWebhook(payload []byte, sigHeader string
 	}
 
 	return nil
+}
+
+func (s *investmentService) GetProjectInvestors(projectID uint) ([]dto.ProjectInvestorItem, error) {
+	_, err := s.projectRepo.FindProjectByID(projectID)
+	if err != nil {
+		return nil, errors.New("project not found")
+	}
+	return s.investmentRepo.ListInvestorsByProjectID(projectID)
+}
+
+func (s *investmentService) ListInvestedProjects(boosterUserID uint) ([]dto.InvestedProjectItem, error) {
+	return s.investmentRepo.ListInvestedProjectsByUserID(boosterUserID)
 }
 
 // // private methods
