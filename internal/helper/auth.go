@@ -87,7 +87,7 @@ func (a Auth) GenerateToken(id uint, email string, role string) (string, error) 
 		"email":   email,
 		"role":    role,
 		"iat":     time.Now().Unix(),
-		"exp":     time.Now().Add(time.Minute * 30).Unix(), // exp 30 วัน
+		"exp":     time.Now().Add(time.Hour * 24 * 30).Unix(), // exp 30 วัน
 	}
 
 	// สร้าง token
