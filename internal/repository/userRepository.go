@@ -14,7 +14,7 @@ type UserRepository interface {
 	FindUserByVerificationToken(token string) (*domain.User, error)
 	FindUserByResetToken(token string) (*domain.User, error)
 	FindUserById(id uint) (*domain.User, error)
-	UpdateUser(user *domain.User) error
+	UpdateUser(userID uint, updates map[string]interface{}) error
 	UpdateUserProfile(userID uint, firstName, lastName, phone string, address *string) error
 	UpsertStudentProfileByUserID(profile *domain.StudentProfile) error
 	CreateBankAccount(bank *domain.BankAccount) error
@@ -201,8 +201,10 @@ func (r *userRepository) FindUserByVerificationToken(token string) (*domain.User
 	return &user, nil
 }
 
-func (r *userRepository) UpdateUser(user *domain.User) error {
-	return r.db.Save(user).Error
+func (r *userRepository) UpdateUser(userID uint, updates map[string]interface{}) error {
+	return r.db.Model(&domain.User{}).
+		Where("id = ?", userID).
+		Updates(updates).Error
 }
 
 func (r *userRepository) UpdateUserProfile(userID uint, firstName, lastName, phone string, address *string) error {

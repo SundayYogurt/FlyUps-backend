@@ -36,6 +36,8 @@ type UserService interface {
 	ApproveStudentCard(userID uint, adminID uint) error
 	RejectIdCard(userID uint, adminID uint) error
 	RejectStudentCard(userID uint, adminID uint) error
+	SuspendUser(adminID uint, userID uint, reason string) error
+	RollbackActiveUser(userID uint) error
 }
 
 type userService struct {
@@ -57,6 +59,65 @@ func NewUserService(
 		Auth:   auth,
 		Config: cfg,
 	}
+}
+
+func (s *userService) RollbackActiveUser(userID uint) error {
+	if userID == 0 {
+		return errors.New("invalid userId")
+	}
+
+	user, err := s.Repo.FindUserById(userID)
+	if err != nil {
+		return err
+	}
+
+	if user.Status == domain.ACTIVE {
+		return errors.New("user is already suspended")
+	}
+
+	updates := map[string]interface{}{
+		"status":         domain.ACTIVE,
+		"suspend_reason": nil,
+		"suspended_at":   nil,
+		"suspended_by":   nil,
+	}
+
+	return s.Repo.UpdateUser(userID, updates)
+}
+
+func (s *userService) SuspendUser(adminID uint, userID uint, reason string) error {
+	if userID == 0 {
+		return errors.New("invalid userId")
+	}
+
+	if adminID == 0 {
+		return errors.New("invalid adminId")
+	}
+
+	if reason == "" {
+		return errors.New("invalid reason")
+	}
+
+	user, err := s.Repo.FindUserById(userID)
+	if err != nil {
+		return err
+	}
+
+	if user.Status == domain.SUSPENDED {
+		return errors.New("user is already suspended")
+	}
+
+	now := time.Now()
+
+	updates := map[string]interface{}{
+		"status":         domain.SUSPENDED,
+		"suspend_reason": reason,
+		"suspended_at":   now,
+		"suspended_by":   adminID,
+	}
+
+	return s.Repo.UpdateUser(userID, updates)
+
 }
 
 func (s *userService) RejectIdCard(userID uint, adminID uint) error {
@@ -421,7 +482,7 @@ func (s *userService) Signup(input dto.UserSignup) (string, error) {
 		LastName:                   input.LastName,
 		Phone:                      input.Phone,
 		Role:                       input.Role, // pioneer หรือ booster
-		Status:                     string(domain.StatusActive),
+		Status:                     domain.ACTIVE,
 		VerificationToken:          &verifyToken,
 		VerificationTokenExpiresAt: &expireAt,
 	}
@@ -466,15 +527,9 @@ func (s *userService) VerifyEmail(input dto.VerifyEmailRequest) (string, error) 
 	user, err := s.Repo.FindUserByVerificationToken(input.Token)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", errors.New("invalid verification token")
+			return "", errors.New("invalid or expired token")
 		}
 		return "", errors.New("internal server error")
-	}
-
-	// เช็ค token หมดอายุ
-	if user.VerificationTokenExpiresAt == nil ||
-		time.Now().After(*user.VerificationTokenExpiresAt) {
-		return "", errors.New("verification token expired")
 	}
 
 	// เช็ค verify แล้วหรือยัง
@@ -482,14 +537,21 @@ func (s *userService) VerifyEmail(input dto.VerifyEmailRequest) (string, error) 
 		return "", errors.New("email already verified")
 	}
 
+	// เช็ค token หมดอายุ
+	if user.VerificationTokenExpiresAt == nil ||
+		time.Now().After(*user.VerificationTokenExpiresAt) {
+		return "", errors.New("invalid or expired token")
+	}
+
 	now := time.Now()
 
-	user.EmailVerifiedAt = &now
-	user.VerificationToken = nil
-	user.VerificationTokenExpiresAt = nil
+	updates := map[string]interface{}{
+		"email_verified_at":             now,
+		"verification_token":            nil,
+		"verification_token_expires_at": nil,
+	}
 
-	err = s.Repo.UpdateUser(user)
-	if err != nil {
+	if err := s.Repo.UpdateUser(user.ID, updates); err != nil {
 		return "", errors.New("failed to verify email")
 	}
 
@@ -542,9 +604,12 @@ func (s *userService) ForgotPassword(email string) error {
 
 	log.Printf("Reset token (dev only): %s", plain)
 
-	user.ResetTokenHash = &hash
-	user.ResetTokenExpiresAt = &exp
-	if err := s.Repo.UpdateUser(user); err != nil {
+	updates := map[string]interface{}{
+		"reset_token_hash":       hash,
+		"reset_token_expires_at": exp,
+	}
+
+	if err := s.Repo.UpdateUser(user.ID, updates); err != nil {
 		return errors.New("fail to save user")
 	}
 
@@ -622,11 +687,13 @@ func (s *userService) SetPassword(token string, newPassword string) error {
 
 	user.PasswordHash = string(hashedPassword)
 
-	// invalidate reset token
-	user.ResetTokenHash = nil
-	user.ResetTokenExpiresAt = nil
+	updates := map[string]interface{}{
+		"password_hash":          string(hashedPassword),
+		"reset_token_hash":       nil,
+		"reset_token_expires_at": nil,
+	}
 
-	return s.Repo.UpdateUser(user)
+	return s.Repo.UpdateUser(user.ID, updates)
 }
 
 func (s *userService) GetProfile(userID uint) (*domain.User, error) {
@@ -655,13 +722,19 @@ func (s *userService) UpdateProfile(userID uint, input dto.ProfileInput) error {
 	}
 
 	// 3. Update normal profile
-	firstName := strings.TrimSpace(input.FirstName)
-	lastName := strings.TrimSpace(input.LastName)
-	phone := strings.TrimSpace(input.Phone)
-	var address *string
+	updates := map[string]interface{}{}
+	if input.FirstName != nil {
+		updates["first_name"] = strings.TrimSpace(*input.FirstName)
+	}
+	if input.LastName != nil {
+		updates["last_name"] = strings.TrimSpace(*input.LastName)
+	}
+	if input.Phone != nil {
+		updates["phone"] = strings.TrimSpace(*input.Phone)
+	}
 	if input.Address != nil {
 		addr := strings.TrimSpace(*input.Address)
-		address = &addr
+		updates["address"] = &addr
 	}
 
 	// 4. Pioneer-specific update
@@ -712,8 +785,10 @@ func (s *userService) UpdateProfile(userID uint, input dto.ProfileInput) error {
 
 	// 5. Save explicitly (avoid GORM association autosave pitfalls)
 	log.Printf("[UpdateProfile] applying explicit profile update (user_id=%d)", userID)
-	if err := s.Repo.UpdateUserProfile(userID, firstName, lastName, phone, address); err != nil {
-		return err
+	if len(updates) > 0 {
+		if err := s.Repo.UpdateUser(userID, updates); err != nil {
+			return err
+		}
 	}
 	if studentProfile != nil {
 		if err := s.Repo.UpsertStudentProfileByUserID(studentProfile); err != nil {
