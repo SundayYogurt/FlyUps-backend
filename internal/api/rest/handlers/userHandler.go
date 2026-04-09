@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"flyup/config"
 	"flyup/internal/repository"
@@ -51,9 +52,9 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	}
 
 	pubRoutes := app.Group("/")
-	pubRoutes.Post("/signup", handler.Signup)
+	pubRoutes.Post("/Signup", handler.SignUp)
 	pubRoutes.Get("/verify-email", handler.VerifyEmail)
-	pubRoutes.Post("/signin", handler.Signin)
+	pubRoutes.Post("/signin", handler.Signing)
 	pubRoutes.Post("/forgot-password", handler.ForgotPassword)
 	pubRoutes.Post("/reset-password", handler.SetPassword)
 
@@ -68,6 +69,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	privateRoutes.Post("/id-verify", handler.VerifyIDCard)
 	privateRoutes.Post("/add-bank", handler.AddBankAccount)
 	privateRoutes.Patch("/update-bank/:id", handler.UpdateBankAccount)
+	privateRoutes.Post("/signout", handler.SignOut)
 
 	//admin route
 	adminRoutes := app.Group("/admin", rh.Middlewares.AuthorizeAdmin)
@@ -78,23 +80,31 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	adminRoutes.Patch("/reject-id-card/:id", handler.RejectCardID)
 	adminRoutes.Patch("/suspend-user/:id", handler.SuspendUser)
 	adminRoutes.Patch("/rollback-user/:id", handler.RollbackUser)
+	adminRoutes.Post("/create-university", handler.CreateUniversity)
+	adminRoutes.Put("update-university/:id", handler.UpdateUniversity)
+	adminRoutes.Get("/university/:id", handler.GetUniversity)
+	adminRoutes.Get("/universities", handler.GetUniversities)
+	adminRoutes.Delete("/delete-university/:id", handler.DeleteUniversity)
+	adminRoutes.Post("/create-university-domain/:id", handler.CreateUniversityDomain)
+	adminRoutes.Put("/update-university-domain/:id", handler.UpdateUniversityDomain)
+	adminRoutes.Delete("/delete-university-domain/:id", handler.DeleteUniversityDomain)
 
 }
 
-// Signup godoc
+// SignUp godoc
 // @Summary Register a new user
 // @Description Create a new user account
 // @Tags Users
 // @Accept json
 // @Produce json
-// @Param request body dto.UserSignup true "Signup Request body"
+// @Param request body dto.UserSignUp true "SignUp Request body"
 // @Success 201 {object} object "Success message"
 // @Failure 400 {object} object "Validation failed"
 // @Failure 409 {object} object "User already registered"
 // @Failure 500 {object} object "Internal Server Error"
-// @Router /signup [post]
-func (h *UserHandler) Signup(ctx fiber.Ctx) error {
-	user := dto.UserSignup{}
+// @Router /SignUp [post]
+func (h *UserHandler) SignUp(ctx fiber.Ctx) error {
+	user := dto.UserSignUp{}
 
 	//Bind JSON Body
 	if err := ctx.Bind().Body(&user); err != nil {
@@ -109,7 +119,7 @@ func (h *UserHandler) Signup(ctx fiber.Ctx) error {
 	}
 
 	//Call Service Logic
-	msg, err := h.svc.Signup(user)
+	msg, err := h.svc.SignUp(user)
 	if err != nil {
 		errStr := err.Error()
 
@@ -129,7 +139,7 @@ func (h *UserHandler) Signup(ctx fiber.Ctx) error {
 		}
 
 		// กรณี Error อื่นๆ (500 Internal Error)
-		log.Printf("[Signup Error]: %v", err)
+		log.Printf("[SignUp Error]: %v", err)
 		return rest.InternalError(ctx, err)
 	}
 
@@ -167,27 +177,27 @@ func (h *UserHandler) VerifyEmail(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, msg, nil)
 }
 
-// Signin godoc
-// @Summary User Signin
+// Signing godoc
+// @Summary User Signing
 // @Description Authenticate a user and return login token
 // @Tags Users
 // @Accept json
 // @Produce json
-// @Param request body dto.UserSignin true "Signin Request body"
+// @Param request body dto.UserSigning true "Signing Request body"
 // @Success 200 {object} object "Token information"
 // @Failure 400 {object} object "Invalid input"
 // @Failure 401 {object} object "Incorrect credentials"
 // @Failure 403 {object} object "Email not verified"
 // @Router /signin [post]
-func (h *UserHandler) Signin(ctx fiber.Ctx) error {
-	signinInput := dto.UserSignin{}
-	err := ctx.Bind().Body(&signinInput)
+func (h *UserHandler) Signing(ctx fiber.Ctx) error {
+	signingInput := dto.UserSigning{}
+	err := ctx.Bind().Body(&signingInput)
 	if err != nil {
 		return ctx.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"message": "please provide valid inputs",
 		})
 	}
-	token, err := h.svc.Signin(signinInput.Email, signinInput.Password)
+	token, err := h.svc.Signing(signingInput.Email, signingInput.Password)
 
 	if err != nil {
 
@@ -761,7 +771,7 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 
 	baseURL := strings.TrimRight(h.config.BaseURL, "/")
 
-	token, err := h.svc.GoogleSignin(code, reqRole, h.googleOAuth)
+	token, err := h.svc.GoogleSigning(code, reqRole, h.googleOAuth)
 	if err != nil {
 		// Redirect with error using ENV Base URL
 		redirectErrUrl := baseURL + "/login?error=" + err.Error()
@@ -785,4 +795,211 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 	// Send token to frontend
 	redirectUrl := baseURL + "/"
 	return ctx.Redirect().To(redirectUrl)
+}
+
+func (h *UserHandler) SignOut(ctx fiber.Ctx) error {
+	ctx.Cookie(&fiber.Cookie{
+		Name:     "auth_token",
+		Value:    "",
+		Expires:  time.Now().Add(-time.Hour), // ทำให้หมดอายุทันที
+		HTTPOnly: true,
+		Secure:   true,
+	})
+
+	return ctx.JSON(fiber.Map{
+		"message": "logout success",
+	})
+}
+
+func (h *UserHandler) UpdateUniversity(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.BadRequestError(ctx, "unauthorized")
+	}
+
+	uid := ctx.Params("id")
+	uidParsed, err := strconv.ParseUint(uid, 10, 64)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid university id")
+	}
+	var req dto.CreateUniversityRequest
+
+	if err := ctx.Bind().Body(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid body")
+	}
+
+	uni, err := h.svc.UpdateUniversity(uint(uidParsed), req)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return ctx.JSON(fiber.Map{
+		"message": "update university success",
+		"data":    uni,
+	})
+}
+
+func (h *UserHandler) CreateUniversity(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.BadRequestError(ctx, "unauthorized")
+	}
+
+	var req dto.CreateUniversityRequest
+
+	if err := ctx.Bind().Body(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid body")
+	}
+
+	uni, err := h.svc.CreateUniversity(req)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return ctx.JSON(fiber.Map{
+		"message": "create university success",
+		"data":    uni,
+	})
+}
+
+func (h *UserHandler) GetUniversity(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.BadRequestError(ctx, "unauthorized")
+	}
+
+	uid := ctx.Params("id")
+	uidParsed, err := strconv.ParseUint(uid, 10, 64)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid university id")
+	}
+
+	uni, err := h.svc.GetUniversityByID(uint(uidParsed))
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return ctx.JSON(fiber.Map{
+		"message": "get university success",
+		"data":    uni,
+	})
+}
+
+func (h *UserHandler) GetUniversities(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.BadRequestError(ctx, "unauthorized")
+	}
+
+	uni, err := h.svc.GetAllUniversities()
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return ctx.JSON(fiber.Map{
+		"message": "get universities success",
+		"data":    uni,
+	})
+}
+
+func (h *UserHandler) DeleteUniversity(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.BadRequestError(ctx, "unauthorized")
+	}
+
+	uid := ctx.Params("id")
+	uidParsed, err := strconv.ParseUint(uid, 10, 64)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid university id")
+	}
+
+	err = h.svc.DeleteUniversity(uint(uidParsed))
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return ctx.JSON(fiber.Map{
+		"message": "delete university success",
+	})
+}
+
+func (h *UserHandler) CreateUniversityDomain(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.BadRequestError(ctx, "unauthorized")
+	}
+
+	uid := ctx.Params("id")
+	uidParsed, err := strconv.ParseUint(uid, 10, 64)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid university id")
+	}
+
+	var req dto.CreateDomainRequest
+
+	if err := ctx.Bind().Body(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid body")
+	}
+
+	uni, err := h.svc.CreateDomain(uint(uidParsed), req)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return ctx.JSON(fiber.Map{
+		"message": "create domain of university success",
+		"data":    uni,
+	})
+}
+
+func (h *UserHandler) UpdateUniversityDomain(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.BadRequestError(ctx, "unauthorized")
+	}
+
+	uid := ctx.Params("id")
+	uidParsed, err := strconv.ParseUint(uid, 10, 64)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid university id")
+	}
+
+	var req dto.UpdateDomainRequest
+
+	if err := ctx.Bind().Body(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid body")
+	}
+
+	uni, err := h.svc.UpdateDomain(uint(uidParsed), req)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return ctx.JSON(fiber.Map{
+		"message": "update domain of university success",
+		"data":    uni,
+	})
+}
+
+func (h *UserHandler) DeleteUniversityDomain(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.BadRequestError(ctx, "unauthorized")
+	}
+
+	uid := ctx.Params("id")
+	uidParsed, err := strconv.ParseUint(uid, 10, 64)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid university id")
+	}
+	err = h.svc.DeleteDomain(uint(uidParsed))
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return ctx.JSON(fiber.Map{
+		"message": "delete university domain success",
+	})
+
 }

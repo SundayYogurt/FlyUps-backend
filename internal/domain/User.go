@@ -25,6 +25,7 @@ type User struct {
 	Address                    *string         `json:"address,omitempty"`
 	Status                     UserStatus      `json:"status"` // active|suspended
 	Role                       string          `json:"role"`
+	Picture                    *string         `json:"picture,omitempty"`
 	EmailVerifiedAt            *time.Time      `json:"email_verified_at,omitempty"`
 	VerificationToken          *string         `json:"-"`
 	VerificationTokenExpiresAt *time.Time      `json:"-"`

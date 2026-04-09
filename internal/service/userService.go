@@ -24,8 +24,9 @@ import (
 )
 
 type UserService interface {
-	Signup(input dto.UserSignup) (string, error)
-	Signin(email string, password string) (string, error)
+	SignUp(input dto.UserSignUp) (string, error)
+	Signing(email string, password string) (string, error)
+	GoogleSigning(code string, role string, oauthConfig *oauth2.Config) (string, error)
 	VerifyEmail(input dto.VerifyEmailRequest) (string, error)
 	ForgotPassword(email string) error
 	SetPassword(token string, newPassword string) error
@@ -42,7 +43,16 @@ type UserService interface {
 	RejectStudentCard(userID uint, adminID uint) error
 	SuspendUser(adminID uint, userID uint, reason string) error
 	RollbackActiveUser(userID uint) error
-	GoogleSignin(code string, role string, oauthConfig *oauth2.Config) (string, error)
+	CreateUniversity(req dto.CreateUniversityRequest) (*domain.University, error)
+	GetAllUniversities() ([]domain.University, error)
+	GetUniversityByID(id uint) (*domain.University, error)
+	UpdateUniversity(id uint, req dto.CreateUniversityRequest) (*domain.University, error)
+	DeleteUniversity(id uint) error
+	// CreateDomain domain
+	CreateDomain(id uint, req dto.CreateDomainRequest) (*domain.UniversityDomain, error)
+	GetUniversityByEmail(email string) (*domain.UniversityDomain, error)
+	DeleteDomain(id uint) error
+	UpdateDomain(id uint, req dto.UpdateDomainRequest) (*domain.UniversityDomain, error)
 }
 
 type userService struct {
@@ -64,6 +74,233 @@ func NewUserService(
 		Auth:   auth,
 		Config: cfg,
 	}
+}
+
+func (s *userService) UpdateDomain(id uint, req dto.UpdateDomainRequest) (*domain.UniversityDomain, error) {
+	if id == 0 {
+		return nil, errors.New("invalid id")
+	}
+
+	// 🔹 หา domain เดิม
+	d, err := s.URepo.FindDomainByID(id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("domain not found")
+		}
+		return nil, err
+	}
+
+	// update domain
+	if req.Domain != nil {
+		newDomain := strings.ToLower(strings.TrimSpace(*req.Domain))
+
+		if newDomain == "" {
+			return nil, errors.New("domain cannot be empty")
+		}
+
+		// บังคับ .ac.th
+		if !strings.HasSuffix(newDomain, ".ac.th") {
+			return nil, errors.New("invalid university domain")
+		}
+
+		// เช็คว่าซ้ำกับตัวเองไหม
+		if newDomain == d.Domain {
+			return nil, errors.New("domain is already this value")
+		}
+
+		// เช็คซ้ำใน DB
+		existing, _ := s.URepo.GetUniversityByDomain(newDomain)
+		if existing != nil && existing.ID != d.ID {
+			return nil, errors.New("domain already exists")
+		}
+
+		d.Domain = newDomain
+	}
+
+	if req.IsActive != nil {
+		d.IsActive = *req.IsActive
+	}
+
+	if err := s.URepo.UpdateDomain(d); err != nil {
+		return nil, err
+	}
+
+	return d, nil
+}
+
+func (s *userService) CreateUniversity(req dto.CreateUniversityRequest) (*domain.University, error) {
+	if req.NameTH == nil && req.NameEN == nil {
+		return nil, errors.New("name th or name_en required")
+	}
+
+	if req.Province == nil {
+		return nil, errors.New("province required")
+	}
+
+	existing, err := s.URepo.FindByName(req.NameTH, req.NameEN)
+	if err == nil && existing != nil {
+		return nil, errors.New("university already exists")
+	}
+
+	// ถ้า error ที่ไม่ใช่ not found
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
+	u := domain.University{
+		NameTH:   req.NameTH,
+		NameEN:   req.NameEN,
+		Province: req.Province,
+	}
+
+	if err := s.URepo.Create(&u); err != nil {
+		return nil, err
+	}
+
+	return &u, nil
+}
+
+func (s *userService) GetAllUniversities() ([]domain.University, error) {
+	return s.URepo.FindAll()
+}
+
+func (s *userService) GetUniversityByID(id uint) (*domain.University, error) {
+	if id == 0 {
+		return nil, errors.New("invalid id")
+	}
+
+	return s.URepo.FindByID(id)
+}
+
+func (s *userService) UpdateUniversity(id uint, req dto.CreateUniversityRequest) (*domain.University, error) {
+	u, err := s.URepo.FindByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if req.NameTH != nil {
+		u.NameTH = req.NameTH
+	}
+	if req.NameEN != nil {
+		u.NameEN = req.NameEN
+	}
+	if req.Province != nil {
+		u.Province = req.Province
+	}
+
+	// check NameTH
+	if req.NameTH != nil {
+		newNameTH := strings.TrimSpace(*req.NameTH)
+		if newNameTH == "" {
+			return nil, errors.New("name_th cannot be empty")
+		}
+
+		// เช็คซ้ำด้วย FindByName
+		existing, _ := s.URepo.FindByName(&newNameTH, nil)
+		if existing != nil && existing.ID != u.ID {
+			return nil, errors.New("name_th already exists")
+		}
+
+		u.NameTH = &newNameTH
+	}
+
+	// check NameEN
+	if req.NameEN != nil {
+		newNameEN := strings.TrimSpace(*req.NameEN)
+		if newNameEN == "" {
+			return nil, errors.New("name_en cannot be empty")
+		}
+
+		// เช็คซ้ำด้วย FindByName
+		existing, _ := s.URepo.FindByName(nil, &newNameEN)
+		if existing != nil && existing.ID != u.ID {
+			return nil, errors.New("name_en already exists")
+		}
+
+		u.NameEN = &newNameEN
+	}
+
+	if err := s.URepo.Update(u); err != nil {
+		return nil, err
+	}
+
+	return u, nil
+}
+
+func (s *userService) DeleteUniversity(id uint) error {
+	if id == 0 {
+		return errors.New("invalid id")
+	}
+	return s.URepo.Delete(id)
+}
+
+func (s *userService) CreateDomain(id uint, req dto.CreateDomainRequest) (*domain.UniversityDomain, error) {
+	if id == 0 || req.Domain == "" {
+		return nil, errors.New("missing required fields")
+	}
+	uni, err := s.URepo.FindDomainByID(id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("university not found")
+		}
+		return nil, err
+	}
+	if req.Domain == uni.Domain {
+		return nil, errors.New("domain is already used")
+	}
+
+	_, err = s.URepo.FindByID(id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("university not found")
+		}
+		return nil, err
+	}
+
+	// normalize domain
+	domainStr := strings.ToLower(strings.TrimSpace(req.Domain))
+	if !strings.Contains(domainStr, ".ac.th") {
+		return nil, errors.New("invalid university domain")
+	}
+	d := domain.UniversityDomain{
+		UniversityID: id,
+		Domain:       domainStr,
+		IsActive:     true,
+	}
+
+	if err := s.URepo.CreateDomain(&d); err != nil {
+		return nil, err
+	}
+
+	return &d, nil
+}
+
+func (s *userService) GetUniversityByEmail(email string) (*domain.UniversityDomain, error) {
+	if email == "" {
+		return nil, errors.New("email is required")
+	}
+
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return nil, errors.New("invalid email format")
+	}
+
+	domainPart := parts[1]
+
+	return s.URepo.GetUniversityByDomain(domainPart)
+}
+
+func (s *userService) DeleteDomain(id uint) error {
+	if id == 0 {
+		return errors.New("invalid id")
+	}
+
+	_, err := s.URepo.FindDomainByID(id)
+	if err != nil {
+		return err
+	}
+
+	return s.URepo.DeleteDomain(id)
 }
 
 func (s *userService) RollbackActiveUser(userID uint) error {
@@ -425,7 +662,7 @@ func (s *userService) AddBankAccount(userID uint, input dto.BankRequest) error {
 
 }
 
-func (s *userService) Signup(input dto.UserSignup) (string, error) {
+func (s *userService) SignUp(input dto.UserSignUp) (string, error) {
 	// ตรวจสอบ Password และ Hash
 	hPassword, err := s.Auth.CreateHashedPassword(input.Password)
 	if err != nil {
@@ -570,7 +807,7 @@ func (s *userService) findUserByEmail(email string) (*domain.User, error) {
 	return user, err
 }
 
-func (s *userService) Signin(email string, password string) (string, error) {
+func (s *userService) Signing(email string, password string) (string, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	user, err := s.Repo.FindUser(email)
 	if err != nil {
@@ -714,7 +951,7 @@ func (s *userService) GetProfile(userID uint) (*domain.User, error) {
 	return user, nil
 }
 
-func (s *userService) GoogleSignin(code string, role string, oauthConfig *oauth2.Config) (string, error) {
+func (s *userService) GoogleSigning(code string, role string, oauthConfig *oauth2.Config) (string, error) {
 	// 1. Exchange custom code for an access token
 	token, err := oauthConfig.Exchange(context.Background(), code)
 	if err != nil {
@@ -840,6 +1077,10 @@ func (s *userService) UpdateProfile(userID uint, input dto.ProfileInput) error {
 	if input.Address != nil {
 		addr := strings.TrimSpace(*input.Address)
 		updates["address"] = &addr
+	}
+
+	if input.Picture != nil {
+		updates["picture"] = strings.TrimSpace(*input.Picture)
 	}
 
 	// 4. Pioneer-specific update
