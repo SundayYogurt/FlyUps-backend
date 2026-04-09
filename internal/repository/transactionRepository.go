@@ -11,6 +11,7 @@ type TransactionRepository interface {
 	FindByPaymentIntentID(intentID string) (*domain.Transaction, error)
 	FindByInvestmentID(investmentID uint) (*domain.Transaction, error)
 	UpdateStatus(id uint, status domain.TransactionStatus) error
+	UpdateStripeFeesAndNet(id uint, stripeFee float64, stripeFeeVAT float64, netAmount float64) error
 }
 
 type transactionRepository struct {
@@ -51,4 +52,12 @@ func (r *transactionRepository) FindByInvestmentID(investmentID uint) (*domain.T
 
 func (r *transactionRepository) UpdateStatus(id uint, status domain.TransactionStatus) error {
 	return r.db.Model(&domain.Transaction{}).Where("id = ?", id).Update("status", status).Error
+}
+
+func (r *transactionRepository) UpdateStripeFeesAndNet(id uint, stripeFee float64, stripeFeeVAT float64, netAmount float64) error {
+	return r.db.Model(&domain.Transaction{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"stripe_fee":     stripeFee,
+		"stripe_fee_vat": stripeFeeVAT,
+		"net_amount":     netAmount,
+	}).Error
 }
