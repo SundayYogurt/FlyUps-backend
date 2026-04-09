@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flyup/config"
@@ -9,11 +10,14 @@ import (
 	"flyup/internal/helper"
 	"flyup/internal/repository"
 	"flyup/pkg/notification"
+	"io"
 	"log"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/oauth2"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -38,6 +42,7 @@ type UserService interface {
 	RejectStudentCard(userID uint, adminID uint) error
 	SuspendUser(adminID uint, userID uint, reason string) error
 	RollbackActiveUser(userID uint) error
+	GoogleSignin(code string, role string, oauthConfig *oauth2.Config) (string, error)
 }
 
 type userService struct {
@@ -707,6 +712,106 @@ func (s *userService) GetProfile(userID uint) (*domain.User, error) {
 	}
 
 	return user, nil
+}
+
+func (s *userService) GoogleSignin(code string, role string, oauthConfig *oauth2.Config) (string, error) {
+	// 1. Exchange custom code for an access token
+	token, err := oauthConfig.Exchange(context.Background(), code)
+	if err != nil {
+		return "", errors.New("failed to exchange token: " + err.Error())
+	}
+
+	// 2. Fetch user details from Google
+	resp, err := oauthConfig.Client(context.Background(), token).Get("https://www.googleapis.com/oauth2/v2/userinfo")
+	if err != nil {
+		return "", errors.New("failed to fetch user info: " + err.Error())
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.New("failed to read user info: " + err.Error())
+	}
+
+	var googleUser struct {
+		ID            string `json:"id"`
+		Email         string `json:"email"`
+		VerifiedEmail bool   `json:"verified_email"`
+		Picture       string `json:"picture"`
+		GivenName     string `json:"given_name"`
+		FamilyName    string `json:"family_name"`
+	}
+
+	if err := json.Unmarshal(body, &googleUser); err != nil {
+		return "", errors.New("failed to parse user info: " + err.Error())
+	}
+
+	// 3. Check if user exists by email
+	user, err := s.Repo.FindUser(googleUser.Email)
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", errors.New("internal server error")
+		}
+
+		// User not found, automatically register them!
+		if role != "pioneer" && role != "booster" {
+			role = "booster" // Fallback Default
+		}
+
+		if role == "pioneer" {
+			parts := strings.Split(googleUser.Email, "@")
+			if len(parts) < 2 {
+				return "", errors.New("invalid email format")
+			}
+			domainName := parts[1]
+
+			findDomain, err := s.URepo.GetUniversityByDomain(domainName)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return "", errors.New("sorry, this email domain is not registered as a university")
+				}
+				return "", errors.New("internal server error, try again later")
+			}
+			if !findDomain.IsActive {
+				return "", errors.New("this university is not active")
+			}
+		}
+
+		googleSub := googleUser.ID
+		now := time.Now()
+		newUser := &domain.User{
+			Email:           googleUser.Email,
+			FirstName:       googleUser.GivenName,
+			LastName:        googleUser.FamilyName,
+			Role:            role,
+			Status:          domain.ACTIVE,
+			GoogleSub:       &googleSub,
+			EmailVerifiedAt: &now,
+		}
+
+		consent := &domain.UserConsent{
+			ConsentCode: domain.ConsentTerm,
+			Accepted:    true,
+			AcceptedAt:  now,
+		}
+
+		user, err = s.Repo.CreateUser(newUser, consent)
+		if err != nil {
+			return "", errors.New("failed to create user")
+		}
+	} else {
+		// User exists, just ensure their GoogleSub is updated if missing
+		if user.GoogleSub == nil || *user.GoogleSub != googleUser.ID {
+			googleSub := googleUser.ID
+			s.Repo.UpdateUser(user.ID, map[string]interface{}{
+				"google_sub":        &googleSub,
+				"email_verified_at": time.Now(),
+			})
+		}
+	}
+
+	// 4. Generate JWT Token
+	return s.Auth.GenerateToken(user.ID, user.Email, user.Role)
 }
 
 func (s *userService) UpdateProfile(userID uint, input dto.ProfileInput) error {
