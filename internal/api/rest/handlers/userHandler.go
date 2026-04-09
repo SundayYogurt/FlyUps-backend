@@ -768,7 +768,21 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 		return ctx.Redirect().To(redirectErrUrl)
 	}
 
+	ctx.Cookie(&fiber.Cookie{
+		Name:     "access_token",
+		Value:    token,
+		HTTPOnly: true,
+		Secure:   true,
+		SameSite: "None",
+		Path:     "/",
+		MaxAge:   3600,
+	})
+
+	// ลบ oauth cookie
+	ctx.Cookie(&fiber.Cookie{Name: "oauthstate", Value: "", MaxAge: -1})
+	ctx.Cookie(&fiber.Cookie{Name: "oauth_role", Value: "", MaxAge: -1})
+
 	// Send token to frontend
-	redirectUrl := baseURL + "/?token=" + token
+	redirectUrl := baseURL + "/"
 	return ctx.Redirect().To(redirectUrl)
 }
