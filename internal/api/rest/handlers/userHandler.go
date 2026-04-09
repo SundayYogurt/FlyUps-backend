@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"flyup/config"
 	"flyup/internal/repository"
 	"flyup/internal/service"
 
@@ -23,6 +24,7 @@ type UserHandler struct {
 	validator   *validator.Validate
 	auth        helper.Auth
 	googleOAuth *oauth2.Config
+	config      config.AppConfig
 }
 
 func SetupUserRoutes(rh *rest.RestHandler) {
@@ -45,6 +47,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 		validator:   rh.Validator,
 		auth:        rh.Auth,
 		googleOAuth: googleOAuth,
+		config:      rh.Config,
 	}
 
 	pubRoutes := app.Group("/")
@@ -756,15 +759,16 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 
 	reqRole := ctx.Cookies("oauth_role", "booster")
 
+	baseURL := strings.TrimRight(h.config.BaseURL, "/")
+
 	token, err := h.svc.GoogleSignin(code, reqRole, h.googleOAuth)
 	if err != nil {
-		// Redirect with error
-		redirectErrUrl := "http://localhost:5173/login?error=" + err.Error()
+		// Redirect with error using ENV Base URL
+		redirectErrUrl := baseURL + "/login?error=" + err.Error()
 		return ctx.Redirect().To(redirectErrUrl)
 	}
 
-	// Send token to frontend (usually via query param on redirect, or set cookie and redirect)
-
-	redirectUrl := "http://localhost:5173/?token=" + token
+	// Send token to frontend
+	redirectUrl := baseURL + "/?token=" + token
 	return ctx.Redirect().To(redirectUrl)
 }
