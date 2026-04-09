@@ -1,6 +1,6 @@
 package dto
 
-type UserSignup struct {
+type UserSignUp struct {
 	Role string `json:"role" validate:"required,oneof=pioneer booster"`
 
 	// ข้อมูลส่วนตัว
@@ -18,7 +18,7 @@ type UserSignup struct {
 	AcceptTerms bool `json:"accept_terms" validate:"required,eq=true"`
 }
 
-type UserSignin struct {
+type UserSigning struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
@@ -43,7 +43,8 @@ type ProfileInput struct {
 	FirstName *string `json:"first_name,omitempty"`
 	LastName  *string `json:"last_name,omitempty"`
 	Phone     *string `json:"phone,omitempty"`
-	Address   *string `json:"address,omitempty"` // optional
+	Address   *string `json:"address,omitempty"`
+	Picture   *string `json:"picture,omitempty"`
 
 	// --- Pioneer only ---
 	// UniversityID: จะถูก derive จาก domain ของ email ที่สมัคร (pioneer)
@@ -76,4 +77,19 @@ type BankRequest struct {
 
 type SuspendUserInput struct {
 	Reason string `json:"reason" validate:"required"`
+}
+
+type CreateUniversityRequest struct {
+	NameTH   *string `json:"name_th"`
+	NameEN   *string `json:"name_en"`
+	Province *string `json:"province"`
+}
+
+type CreateDomainRequest struct {
+	Domain string `json:"domain"`
+}
+
+type UpdateDomainRequest struct {
+	Domain   *string `json:"domain"`
+	IsActive *bool   `json:"is_active"`
 }

@@ -2296,10 +2296,10 @@ const docTemplate = `{
                 "tags": [
                     "Users"
                 ],
-                "summary": "User Signin",
+                "summary": "User Signing",
                 "parameters": [
                     {
-                        "description": "Signin Request body",
+                        "description": "Signing Request body",
                         "name": "request",
                         "in": "body",
                         "required": true,

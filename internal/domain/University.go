@@ -6,11 +6,11 @@ import (
 
 // University มหาลัย
 type University struct {
-	ID       uint    `json:"id"`
-	NameTH   *string `json:"name_th,omitempty"`
-	NameEN   *string `json:"name_en,omitempty"`
-	Province *string `json:"province,omitempty"`
-	Domain   *string `json:"domain,omitempty"`
+	ID       uint               `json:"id"`
+	NameTH   *string            `json:"name_th,omitempty"`
+	NameEN   *string            `json:"name_en,omitempty"`
+	Province *string            `json:"province,omitempty"`
+	Domains  []UniversityDomain `json:"domains" gorm:"foreignKey:UniversityID"`
 	gorm.Model
 }
 
