@@ -40,9 +40,9 @@ type AuthResponse struct {
 
 type ProfileInput struct {
 	// --- ข้อมูลส่วนตัว ---
-	FirstName string  `json:"first_name"`
-	LastName  string  `json:"last_name"`
-	Phone     string  `json:"phone"`
+	FirstName *string `json:"first_name,omitempty"`
+	LastName  *string `json:"last_name,omitempty"`
+	Phone     *string `json:"phone,omitempty"`
 	Address   *string `json:"address,omitempty"` // optional
 
 	// --- Pioneer only ---
@@ -72,4 +72,8 @@ type BankRequest struct {
 	BankName      *string `json:"bank_name,omitempty"`
 	AccountName   *string `json:"account_name,omitempty"`
 	AccountNumber *string `json:"account_number"`
+}
+
+type SuspendUserInput struct {
+	Reason string `json:"reason" validate:"required"`
 }

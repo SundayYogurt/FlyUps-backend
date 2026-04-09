@@ -63,6 +63,8 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	adminRoutes.Patch("/approve-id-card/:id", handler.ApproveCardID)
 	adminRoutes.Patch("/reject-student-card/:id", handler.RejectStudentCard)
 	adminRoutes.Patch("/reject-id-card/:id", handler.RejectCardID)
+	adminRoutes.Patch("/suspend-user/:id", handler.SuspendUser)
+	adminRoutes.Patch("/rollback-user/:id", handler.RollbackUser)
 
 }
 
@@ -640,4 +642,53 @@ func (h *UserHandler) RejectCardID(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "student card rejected", map[string]interface{}{
 		"user_id": userID,
 	})
+}
+
+func (h *UserHandler) SuspendUser(ctx fiber.Ctx) error {
+	admin := h.auth.GetCurrentUser(ctx)
+	if admin.ID == 0 {
+		return rest.ErrorMessage(ctx, 401, errors.New("unauthorized"))
+	}
+
+	userIDParam := ctx.Params("id")
+
+	userID, err := strconv.ParseUint(userIDParam, 10, 64)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid user id")
+	}
+
+	var req dto.SuspendUserInput
+	if err := ctx.Bind().Body(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid body")
+	}
+
+	if err := h.validator.Struct(req); err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	if err := h.svc.SuspendUser(admin.ID, uint(userID), req.Reason); err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "user suspended", nil)
+}
+
+func (h *UserHandler) RollbackUser(ctx fiber.Ctx) error {
+	admin := h.auth.GetCurrentUser(ctx)
+	if admin.ID == 0 {
+		return rest.ErrorMessage(ctx, 401, errors.New("unauthorized"))
+	}
+
+	userIDParam := ctx.Params("id")
+
+	userID, err := strconv.ParseUint(userIDParam, 10, 64)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid user id")
+	}
+
+	if err := h.svc.RollbackActiveUser(uint(userID)); err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "user come back to active!", nil)
 }

@@ -6,11 +6,11 @@ import (
 	"gorm.io/gorm"
 )
 
-type status string
+type UserStatus string
 
 const (
-	ACTIVE    status = "active"
-	SUSPENDED status = "suspended"
+	ACTIVE    UserStatus = "active"
+	SUSPENDED UserStatus = "suspended"
 )
 
 // User represents the core user entity
@@ -23,7 +23,7 @@ type User struct {
 	LastName                   string          `json:"last_name"`
 	Phone                      string          `json:"phone"`
 	Address                    *string         `json:"address,omitempty"`
-	Status                     string          `json:"status"` // active|suspended
+	Status                     UserStatus      `json:"status"` // active|suspended
 	Role                       string          `json:"role"`
 	EmailVerifiedAt            *time.Time      `json:"email_verified_at,omitempty"`
 	VerificationToken          *string         `json:"-"`
@@ -31,7 +31,10 @@ type User struct {
 	ResetTokenHash             *string         `json:"-"`
 	ResetTokenExpiresAt        *time.Time      `json:"-"`
 	StudentProfile             *StudentProfile `json:"student_profile,omitempty" gorm:"foreignKey:UserID"`
-	BankAccount                *BankAccount    `gorm:"foreignKey:UserID"`
+	BankAccount                *BankAccount    `json:"bank_account,omitempty" gorm:"foreignKey:UserID"`
+	SuspendReason              *string         `json:"suspend_reason,omitempty"`
+	SuspendedBy                *uint           `json:"suspended_by,omitempty"`
+	SuspendedAt                *time.Time      `json:"suspended_at,omitempty"`
 	gorm.Model
 }
 
