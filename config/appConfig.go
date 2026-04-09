@@ -21,6 +21,9 @@ type AppConfig struct {
 	StripeSecretKey     string
 	StripeWebhookSecret string
 	IAppAPIKey          string
+	GoogleClientID      string
+	GoogleClientSecret  string
+	GoogleRedirectURI   string
 }
 
 func SetupEnv() (cfg AppConfig, err error) {
@@ -85,6 +88,22 @@ func SetupEnv() (cfg AppConfig, err error) {
 	if len(iappAPIKey) < 1 {
 		return AppConfig{}, errors.New("iapp api key not found")
 	}
+
+	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
+	if len(googleClientID) < 1 {
+		return AppConfig{}, errors.New("google client id env variables not found")
+	}
+
+	googleClientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+	if len(googleClientSecret) < 1 {
+		return AppConfig{}, errors.New("google client secret env variables not found")
+	}
+
+	googleRedirectURL := os.Getenv("GOOGLE_REDIRECT_URL")
+	if len(googleRedirectURL) < 1 {
+		return AppConfig{}, errors.New("google redirect url env variables not found")
+	}
+
 	return AppConfig{
 		ServerPort:          httpPort,
 		Dsn:                 Dsn,
@@ -98,6 +117,8 @@ func SetupEnv() (cfg AppConfig, err error) {
 		StripeSecretKey:     stripeSecretKey,
 		StripeWebhookSecret: stripeWebhookSecret,
 		IAppAPIKey:          iappAPIKey,
+		GoogleClientID:      googleClientID,
+		GoogleClientSecret:  googleClientSecret,
+		GoogleRedirectURI:   googleRedirectURL,
 	}, nil
-
 }

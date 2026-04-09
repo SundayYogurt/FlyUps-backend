@@ -15,8 +15,8 @@ type mockUserRepository struct {
 	mock.Mock
 }
 
-func (m *mockUserRepository) UpdateUser(user *domain.User) error {
-	args := m.Called(user)
+func (m *mockUserRepository) UpdateUser(userID uint, updates map[string]interface{}) error {
+	args := m.Called(userID, updates)
 	return args.Error(0)
 }
 
