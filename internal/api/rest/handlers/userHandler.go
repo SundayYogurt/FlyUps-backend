@@ -15,12 +15,14 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
+	"golang.org/x/oauth2"
 )
 
 type UserHandler struct {
-	svc       service.UserService
-	validator *validator.Validate
-	auth      helper.Auth
+	svc         service.UserService
+	validator   *validator.Validate
+	auth        helper.Auth
+	googleOAuth *oauth2.Config
 }
 
 func SetupUserRoutes(rh *rest.RestHandler) {
@@ -35,9 +37,14 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 		rh.Config,
 	)
 
+	// Setup Google OAuth
+	googleOAuth := helper.SetupGoogleOAuth(rh.Config)
+
 	handler := UserHandler{
-		svc:       svc,
-		validator: rh.Validator,
+		svc:         svc,
+		validator:   rh.Validator,
+		auth:        rh.Auth,
+		googleOAuth: googleOAuth,
 	}
 
 	pubRoutes := app.Group("/")
@@ -46,6 +53,9 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	pubRoutes.Post("/signin", handler.Signin)
 	pubRoutes.Post("/forgot-password", handler.ForgotPassword)
 	pubRoutes.Post("/reset-password", handler.SetPassword)
+
+	pubRoutes.Get("/auth/google", handler.GoogleLogin)
+	pubRoutes.Get("/auth/google/callback", handler.GoogleCallback)
 
 	//private route
 	privateRoutes := app.Group("/user", rh.Middlewares.Authorize)
@@ -691,4 +701,70 @@ func (h *UserHandler) RollbackUser(ctx fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, "user come back to active!", nil)
+}
+
+// GoogleLogin godoc
+// @Summary Google Login
+// @Description Redirect to Google Login
+// @Tags Auth
+// @Router /auth/google [get]
+func (h *UserHandler) GoogleLogin(ctx fiber.Ctx) error {
+	b, _ := helper.GenerateRandomToken(16)
+	state := helper.Sha256Hex(b)
+
+	role := ctx.Query("role", "booster") // default booster
+	if role != "pioneer" && role != "booster" {
+		role = "booster"
+	}
+
+	ctx.Cookie(&fiber.Cookie{
+		Name:     "oauthstate",
+		Value:    state,
+		HTTPOnly: true,
+		Secure:   true,
+		MaxAge:   300,
+	})
+	ctx.Cookie(&fiber.Cookie{
+		Name:     "oauth_role",
+		Value:    role,
+		HTTPOnly: true,
+		Secure:   true,
+		MaxAge:   300,
+	})
+
+	url := h.googleOAuth.AuthCodeURL(state)
+	return ctx.Redirect().To(url)
+}
+
+// GoogleCallback godoc
+// @Summary Google Callback
+// @Description Callback from Google Login
+// @Tags Auth
+// @Router /auth/google/callback [get]
+func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
+	state := ctx.Query("state")
+	cookieState := ctx.Cookies("oauthstate")
+
+	if state != cookieState {
+		return rest.BadRequestError(ctx, "invalid oauth state")
+	}
+
+	code := ctx.Query("code")
+	if code == "" {
+		return rest.BadRequestError(ctx, "missing code")
+	}
+
+	reqRole := ctx.Cookies("oauth_role", "booster")
+
+	token, err := h.svc.GoogleSignin(code, reqRole, h.googleOAuth)
+	if err != nil {
+		// Redirect with error
+		redirectErrUrl := "http://localhost:5173/login?error=" + err.Error()
+		return ctx.Redirect().To(redirectErrUrl)
+	}
+
+	// Send token to frontend (usually via query param on redirect, or set cookie and redirect)
+
+	redirectUrl := "http://localhost:5173/?token=" + token
+	return ctx.Redirect().To(redirectUrl)
 }
