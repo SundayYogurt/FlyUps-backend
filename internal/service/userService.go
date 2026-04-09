@@ -238,17 +238,23 @@ func (s *userService) CreateDomain(id uint, req dto.CreateDomainRequest) (*domai
 	if id == 0 || req.Domain == "" {
 		return nil, errors.New("missing required fields")
 	}
-	uni, err := s.URepo.FindDomainByID(id)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("university not found")
-		}
+
+	// normalize domain ก่อนเช็ค
+	domainStr := strings.ToLower(strings.TrimSpace(req.Domain))
+	if !strings.Contains(domainStr, ".ac.th") {
+		return nil, errors.New("invalid university domain")
+	}
+
+	// เช็คว่ามี domain อยู่แล้วหรือไม่
+	existing, err := s.URepo.GetUniversityByDomain(domainStr)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
-	if req.Domain == uni.Domain {
+	if existing != nil {
 		return nil, errors.New("domain is already used")
 	}
 
+	// เช็คว่า university ที่จะเพิ่ม domain มีอยู่ไหม
 	_, err = s.URepo.FindByID(id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -257,11 +263,7 @@ func (s *userService) CreateDomain(id uint, req dto.CreateDomainRequest) (*domai
 		return nil, err
 	}
 
-	// normalize domain
-	domainStr := strings.ToLower(strings.TrimSpace(req.Domain))
-	if !strings.Contains(domainStr, ".ac.th") {
-		return nil, errors.New("invalid university domain")
-	}
+	// สร้าง domain ใหม่
 	d := domain.UniversityDomain{
 		UniversityID: id,
 		Domain:       domainStr,
