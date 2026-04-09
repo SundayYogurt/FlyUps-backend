@@ -769,7 +769,7 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 	}
 
 	ctx.Cookie(&fiber.Cookie{
-		Name:     "access_token",
+		Name:     "auth_token",
 		Value:    token,
 		HTTPOnly: true,
 		Secure:   true,
