@@ -2,20 +2,30 @@ package config
 
 import (
 	"errors"
+	"log"
 	"os"
 
 	"github.com/joho/godotenv"
 )
 
 type AppConfig struct {
-	ServerPort string
-	Dsn        string
+	ServerPort          string
+	Dsn                 string
+	AppSecret           string
+	ResendAPIKey        string
+	EmailFrom           string
+	BaseURL             string
+	CloudinaryCloudName string
+	CloudinaryAPIKey    string
+	CloudinaryAPISecret string
 }
 
 func SetupEnv() (cfg AppConfig, err error) {
 
 	// if os.Getenv("APP_ENV") == "dev" {
-	godotenv.Load()
+	if err := godotenv.Load(); err != nil {
+		log.Println("no .env file found, using system env")
+	}
 	// }
 
 	httpPort := os.Getenv("HTTP_PORT")
@@ -28,6 +38,53 @@ func SetupEnv() (cfg AppConfig, err error) {
 		return AppConfig{}, errors.New("DSN env variables not found")
 	}
 
-	return AppConfig{ServerPort: httpPort, Dsn: Dsn}, nil
+	appSecret := os.Getenv("APP_SECRET")
+	if len(appSecret) < 1 {
+		return AppConfig{}, errors.New("appSecret env variables not found")
+	}
+
+	resendAPIKey := os.Getenv("RESEND_API_KEY")
+
+	if len(resendAPIKey) < 1 {
+		return AppConfig{}, errors.New("resendAPIKey env variables not found")
+	}
+	emailFrom := os.Getenv("EMAIL_FROM")
+
+	if len(emailFrom) < 1 {
+		return AppConfig{}, errors.New("emailFrom env variables not found")
+	}
+
+	baseURL := os.Getenv("BASE_URL")
+
+	if len(baseURL) < 1 {
+		return AppConfig{}, errors.New("baseURL env variables not found")
+	}
+
+	cloudName := os.Getenv("CLOUDINARY_CLOUD_NAME")
+	if len(cloudName) < 1 {
+		return AppConfig{}, errors.New("cloudinary cloud name not found")
+	}
+
+	apiKey := os.Getenv("CLOUDINARY_API_KEY")
+	if len(apiKey) < 1 {
+		return AppConfig{}, errors.New("cloudinary api key not found")
+	}
+
+	apiSecret := os.Getenv("CLOUDINARY_API_SECRET")
+	if len(apiSecret) < 1 {
+		return AppConfig{}, errors.New("cloudinary api secret not found")
+	}
+
+	return AppConfig{
+		ServerPort:          httpPort,
+		Dsn:                 Dsn,
+		AppSecret:           appSecret,
+		ResendAPIKey:        resendAPIKey,
+		EmailFrom:           emailFrom,
+		BaseURL:             baseURL,
+		CloudinaryCloudName: cloudName,
+		CloudinaryAPIKey:    apiKey,
+		CloudinaryAPISecret: apiSecret,
+	}, nil
 
 }
