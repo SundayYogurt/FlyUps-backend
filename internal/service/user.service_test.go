@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"flyup/config"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
@@ -21,6 +22,28 @@ func ptr[T any](v T) *T {
 
 type mockUserRepository struct {
 	mock.Mock
+}
+
+func (m *mockUserRepository) FindStudentRequest(status string) ([]domain.StudentCardVerification, error) {
+	args := m.Called(status)
+
+	if args.Get(0) == nil {
+		// return nil ถ้าไม่มีข้อมูล และ กำหนด Error = index 1
+		return nil, args.Error(1)
+	}
+
+	//return แปลงค่าจาก 0 เป็น type domain.StudentCardVerification และ return พร้อม error
+	return args.Get(0).([]domain.StudentCardVerification), args.Error(1)
+}
+
+func (m *mockUserRepository) FindUserIDCardRequest(status string) ([]domain.IdCardVerification, error) {
+	args := m.Called(status)
+
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+
+	return args.Get(0).([]domain.IdCardVerification), args.Error(1)
 }
 
 func (m *mockUserRepository) CreateUser(usr *domain.User, consent *domain.UserConsent) (*domain.User, error) {
@@ -637,7 +660,7 @@ func TestChangePassword_Success(t *testing.T) {
 
 	// mock find user
 	repo.On("FindUserById", userID).Return(user, nil)
-	
+
 	// mock UpdateUser
 	repo.On("UpdateUser", userID, mock.Anything).Return(nil)
 
@@ -648,5 +671,160 @@ func TestChangePassword_Success(t *testing.T) {
 	assert.NoError(t, err)
 
 	auth.AssertExpectations(t)
+	repo.AssertExpectations(t)
+}
+
+func TestChangePassword_Fail_incorrectOldPassword(t *testing.T) {
+	repo := new(mockUserRepository)
+	auth := new(mockAuth)
+	svc := NewUserService(repo, nil, auth, config.AppConfig{})
+
+	userID := uint(30)
+	oldPassword := "Oldpass11!"
+	newPassword := "Newpass1!"
+
+	// mock user
+	user := &domain.User{
+		ID:           userID,
+		PasswordHash: "$2a$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", // fake hash
+	}
+
+	// mock VerifyPassword (ต้อง return nil = password ถูก)
+	auth.On("VerifyPassword", oldPassword, user.PasswordHash).Return(errors.New("incorrect password"))
+
+	// mock find user
+	repo.On("FindUserById", userID).Return(user, nil)
+
+	// call
+	err := svc.ChangePassword(userID, oldPassword, newPassword)
+
+	repo.AssertNotCalled(t, "UpdateUser", mock.Anything, mock.Anything)
+
+	// assert
+	assert.Error(t, err)
+
+	auth.AssertExpectations(t)
+	repo.AssertExpectations(t)
+}
+
+func TestChangePassword_Validation(t *testing.T) {
+	repo := new(mockUserRepository)
+	auth := new(mockAuth)
+
+	svc := NewUserService(repo, nil, auth, config.AppConfig{})
+
+	userID := uint(1)
+
+	tests := []struct {
+		name        string
+		newPassword string
+		expectError bool
+	}{
+		{"no uppercase", "newpass1!", true},
+		{"no lowercase", "NEWPASS1!", true},
+		{"no number", "Newpass!", true},
+		{"no special", "Newpass11", true},
+		{"valid", "Newpass1!", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			// ต้อง mock
+			user := &domain.User{
+				ID:           userID,
+				PasswordHash: "hashed",
+			}
+
+			repo.On("FindUserById", userID).Return(user, nil)
+			auth.On("VerifyPassword", "Oldpass1!", user.PasswordHash).Return(nil)
+			repo.On("UpdateUser", userID, mock.Anything).Return(nil)
+
+			err := svc.ChangePassword(userID, "Oldpass1!", tt.newPassword)
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGetAllPendingStatusStudentRequests(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+
+	// mock data
+	expected := []domain.StudentCardVerification{
+		{ID: 1},
+		{ID: 2},
+	}
+
+	// ต้อง match "pending"
+	repo.On("FindStudentRequest", string(domain.VerifyStatusPending)).
+		Return(expected, nil)
+
+	// call
+	result, err := svc.GetAllStudentVerifyRequest()
+
+	// assert
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+
+	repo.AssertExpectations(t)
+}
+
+func TestGetAllPendingStatusStudentRequests_Error(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+
+	repo.On("FindStudentRequest", string(domain.VerifyStatusPending)).
+		Return(nil, errors.New("db error"))
+
+	result, err := svc.GetAllStudentVerifyRequest()
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+
+	repo.AssertExpectations(t)
+}
+
+func TestGetAllPendingStatusCardIDRequests(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+
+	// mock data
+	expected := []domain.IdCardVerification{
+		{ID: 1},
+		{ID: 2},
+	}
+
+	// ต้อง match "pending"
+	repo.On("FindUserIDCardRequest", string(domain.VerifyStatusPending)).
+		Return(expected, nil)
+
+	// call
+	result, err := svc.GetAllCardIDVerifyRequest()
+
+	// assert
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+
+	repo.AssertExpectations(t)
+}
+
+func TestGetAllPendingStatusCardIDRequests_Error(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+
+	repo.On("FindUserIDCardRequest", string(domain.VerifyStatusPending)).
+		Return(nil, errors.New("db error"))
+
+	result, err := svc.GetAllCardIDVerifyRequest()
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+
 	repo.AssertExpectations(t)
 }
