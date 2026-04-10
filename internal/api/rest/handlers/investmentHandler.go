@@ -27,6 +27,7 @@ func SetupInvestmentRoutes(rh *rest.RestHandler) {
 		repository.NewUserRepository(rh.DB),
 		rh.Config.StripeSecretKey,
 		rh.Config.StripeWebhookSecret,
+		rh.NotifSvc,
 	)
 
 	h := &InvestmentHandler{

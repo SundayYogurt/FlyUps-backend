@@ -31,6 +31,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 		repository.NewProjectRepository(rh.DB),
 		repository.NewUserRepository(rh.DB),
 		rh.Cloudinary,
+		rh.NotifSvc,
 	)
 
 	handler := ProjectHandler{
