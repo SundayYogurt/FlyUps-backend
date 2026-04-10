@@ -6,6 +6,8 @@ import (
 	"flyup/internal/api/rest/handlers"
 	"flyup/internal/domain"
 	"flyup/internal/helper"
+	"flyup/internal/repository"
+	"flyup/internal/service"
 	"flyup/pkg/notification"
 	"log"
 
@@ -17,7 +19,9 @@ import (
 )
 
 func StartServer(cfg config.AppConfig) {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		BodyLimit: 50 * 1024 * 1024, // 50 MB
+	})
 
 	log.Println("DSN =", cfg.Dsn)
 	db, err := gorm.Open(postgres.Open(cfg.Dsn), &gorm.Config{})
@@ -52,6 +56,9 @@ func StartServer(cfg config.AppConfig) {
 		// investment & payment
 		&domain.Investment{},
 		&domain.Transaction{},
+
+		// notification
+		&domain.Notification{},
 	)
 
 	if err != nil {
@@ -98,6 +105,7 @@ func StartServer(cfg config.AppConfig) {
 	app.Get("/swagger*", swaggerUI)
 
 	notificationClient := notification.NewNotificationClient(cfg)
+	notifSvc := service.NewNotificationService(repository.NewNotificationRepository(db))
 	auth := helper.SetupAuth(cfg.AppSecret)
 
 	middleware := rest.SetupMiddleware(auth)
@@ -122,6 +130,7 @@ func StartServer(cfg config.AppConfig) {
 		Middlewares:  middleware,
 		Validator:    validate,
 		Cloudinary:   cloudinarySvc,
+		NotifSvc:     notifSvc,
 	}
 	setupRoutes(rh)
 
@@ -130,11 +139,11 @@ func StartServer(cfg config.AppConfig) {
 }
 
 func setupRoutes(rh *rest.RestHandler) {
-	// user handler
 	handlers.SetupUserRoutes(rh)
-
 	handlers.SetupProjectRoutes(rh)
 	handlers.SetupInvestmentRoutes(rh)
+	handlers.SetupUploadRoutes(rh)
+	handlers.SetupNotificationRoutes(rh)
 }
 
 func HealthCheck(ctx fiber.Ctx) error {

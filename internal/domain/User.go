@@ -31,8 +31,10 @@ type User struct {
 	VerificationTokenExpiresAt *time.Time      `json:"-"`
 	ResetTokenHash             *string         `json:"-"`
 	ResetTokenExpiresAt        *time.Time      `json:"-"`
-	StudentProfile             *StudentProfile `json:"student_profile,omitempty" gorm:"foreignKey:UserID"`
-	BankAccount                *BankAccount    `json:"bank_account,omitempty" gorm:"foreignKey:UserID"`
+	StudentProfile             *StudentProfile          `json:"student_profile,omitempty" gorm:"foreignKey:UserID"`
+	BankAccount                *BankAccount             `json:"bank_account,omitempty" gorm:"foreignKey:UserID"`
+	StudentCardVerification    *StudentCardVerification `json:"student_card_verification,omitempty" gorm:"foreignKey:UserID"`
+	IdCardVerification         *IdCardVerification      `json:"id_card_verification,omitempty" gorm:"foreignKey:UserID"`
 	SuspendReason              *string         `json:"suspend_reason,omitempty"`
 	SuspendedBy                *uint           `json:"suspended_by,omitempty"`
 	SuspendedAt                *time.Time      `json:"suspended_at,omitempty"`

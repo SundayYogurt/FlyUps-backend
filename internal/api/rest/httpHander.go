@@ -3,6 +3,7 @@ package rest
 import (
 	"flyup/config"
 	"flyup/internal/helper"
+	"flyup/internal/service"
 	"flyup/pkg/notification"
 
 	"github.com/go-playground/validator/v10"
@@ -19,4 +20,5 @@ type RestHandler struct {
 	Validator    *validator.Validate
 	Notification notification.NotificationClient
 	Cloudinary   *helper.CloudinaryService
+	NotifSvc     service.NotificationService
 }

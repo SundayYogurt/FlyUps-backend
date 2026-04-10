@@ -1129,6 +1129,10 @@ func (s *userService) UpdateProfile(userID uint, input dto.ProfileInput) error {
 			skills := strings.TrimSpace(*input.Skills)
 			studentProfile.Skills = &skills
 		}
+		if input.StudentCode != nil {
+			code := strings.TrimSpace(*input.StudentCode)
+			studentProfile.StudentCode = &code
+		}
 	}
 
 	// 5. Save explicitly (avoid GORM association autosave pitfalls)

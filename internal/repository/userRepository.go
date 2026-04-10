@@ -33,6 +33,7 @@ type UserRepository interface {
 	UpdateStudentVerification(v *domain.StudentCardVerification) error
 	FindLatestStudentVerification(userID uint) (*domain.StudentCardVerification, error)
 	CreateStudentVerification(v *domain.StudentCardVerification) error
+	FindAllByRole(role string) ([]domain.User, error)
 }
 
 type userRepository struct {
@@ -238,12 +239,24 @@ func (r *userRepository) UpsertStudentProfileByUserID(profile *domain.StudentPro
 
 		updates := map[string]any{
 			"university_id": profile.UniversityID,
-			"student_code":  profile.StudentCode,
-			"faculty":       profile.Faculty,
-			"major":         profile.Major,
-			"bio":           profile.Bio,
-			"portfolio":     profile.Portfolio,
-			"skills":        profile.Skills,
+		}
+		if profile.StudentCode != nil {
+			updates["student_code"] = profile.StudentCode
+		}
+		if profile.Faculty != nil {
+			updates["faculty"] = profile.Faculty
+		}
+		if profile.Major != nil {
+			updates["major"] = profile.Major
+		}
+		if profile.Bio != nil {
+			updates["bio"] = profile.Bio
+		}
+		if profile.Portfolio != nil {
+			updates["portfolio"] = profile.Portfolio
+		}
+		if profile.Skills != nil {
+			updates["skills"] = profile.Skills
 		}
 		return tx.Model(&domain.StudentProfile{}).Where("user_id = ?", profile.UserID).Updates(updates).Error
 	})
@@ -303,6 +316,8 @@ func (r *userRepository) FindUserById(id uint) (*domain.User, error) {
 		Preload("StudentProfile").
 		Preload("StudentProfile.University").
 		Preload("BankAccount").
+		Preload("StudentCardVerification").
+		Preload("IdCardVerification").
 		Where("id = ?", id).
 		First(&user).Error
 	if err != nil {
@@ -316,4 +331,10 @@ func NewUserRepository(db *gorm.DB) UserRepository {
 	return &userRepository{
 		db: db, // เก็บ db ไว้ใช้ในฟังก์ชัน
 	}
+}
+
+func (r *userRepository) FindAllByRole(role string) ([]domain.User, error) {
+	var users []domain.User
+	err := r.db.Where("role = ?", role).Find(&users).Error
+	return users, err
 }
