@@ -309,9 +309,9 @@ func TestSigning_Success(t *testing.T) {
 	svc := NewUserService(repo, nil, auth, config.AppConfig{})
 
 	existingUser := &domain.User{
-		ID:       2,
-		Email:    "test@test.com",
-		PasswordHash: "hashed_password",
+		ID:              2,
+		Email:           "test@test.com",
+		PasswordHash:    "hashed_password",
 		Role:            "pioneer",
 		Status:          domain.ACTIVE,
 		EmailVerifiedAt: ptr(time.Now()),
@@ -335,10 +335,10 @@ func TestVerifyEmail_Success(t *testing.T) {
 	svc := NewUserService(repo, nil, nil, config.AppConfig{})
 
 	existingUser := &domain.User{
-		ID:               3,
-		VerificationToken: ptr("123456"),
+		ID:                         3,
+		VerificationToken:          ptr("123456"),
 		VerificationTokenExpiresAt: ptr(time.Now().Add(1 * time.Hour)),
-		Status:            domain.SUSPENDED,
+		Status:                     domain.SUSPENDED,
 	}
 
 	repo.On("FindUserByVerificationToken", "123456").Return(existingUser, nil)
@@ -359,7 +359,7 @@ func TestForgotPassword_Success(t *testing.T) {
 	svc := NewUserService(repo, nil, auth, config.AppConfig{})
 
 	existingUser := &domain.User{
-		ID:    4,
+		ID:     4,
 		Email:  "forgot@test.com",
 		Status: domain.ACTIVE,
 	}
@@ -614,5 +614,39 @@ func TestVerifyID_Fail_AlreadyApproved(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Equal(t, "already verified", err.Error())
+	repo.AssertExpectations(t)
+}
+
+func TestChangePassword_Success(t *testing.T) {
+	repo := new(mockUserRepository)
+	auth := new(mockAuth)
+	svc := NewUserService(repo, nil, auth, config.AppConfig{})
+
+	userID := uint(30)
+	oldPassword := "Oldpass1!"
+	newPassword := "Newpass1!"
+
+	// mock user
+	user := &domain.User{
+		ID:           userID,
+		PasswordHash: "$2a$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", // fake hash
+	}
+
+	// mock VerifyPassword (ต้อง return nil = password ถูก)
+	auth.On("VerifyPassword", oldPassword, user.PasswordHash).Return(nil)
+
+	// mock find user
+	repo.On("FindUserById", userID).Return(user, nil)
+	
+	// mock UpdateUser
+	repo.On("UpdateUser", userID, mock.Anything).Return(nil)
+
+	// call
+	err := svc.ChangePassword(userID, oldPassword, newPassword)
+
+	// assert
+	assert.NoError(t, err)
+
+	auth.AssertExpectations(t)
 	repo.AssertExpectations(t)
 }
