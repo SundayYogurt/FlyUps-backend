@@ -15,7 +15,7 @@ func TestCreateProject_Success(t *testing.T) {
 	userRepo := new(mockUserRepository)
 	
 	// Create dummy cloudinary (if we pass nil some methods may panic, but CreateProject doesn't use it)
-	svc := NewProjectService(projRepo, userRepo, &helper.CloudinaryService{})
+	svc := NewProjectService(projRepo, userRepo, &helper.CloudinaryService{}, nil)
 
 	ownerID := uint(1)
 
@@ -56,7 +56,7 @@ func TestCreateProject_Success(t *testing.T) {
 func TestCreateProject_Fail_NoBank(t *testing.T) {
 	projRepo := new(ProjectRepository)
 	userRepo := new(mockUserRepository)
-	svc := NewProjectService(projRepo, userRepo, &helper.CloudinaryService{})
+	svc := NewProjectService(projRepo, userRepo, &helper.CloudinaryService{}, nil)
 
 	ownerID := uint(1)
 
@@ -78,7 +78,7 @@ func TestCreateProject_Fail_NoBank(t *testing.T) {
 
 func TestDeleteProject_Success(t *testing.T) {
 	projRepo := new(ProjectRepository)
-	svc := NewProjectService(projRepo, nil, nil)
+	svc := NewProjectService(projRepo, nil, nil, nil)
 
 	user := domain.User{ID: 1}
 	projectID := uint(10)
@@ -97,7 +97,7 @@ func TestDeleteProject_Success(t *testing.T) {
 
 func TestUpdateProject_Success(t *testing.T) {
 	projRepo := new(ProjectRepository)
-	svc := NewProjectService(projRepo, nil, nil)
+	svc := NewProjectService(projRepo, nil, nil, nil)
 
 	user := domain.User{ID: 1}
 	projectID := uint(10)
@@ -127,7 +127,7 @@ func TestUpdateProject_Success(t *testing.T) {
 
 func TestGetMyProjects_Success(t *testing.T) {
 	projRepo := new(ProjectRepository)
-	svc := NewProjectService(projRepo, nil, nil)
+	svc := NewProjectService(projRepo, nil, nil, nil)
 
 	ownerID := uint(1)
 	projects := []domain.Project{
@@ -148,7 +148,7 @@ func TestGetMyProjects_Success(t *testing.T) {
 
 func TestGetProjectDetailByID_Success(t *testing.T) {
 	projRepo := new(ProjectRepository)
-	svc := NewProjectService(projRepo, nil, nil)
+	svc := NewProjectService(projRepo, nil, nil, nil)
 
 	projectID := uint(100)
 	expectedProject := &domain.Project{ID: projectID, Title: "Detail View"}
@@ -170,7 +170,7 @@ func TestGetProjectDetailByID_Success(t *testing.T) {
 
 func TestCreateCategory_Success(t *testing.T) {
 	projRepo := new(ProjectRepository)
-	svc := NewProjectService(projRepo, nil, nil)
+	svc := NewProjectService(projRepo, nil, nil, nil)
 
 	inputCategory := &domain.ProjectCategory{Name: "Tech"}
 	createdCategory := &domain.ProjectCategory{ID: 1, Name: "Tech"}
@@ -188,7 +188,7 @@ func TestCreateCategory_Success(t *testing.T) {
 
 func TestCreateMilestone_Success(t *testing.T) {
 	projRepo := new(ProjectRepository)
-	svc := NewProjectService(projRepo, nil, nil)
+	svc := NewProjectService(projRepo, nil, nil, nil)
 
 	user := domain.User{ID: 5}
 	projectID := uint(10)

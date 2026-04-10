@@ -164,7 +164,18 @@ func (m *mockUserRepository) FindUserByResetToken(token string) (*domain.User, e
 
 func (m *mockUserRepository) FindUserById(id uint) (*domain.User, error) {
 	args := m.Called(id)
-	return args.Get(0).(*domain.User), args.Error(1)
+	if args.Get(0) != nil {
+		return args.Get(0).(*domain.User), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *mockUserRepository) FindAllByRole(role string) ([]domain.User, error) {
+	args := m.Called(role)
+	if args.Get(0) != nil {
+		return args.Get(0).([]domain.User), args.Error(1)
+	}
+	return nil, args.Error(1)
 }
 
 type mockAuth struct {
@@ -388,4 +399,220 @@ func TestSetPassword_Success(t *testing.T) {
 
 	repo.AssertExpectations(t)
 	auth.AssertExpectations(t)
+}
+
+// ─── AddBankAccount ─────────────────────────────────────────────────────────
+
+func TestAddBankAccount_Success(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+
+	userID := uint(10)
+	accNum := "123456789"
+
+	repo.On("FindUserById", userID).Return(&domain.User{ID: userID}, nil)
+	repo.On("FindBankByAccountNumber", accNum).Return((*domain.BankAccount)(nil), nil)
+	repo.On("CreateBankAccount", mock.AnythingOfType("*domain.BankAccount")).Return(nil)
+
+	bankName := "Bangkok Bank"
+	accName := "John Doe"
+	input := dto.BankRequest{
+		BankName:      &bankName,
+		AccountName:   &accName,
+		AccountNumber: &accNum,
+	}
+
+	err := svc.AddBankAccount(userID, input)
+
+	assert.NoError(t, err)
+	repo.AssertExpectations(t)
+}
+
+func TestAddBankAccount_Fail_Duplicate(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+
+	userID := uint(10)
+	accNum := "123456789"
+
+	repo.On("FindUserById", userID).Return(&domain.User{ID: userID}, nil)
+	// Return existing bank account → duplicate
+	repo.On("FindBankByAccountNumber", accNum).Return(&domain.BankAccount{ID: 99, AccountNumber: accNum}, nil)
+
+	bankName := "Bangkok Bank"
+	accName := "John Doe"
+	input := dto.BankRequest{
+		BankName:      &bankName,
+		AccountName:   &accName,
+		AccountNumber: &accNum,
+	}
+
+	err := svc.AddBankAccount(userID, input)
+
+	assert.Error(t, err)
+	assert.Equal(t, "account number already exists", err.Error())
+	repo.AssertExpectations(t)
+}
+
+// ─── GetProfile ─────────────────────────────────────────────────────────────
+
+func TestGetProfile_Success(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+
+	userID := uint(7)
+	expected := &domain.User{ID: userID, Email: "user@test.com", Role: "booster"}
+
+	repo.On("FindUserById", userID).Return(expected, nil)
+
+	result, err := svc.GetProfile(userID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "user@test.com", result.Email)
+
+	repo.AssertExpectations(t)
+}
+
+// ─── VerifyStudent ───────────────────────────────────────────────────────────
+
+func TestVerifyStudent_Success_FirstTime(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+
+	userID := uint(20)
+	cardURL := "https://res.cloudinary.com/test/student-card.jpg"
+	acceptTerms := true
+	declareTruth := true
+
+	// User is pioneer
+	repo.On("FindUserById", userID).Return(&domain.User{ID: userID, Role: "pioneer"}, nil)
+	// No existing verification
+	repo.On("FindLatestStudentVerification", userID).Return((*domain.StudentCardVerification)(nil), nil)
+	// Create new verification
+	repo.On("CreateStudentVerification", mock.AnythingOfType("*domain.StudentCardVerification")).Return(nil)
+	// Create consent records
+	repo.On("CreateConsents", mock.AnythingOfType("[]*domain.UserConsent")).Return(nil)
+
+	input := dto.VerifyStudentInput{
+		StudentCardURL:     &cardURL,
+		AcceptPioneerTerms: &acceptTerms,
+		DeclareTruth:       &declareTruth,
+	}
+
+	err := svc.VerifyStudent(userID, input)
+
+	assert.NoError(t, err)
+	repo.AssertExpectations(t)
+}
+
+func TestVerifyStudent_Fail_AlreadyPending(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+
+	userID := uint(20)
+	cardURL := "https://res.cloudinary.com/test/student-card.jpg"
+	acceptTerms := true
+	declareTruth := true
+
+	repo.On("FindUserById", userID).Return(&domain.User{ID: userID, Role: "pioneer"}, nil)
+	// Return existing pending  → should block
+	repo.On("FindLatestStudentVerification", userID).Return(
+		&domain.StudentCardVerification{ID: 5, Status: domain.VerifyStatusPending}, nil,
+	)
+
+	input := dto.VerifyStudentInput{
+		StudentCardURL:     &cardURL,
+		AcceptPioneerTerms: &acceptTerms,
+		DeclareTruth:       &declareTruth,
+	}
+
+	err := svc.VerifyStudent(userID, input)
+
+	assert.Error(t, err)
+	assert.Equal(t, "verification is already pending", err.Error())
+	repo.AssertExpectations(t)
+}
+
+func TestVerifyStudent_Fail_NotPioneer(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+
+	userID := uint(20)
+	cardURL := "https://res.cloudinary.com/test/student-card.jpg"
+	acceptTerms := true
+	declareTruth := true
+
+	// User is booster → not allowed
+	repo.On("FindUserById", userID).Return(&domain.User{ID: userID, Role: "booster"}, nil)
+
+	input := dto.VerifyStudentInput{
+		StudentCardURL:     &cardURL,
+		AcceptPioneerTerms: &acceptTerms,
+		DeclareTruth:       &declareTruth,
+	}
+
+	err := svc.VerifyStudent(userID, input)
+
+	assert.Error(t, err)
+	assert.Equal(t, "only pioneer", err.Error())
+	repo.AssertExpectations(t)
+}
+
+// ─── VerifyID ───────────────────────────────────────────────────────────────
+
+func TestVerifyID_Success_FirstTime(t *testing.T) {
+	repo := new(mockUserRepository)
+	// IApp OCR will fail → falls back to pending status (still success path)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{IAppAPIKey: ""})
+
+	userID := uint(30)
+	idCardURL := "https://res.cloudinary.com/test/idcard.jpg"
+	selfieURL := "https://res.cloudinary.com/test/selfie.jpg"
+	declareTruth := true
+
+	// No existing verification
+	repo.On("FindLatestIdVerification", userID).Return((*domain.IdCardVerification)(nil), nil)
+	// Create new verification (pending status since OCR key is empty)
+	repo.On("CreateIdVerification", mock.AnythingOfType("*domain.IdCardVerification")).Return(nil)
+	// Consent
+	repo.On("CreateConsents", mock.AnythingOfType("[]*domain.UserConsent")).Return(nil)
+
+	input := dto.VerifyIDInput{
+		IDCardURL:    &idCardURL,
+		SelfieURL:    &selfieURL,
+		DeclareTruth: &declareTruth,
+	}
+
+	err := svc.VerifyID(userID, input)
+
+	assert.NoError(t, err)
+	repo.AssertExpectations(t)
+}
+
+func TestVerifyID_Fail_AlreadyApproved(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+
+	userID := uint(30)
+	idCardURL := "https://res.cloudinary.com/test/idcard.jpg"
+	selfieURL := "https://res.cloudinary.com/test/selfie.jpg"
+	declareTruth := true
+
+	// Already approved → must block
+	repo.On("FindLatestIdVerification", userID).Return(
+		&domain.IdCardVerification{ID: 9, Status: domain.VerifyStatusApproved}, nil,
+	)
+
+	input := dto.VerifyIDInput{
+		IDCardURL:    &idCardURL,
+		SelfieURL:    &selfieURL,
+		DeclareTruth: &declareTruth,
+	}
+
+	err := svc.VerifyID(userID, input)
+
+	assert.Error(t, err)
+	assert.Equal(t, "already verified", err.Error())
+	repo.AssertExpectations(t)
 }
