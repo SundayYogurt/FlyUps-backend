@@ -804,6 +804,8 @@ func (h *UserHandler) SignOut(ctx fiber.Ctx) error {
 		Name:     "auth_token",
 		Value:    "",
 		Expires:  time.Now().Add(-time.Hour), // ทำให้หมดอายุทันที
+		SameSite: "None",
+		Path:     "/",
 		HTTPOnly: true,
 		Secure:   true,
 	})
