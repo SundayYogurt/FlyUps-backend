@@ -70,6 +70,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	privateRoutes.Post("/add-bank", handler.AddBankAccount)
 	privateRoutes.Patch("/update-bank/:id", handler.UpdateBankAccount)
 	privateRoutes.Post("/signout", handler.SignOut)
+	privateRoutes.Put("/change-password", handler.ChangePassword)
 
 	//admin route
 	adminRoutes := app.Group("/admin", rh.Middlewares.AuthorizeAdmin)
@@ -88,7 +89,6 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	adminRoutes.Post("/create-university-domain/:id", handler.CreateUniversityDomain)
 	adminRoutes.Put("/update-university-domain/:id", handler.UpdateUniversityDomain)
 	adminRoutes.Delete("/delete-university-domain/:id", handler.DeleteUniversityDomain)
-
 }
 
 // SignUp godoc
@@ -1000,6 +1000,29 @@ func (h *UserHandler) DeleteUniversityDomain(ctx fiber.Ctx) error {
 
 	return ctx.JSON(fiber.Map{
 		"message": "delete university domain success",
+	})
+
+}
+
+func (h *UserHandler) ChangePassword(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.BadRequestError(ctx, "unauthorized")
+	}
+
+	var req dto.ChangePasswordRequest
+
+	if err := ctx.Bind().Body(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid body")
+	}
+
+	err := h.svc.ChangePassword(user.ID, req.OldPassword, req.NewPassword)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return ctx.JSON(fiber.Map{
+		"message": "change password success",
 	})
 
 }
