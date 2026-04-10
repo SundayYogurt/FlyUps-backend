@@ -1,14 +1,5 @@
 services:
-  app:
-    build: .
-    ports:
-      - "3000:3000"
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - /etc/flyup/.env:/app/.env:ro
-  db:
+  postgres:
     image: postgres:18
     restart: always
     environment:
@@ -16,13 +7,9 @@ services:
       POSTGRES_PASSWORD: root
       POSTGRES_DB: flyup
     ports:
-      - "5434:5432"
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U root -d flyup" ]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+      - "5433:5432"
     volumes:
+
       - pgdata:/var/lib/postgresql
 
 volumes:
