@@ -13,6 +13,18 @@ type ProjectRepository struct {
 	mock.Mock
 }
 
+func (_m *ProjectRepository) FindProjectsState(state string) ([]domain.Project, error) {
+	args := _m.Called(state)
+
+	if args.Get(0) == nil {
+		// return nil ถ้าไม่มีข้อมูล และ กำหนด Error = index 1
+		return nil, args.Error(1)
+	}
+
+	return args.Get(0).([]domain.Project), args.Error(1)
+}
+
+
 // CountProjectsByCategoryID provides a mock function with given fields: categoryID
 func (_m *ProjectRepository) CountProjectsByCategoryID(categoryID uint) (int64, error) {
 	ret := _m.Called(categoryID)

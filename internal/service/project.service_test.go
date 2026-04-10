@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/helper"
@@ -13,7 +14,7 @@ import (
 func TestCreateProject_Success(t *testing.T) {
 	projRepo := new(ProjectRepository)
 	userRepo := new(mockUserRepository)
-	
+
 	// Create dummy cloudinary (if we pass nil some methods may panic, but CreateProject doesn't use it)
 	svc := NewProjectService(projRepo, userRepo, &helper.CloudinaryService{}, nil)
 
@@ -62,7 +63,7 @@ func TestCreateProject_Fail_NoBank(t *testing.T) {
 
 	projRepo.On("GetApprovedIdCard", ownerID).Return(&domain.IdCardVerification{Status: "approved"}, nil)
 	projRepo.On("GetApprovedStudentCard", ownerID).Return(&domain.StudentCardVerification{Status: "approved"}, nil)
-	
+
 	// Return empty bank account
 	userRepo.On("FindBankByUserId", ownerID).Return([]domain.BankAccount{}, nil)
 
@@ -85,7 +86,7 @@ func TestDeleteProject_Success(t *testing.T) {
 
 	// Mock finding project
 	projRepo.On("FindProjectByID", projectID).Return(&domain.Project{ID: projectID, OwnerUserID: user.ID}, nil)
-	
+
 	// Mock executing delete
 	projRepo.On("DeleteProject", projectID).Return(nil)
 
@@ -194,7 +195,7 @@ func TestCreateMilestone_Success(t *testing.T) {
 	projectID := uint(10)
 
 	existingProject := &domain.Project{ID: projectID, OwnerUserID: user.ID}
-	
+
 	projRepo.On("FindProjectByID", projectID).Return(existingProject, nil)
 	projRepo.On("FindMilestonesByProjectID", projectID).Return([]domain.Milestone{}, nil) // 0 existing => phase 1
 	projRepo.On("CreateMilestone", mock.AnythingOfType("*domain.Milestone")).Return(nil)
@@ -210,3 +211,41 @@ func TestCreateMilestone_Success(t *testing.T) {
 	projRepo.AssertExpectations(t)
 }
 
+func TestGetAllPendingStateProjects(t *testing.T) {
+	projRepo := new(ProjectRepository)
+	svc := NewProjectService(projRepo, nil, nil, nil)
+
+	// mock data
+	expected := []domain.Project{
+		{ID: 1},
+		{ID: 2},
+	}
+
+	// ต้อง match "pending"
+	projRepo.On("FindProjectsState", string(domain.StatePendingReview)).
+		Return(expected, nil)
+
+	// call
+	result, err := svc.GetAllProjectsRequest()
+
+	// assert
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+
+	projRepo.AssertExpectations(t)
+}
+
+func TestGetAllPendingStateProjectRequests_Error(t *testing.T) {
+	projRepo := new(ProjectRepository)
+	svc := NewProjectService(projRepo, nil, nil, nil)
+
+	projRepo.On("FindProjectsState", string(domain.StatePendingReview)).
+		Return(nil, errors.New("db error"))
+
+	result, err := svc.GetAllProjectsRequest()
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+
+	projRepo.AssertExpectations(t)
+}
