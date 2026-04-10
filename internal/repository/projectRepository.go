@@ -24,6 +24,7 @@ type ProjectRepository interface {
 	DeleteProjectUpdate(updateID uint) error
 	GetApprovedIdCard(userID uint) (*domain.IdCardVerification, error)
 	GetApprovedStudentCard(userID uint) (*domain.StudentCardVerification, error)
+	FindProjectsState(state string) ([]domain.Project, error)
 
 	FindMediaByProjectID(projectID uint) ([]domain.ProjectMedia, error)
 	FindMediaByID(id uint) (*domain.ProjectMedia, error)
@@ -82,6 +83,15 @@ func NewProjectRepository(db *gorm.DB) ProjectRepository {
 	return &projectRepository{db: db}
 }
 
+func (p *projectRepository) FindProjectsState(state string) ([]domain.Project, error) {
+	var projects []domain.Project
+	err := p.db.Where("state = ?", state).Order("created_at DESC").Find(&projects).Error
+	if err != nil {
+		return nil, err
+	}
+	return projects, nil
+}
+
 func (p *projectRepository) GetApprovedStudentCard(userID uint) (*domain.StudentCardVerification, error) {
 	var v domain.StudentCardVerification
 
@@ -138,76 +148,76 @@ func (p *projectRepository) FindProjectByIDAndOwner(id uint, ownerID uint) (*dom
 	return &project, nil
 }
 
-func (r *projectRepository) FindFAQsByProjectID(projectID uint) ([]domain.ProjectFAQ, error) {
+func (p *projectRepository) FindFAQsByProjectID(projectID uint) ([]domain.ProjectFAQ, error) {
 	var faqs []domain.ProjectFAQ
-	err := r.db.Where("project_id = ?", projectID).Order("sort_order ASC").Find(&faqs).Error
+	err := p.db.Where("project_id = ?", projectID).Order("sort_order ASC").Find(&faqs).Error
 	return faqs, err
 }
 
-func (r *projectRepository) FindFAQByID(faqID uint) (*domain.ProjectFAQ, error) {
+func (p *projectRepository) FindFAQByID(faqID uint) (*domain.ProjectFAQ, error) {
 	var faq domain.ProjectFAQ
-	err := r.db.Where("id = ?", faqID).First(&faq).Error
+	err := p.db.Where("id = ?", faqID).First(&faq).Error
 	return &faq, err
 }
 
-func (r *projectRepository) CreateFAQ(faq *domain.ProjectFAQ) error {
-	return r.db.Create(faq).Error
+func (p *projectRepository) CreateFAQ(faq *domain.ProjectFAQ) error {
+	return p.db.Create(faq).Error
 }
 
-func (r *projectRepository) UpdateFAQ(faq *domain.ProjectFAQ) error {
-	return r.db.Model(&domain.ProjectFAQ{ID: faq.ID}).Updates(faq).Error
+func (p *projectRepository) UpdateFAQ(faq *domain.ProjectFAQ) error {
+	return p.db.Model(&domain.ProjectFAQ{ID: faq.ID}).Updates(faq).Error
 }
 
-func (r *projectRepository) DeleteFAQ(faqID uint) error {
-	return r.db.Delete(&domain.ProjectFAQ{}, faqID).Error
+func (p *projectRepository) DeleteFAQ(faqID uint) error {
+	return p.db.Delete(&domain.ProjectFAQ{}, faqID).Error
 }
 
-func (r *projectRepository) FindThreadsByProjectID(projectID uint) ([]domain.ProjectThread, error) {
+func (p *projectRepository) FindThreadsByProjectID(projectID uint) ([]domain.ProjectThread, error) {
 	var threads []domain.ProjectThread
-	err := r.db.Where("project_id = ?", projectID).Find(&threads).Error
+	err := p.db.Where("project_id = ?", projectID).Find(&threads).Error
 	return threads, err
 }
 
-func (r *projectRepository) FindThreadByID(threadID uint) (*domain.ProjectThread, error) {
+func (p *projectRepository) FindThreadByID(threadID uint) (*domain.ProjectThread, error) {
 	var thread domain.ProjectThread
-	err := r.db.Where("id = ?", threadID).First(&thread).Error
+	err := p.db.Where("id = ?", threadID).First(&thread).Error
 	return &thread, err
 }
 
-func (r *projectRepository) CreateThread(thread *domain.ProjectThread) error {
-	return r.db.Create(thread).Error
+func (p *projectRepository) CreateThread(thread *domain.ProjectThread) error {
+	return p.db.Create(thread).Error
 }
 
-func (r *projectRepository) UpdateThread(thread *domain.ProjectThread) error {
-	return r.db.Model(&domain.ProjectThread{ID: thread.ID}).Updates(thread).Error
+func (p *projectRepository) UpdateThread(thread *domain.ProjectThread) error {
+	return p.db.Model(&domain.ProjectThread{ID: thread.ID}).Updates(thread).Error
 }
 
-func (r *projectRepository) DeleteThread(threadID uint) error {
-	return r.db.Delete(&domain.ProjectThread{}, threadID).Error
+func (p *projectRepository) DeleteThread(threadID uint) error {
+	return p.db.Delete(&domain.ProjectThread{}, threadID).Error
 }
 
-func (r *projectRepository) FindMessagesByThreadID(threadID uint) ([]domain.ProjectThreadMessage, error) {
+func (p *projectRepository) FindMessagesByThreadID(threadID uint) ([]domain.ProjectThreadMessage, error) {
 	var msgs []domain.ProjectThreadMessage
-	err := r.db.Where("thread_id = ?", threadID).Find(&msgs).Error
+	err := p.db.Where("thread_id = ?", threadID).Find(&msgs).Error
 	return msgs, err
 }
 
-func (r *projectRepository) FindThreadMessageByID(msgID uint) (*domain.ProjectThreadMessage, error) {
+func (p *projectRepository) FindThreadMessageByID(msgID uint) (*domain.ProjectThreadMessage, error) {
 	var msg domain.ProjectThreadMessage
-	err := r.db.Where("id = ?", msgID).First(&msg).Error
+	err := p.db.Where("id = ?", msgID).First(&msg).Error
 	return &msg, err
 }
 
-func (r *projectRepository) CreateThreadMessage(msg *domain.ProjectThreadMessage) error {
-	return r.db.Create(msg).Error
+func (p *projectRepository) CreateThreadMessage(msg *domain.ProjectThreadMessage) error {
+	return p.db.Create(msg).Error
 }
 
-func (r *projectRepository) UpdateThreadMessage(msg *domain.ProjectThreadMessage) error {
-	return r.db.Model(&domain.ProjectThreadMessage{ID: msg.ID}).Updates(msg).Error
+func (p *projectRepository) UpdateThreadMessage(msg *domain.ProjectThreadMessage) error {
+	return p.db.Model(&domain.ProjectThreadMessage{ID: msg.ID}).Updates(msg).Error
 }
 
-func (r *projectRepository) DeleteThreadMessage(msgID uint) error {
-	return r.db.Delete(&domain.ProjectThreadMessage{}, msgID).Error
+func (p *projectRepository) DeleteThreadMessage(msgID uint) error {
+	return p.db.Delete(&domain.ProjectThreadMessage{}, msgID).Error
 }
 
 func (p *projectRepository) CreateProjectUpdate(update *domain.ProjectUpdate) error {
@@ -255,9 +265,9 @@ func (p *projectRepository) DeleteStorySection(sectionID uint) error {
 	return p.db.Delete(&domain.StorySection{}, sectionID).Error
 }
 
-func (r *projectRepository) FindUpdatesByProjectID(projectID uint) ([]domain.ProjectUpdate, error) {
+func (p *projectRepository) FindUpdatesByProjectID(projectID uint) ([]domain.ProjectUpdate, error) {
 	var updates []domain.ProjectUpdate
-	err := r.db.Where("project_id = ?", projectID).
+	err := p.db.Where("project_id = ?", projectID).
 		Order("created_at DESC").
 		Find(&updates).Error
 

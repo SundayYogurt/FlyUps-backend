@@ -3,11 +3,11 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/helper"
 	"flyup/internal/repository"
+	"fmt"
 	"net/url"
 	"strings"
 	"time"
@@ -79,6 +79,7 @@ type ProjectService interface {
 	RejectProject(projectID uint) error
 	CloseProject(projectID uint, user domain.User) error
 	CancelProject(projectID uint, user domain.User) error
+	GetAllProjectsRequest() ([]domain.Project, error)
 }
 
 type projectService struct {
@@ -1183,4 +1184,9 @@ func (s *projectService) CancelProject(projectID uint, user domain.User) error {
 
 	return nil
 
+}
+
+func (s *projectService) GetAllProjectsRequest() ([]domain.Project, error) {
+	state := domain.StatePendingReview
+	return s.projectRepo.FindProjectsState(string(state))
 }
