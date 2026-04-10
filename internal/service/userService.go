@@ -35,6 +35,8 @@ type UserService interface {
 	UpdateProfile(userID uint, input dto.ProfileInput) error
 	VerifyStudent(userID uint, input dto.VerifyStudentInput) error
 	VerifyID(userID uint, input dto.VerifyIDInput) error
+	GetAllStudentVerifyRequest() ([]domain.StudentCardVerification, error)
+	GetAllCardIDVerifyRequest() ([]domain.IdCardVerification, error)
 	AddBankAccount(userID uint, input dto.BankRequest) error
 	UpdateBankAccount(userID uint, bankID uint, input dto.BankRequest) error
 	FindBankByUserID(id uint) ([]domain.BankAccount, error)
@@ -75,6 +77,16 @@ func NewUserService(
 		Auth:   auth,
 		Config: cfg,
 	}
+}
+
+func (s *userService) GetAllStudentVerifyRequest() ([]domain.StudentCardVerification, error) {
+	status := domain.VerifyStatusPending
+	return s.Repo.FindStudentRequest(string(status))
+}
+
+func (s *userService) GetAllCardIDVerifyRequest() ([]domain.IdCardVerification, error) {
+	status := domain.VerifyStatusPending
+	return s.Repo.FindUserIDCardRequest(string(status))
 }
 
 func (s *userService) ChangePassword(userID uint, password string, newPassword string) error {

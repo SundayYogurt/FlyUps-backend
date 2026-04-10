@@ -34,10 +34,30 @@ type UserRepository interface {
 	FindLatestStudentVerification(userID uint) (*domain.StudentCardVerification, error)
 	CreateStudentVerification(v *domain.StudentCardVerification) error
 	FindAllByRole(role string) ([]domain.User, error)
+	FindStudentRequest(status string) ([]domain.StudentCardVerification, error)
+	FindUserIDCardRequest(status string) ([]domain.IdCardVerification, error)
 }
 
 type userRepository struct {
 	db *gorm.DB
+}
+
+func (r *userRepository) FindUserIDCardRequest(status string) ([]domain.IdCardVerification, error) {
+	var cardsID []domain.IdCardVerification
+	err := r.db.Where("status = ?", status).Order("created_at DESC").Find(&cardsID).Error
+	if err != nil {
+		return nil, err
+	}
+	return cardsID, nil
+}
+
+func (r *userRepository) FindStudentRequest(status string) ([]domain.StudentCardVerification, error) {
+	var students []domain.StudentCardVerification
+	err := r.db.Where("status = ?", status).Order("created_at DESC").Find(&students).Error
+	if err != nil {
+		return nil, err
+	}
+	return students, nil
 }
 
 func (r *userRepository) UpdateStudentVerification(v *domain.StudentCardVerification) error {
@@ -316,8 +336,12 @@ func (r *userRepository) FindUserById(id uint) (*domain.User, error) {
 		Preload("StudentProfile").
 		Preload("StudentProfile.University").
 		Preload("BankAccount").
-		Preload("StudentCardVerification").
-		Preload("IdCardVerification").
+		Preload("StudentCardVerification", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC").Limit(1)
+		}).
+		Preload("IdCardVerification", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC").Limit(1)
+		}).
 		Where("id = ?", id).
 		First(&user).Error
 	if err != nil {

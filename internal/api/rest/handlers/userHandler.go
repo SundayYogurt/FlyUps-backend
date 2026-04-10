@@ -89,6 +89,8 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	adminRoutes.Post("/create-university-domain/:id", handler.CreateUniversityDomain)
 	adminRoutes.Put("/update-university-domain/:id", handler.UpdateUniversityDomain)
 	adminRoutes.Delete("/delete-university-domain/:id", handler.DeleteUniversityDomain)
+	adminRoutes.Get("/student-verifications", handler.GetStudentsCardRequest)
+	adminRoutes.Get("/id-card-verifications", handler.GetCardIDRequests)
 }
 
 // SignUp godoc
@@ -1025,4 +1027,38 @@ func (h *UserHandler) ChangePassword(ctx fiber.Ctx) error {
 		"message": "change password success",
 	})
 
+}
+
+func (h *UserHandler) GetStudentsCardRequest(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.BadRequestError(ctx, "unauthorized")
+	}
+
+	reqs, err := h.svc.GetAllStudentVerifyRequest()
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return ctx.JSON(fiber.Map{
+		"message": "get students card verify request success",
+		"data":    reqs,
+	})
+}
+
+func (h *UserHandler) GetCardIDRequests(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.BadRequestError(ctx, "unauthorized")
+	}
+
+	reqs, err := h.svc.GetAllCardIDVerifyRequest()
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return ctx.JSON(fiber.Map{
+		"message": "get users cardID verify request success",
+		"data":    reqs,
+	})
 }
