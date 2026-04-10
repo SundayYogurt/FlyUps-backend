@@ -194,6 +194,17 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 	if input.DurationMonths != nil {
 		project.DurationMonths = *input.DurationMonths
 	}
+	if input.DurationDays != nil {
+		project.DurationDays = *input.DurationDays
+	}
+	if input.DurationMonths != nil {
+		project.DurationMonths = *input.DurationMonths
+	}
+
+	if input.DurationDays != nil {
+		if *input.DurationDays <= 0 || *input.DurationDays > 60 {
+			return nil, errors.New("fundraising duration must be between 1 and 60 days")
+		}
 
 	if input.DurationDays != nil {
 		if *input.DurationDays <= 0 || *input.DurationDays > 60 {
@@ -541,6 +552,7 @@ func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMiles
 			domain.MilestoneRejected:  true,
 			domain.MilestonePaid:      true,
 		}
+	}
 
 		if !validStatuses[*input.Status] {
 			return errors.New("invalid milestone status")
@@ -1091,6 +1103,8 @@ func (s *projectService) RejectProject(projectID uint) error {
 	if err != nil {
 		return err
 	}
+	return s.projectRepo.DeleteThreadMessage(msgID)
+}
 
 	// notify pioneer ว่าโปรเจกต์ถูกปฏิเสธ
 	if s.notifSvc != nil {
@@ -1111,6 +1125,12 @@ func (s *projectService) CloseProject(projectID uint, user domain.User) error {
 	if p.OwnerUserID != user.ID {
 		return errors.New("permission denied")
 	}
+	// กลับสู่สถานะ Draft ให้ไปแก้ไขใหม่ และตั้ง Status เป็น Rejected
+	p.State = domain.StateDraft
+	p.Status = domain.StatusRejected
+	_, err = s.projectRepo.UpdateProject(p)
+	return err
+}
 
 	if p.State != domain.StateFunding {
 		return errors.New("project must be in funding state")

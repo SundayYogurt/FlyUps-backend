@@ -117,8 +117,6 @@ func findOrCreateUniversity(tx *gorm.DB, s domainSeed) (*domain.University, erro
 	nameTH := strings.TrimSpace(s.NameTH)
 	nameEN := strings.TrimSpace(s.NameEN)
 	province := strings.TrimSpace(s.Province)
-	domainStr := strings.ToLower(strings.TrimSpace(s.Domain))
-
 	var uni domain.University
 
 	// try find by name_en first (more stable), fallback to name_th
@@ -142,7 +140,6 @@ func findOrCreateUniversity(tx *gorm.DB, s domainSeed) (*domain.University, erro
 	var nameTHPtr *string
 	var nameENPtr *string
 	var provincePtr *string
-	var domainPtr *string
 
 	if nameTH != "" {
 		nameTHPtr = &nameTH
@@ -153,15 +150,11 @@ func findOrCreateUniversity(tx *gorm.DB, s domainSeed) (*domain.University, erro
 	if province != "" {
 		provincePtr = &province
 	}
-	if domainStr != "" {
-		domainPtr = &domainStr
-	}
 
 	uni = domain.University{
 		NameTH:   nameTHPtr,
 		NameEN:   nameENPtr,
 		Province: provincePtr,
-		Domain:   domainPtr,
 	}
 
 	if err := tx.Create(&uni).Error; err != nil {
