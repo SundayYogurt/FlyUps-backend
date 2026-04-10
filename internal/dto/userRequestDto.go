@@ -55,6 +55,7 @@ type ProfileInput struct {
 	Skills       *string `json:"skills,omitempty"`
 	Faculty      *string `json:"faculty,omitempty"`
 	Major        *string `json:"major,omitempty"`
+	StudentCode  *string `json:"student_code,omitempty"`
 }
 
 type VerifyStudentInput struct {

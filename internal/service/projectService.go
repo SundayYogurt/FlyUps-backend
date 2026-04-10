@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/helper"
@@ -84,13 +85,15 @@ type projectService struct {
 	projectRepo repository.ProjectRepository
 	userRepo    repository.UserRepository
 	cld         *helper.CloudinaryService
+	notifSvc    NotificationService
 }
 
-func NewProjectService(projectRepo repository.ProjectRepository, userRepo repository.UserRepository, cld *helper.CloudinaryService) ProjectService {
+func NewProjectService(projectRepo repository.ProjectRepository, userRepo repository.UserRepository, cld *helper.CloudinaryService, notifSvc NotificationService) ProjectService {
 	return &projectService{
 		projectRepo: projectRepo,
 		userRepo:    userRepo,
 		cld:         cld,
+		notifSvc:    notifSvc,
 	}
 }
 
@@ -1014,7 +1017,23 @@ func (s *projectService) SubmitForReview(projectID uint, user domain.User) error
 	}
 	p.State = domain.StatePendingReview
 	_, err = s.projectRepo.UpdateProject(p)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// notify admin ทุกคนว่ามีโปรเจกต์รอ review
+	if s.notifSvc != nil {
+		admins, err := s.userRepo.FindAllByRole("admin")
+		if err == nil {
+			relatedID := p.ID
+			relatedType := "project"
+			for _, admin := range admins {
+				body := fmt.Sprintf("โปรเจกต์ \"%s\" รอการอนุมัติ", p.Title)
+				s.notifSvc.CreateAndPush(admin.ID, domain.NotifProjectStatus, "โปรเจกต์ใหม่รอการอนุมัติ", body, &relatedID, &relatedType)
+			}
+		}
+	}
+	return nil
 }
 
 func (s *projectService) ApproveProject(projectID uint) error {
@@ -1036,13 +1055,24 @@ func (s *projectService) ApproveProject(projectID uint) error {
 	}
 	p.FundingAt = time.Now().UTC()
 	if p.DurationDays > 0 {
-		p.EndDate = p.FundingAt.AddDate(0, 0, p.DurationDays) // ใช้คำนวณแต่วันระดมทุน
+		p.EndDate = p.FundingAt.AddDate(0, 0, p.DurationDays)
 	}
 	p.State = domain.StateFunding
 	p.Status = domain.StatusActive
 	p.Visibility = domain.VisibilityPublic
 	_, err = s.projectRepo.UpdateProject(p)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// notify pioneer ว่าโปรเจกต์ได้รับการอนุมัติ
+	if s.notifSvc != nil {
+		relatedID := p.ID
+		relatedType := "project"
+		body := fmt.Sprintf("โปรเจกต์ \"%s\" ได้รับการอนุมัติและเริ่มระดมทุนแล้ว", p.Title)
+		s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifProjectStatus, "โปรเจกต์ได้รับการอนุมัติ", body, &relatedID, &relatedType)
+	}
+	return nil
 }
 
 func (s *projectService) RejectProject(projectID uint) error {
@@ -1058,7 +1088,18 @@ func (s *projectService) RejectProject(projectID uint) error {
 	p.State = domain.StateDraft
 	p.Status = domain.StatusRejected
 	_, err = s.projectRepo.UpdateProject(p)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// notify pioneer ว่าโปรเจกต์ถูกปฏิเสธ
+	if s.notifSvc != nil {
+		relatedID := p.ID
+		relatedType := "project"
+		body := fmt.Sprintf("โปรเจกต์ \"%s\" ถูกปฏิเสธ กรุณาแก้ไขและส่งใหม่อีกครั้ง", p.Title)
+		s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifProjectStatus, "โปรเจกต์ถูกปฏิเสธ", body, &relatedID, &relatedType)
+	}
+	return nil
 }
 
 func (s *projectService) CloseProject(projectID uint, user domain.User) error {

@@ -40,10 +40,11 @@ type investmentService struct {
 	userRepo        repository.UserRepository
 	stripeSecretKey string
 	webhookSecret   string
+	notifSvc        NotificationService
 }
 
-func NewInvestmentService(projectRepo repository.ProjectRepository, investmentRepo repository.InvestmentRepository, transactionRepo repository.TransactionRepository, userRepo repository.UserRepository, stripeSecretKey string, webhookSecret string) InvestmentService {
-	return &investmentService{projectRepo, investmentRepo, transactionRepo, userRepo, stripeSecretKey, webhookSecret}
+func NewInvestmentService(projectRepo repository.ProjectRepository, investmentRepo repository.InvestmentRepository, transactionRepo repository.TransactionRepository, userRepo repository.UserRepository, stripeSecretKey string, webhookSecret string, notifSvc NotificationService) InvestmentService {
+	return &investmentService{projectRepo, investmentRepo, transactionRepo, userRepo, stripeSecretKey, webhookSecret, notifSvc}
 }
 
 func (s *investmentService) GetInvestment(boosterUserID uint, investmentID uint) (*domain.Investment, *domain.Transaction, error) {
@@ -384,6 +385,19 @@ func (s *investmentService) handlePaymentSucceeded(intentID string) {
 
 	if err := s.investmentRepo.IncrementProjectFunding(investment.ProjectID, investment.TotalAmount); err != nil {
 		log.Printf("[Webhook] update project current_funding error: %v", err)
+	}
+
+	// notify pioneer ที่เป็นเจ้าของโปรเจกต์
+	if s.notifSvc != nil {
+		project, err := s.projectRepo.FindProjectByID(investment.ProjectID)
+		if err == nil {
+			relatedID := investment.ProjectID
+			relatedType := "project"
+			body := fmt.Sprintf("มีการลงทุนใหม่ในโปรเจกต์ %s จำนวน %.2f บาท", project.Title, investment.TotalAmount)
+			if err := s.notifSvc.CreateAndPush(project.OwnerUserID, domain.NotifNewInvestment, "มีการลงทุนใหม่", body, &relatedID, &relatedType); err != nil {
+				log.Printf("[Webhook] send notification error: %v", err)
+			}
+		}
 	}
 }
 
