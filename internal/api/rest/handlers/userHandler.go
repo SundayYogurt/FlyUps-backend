@@ -38,6 +38,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 		repository.NewUniversityRepository(rh.DB),
 		rh.Auth,
 		rh.Config,
+		rh.NotifSvc,
 	)
 
 	// Setup Google OAuth
@@ -664,7 +665,7 @@ func (h *UserHandler) RejectCardID(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, err.Error())
 	}
 
-	return rest.SuccessResponse(ctx, "student card rejected", map[string]interface{}{
+	return rest.SuccessResponse(ctx, "id card rejected", map[string]interface{}{
 		"user_id": userID,
 	})
 }

@@ -334,7 +334,6 @@ func (r *userRepository) FindUserById(id uint) (*domain.User, error) {
 	var user domain.User
 	err := r.db.
 		Preload("StudentProfile").
-		Preload("StudentProfile.University").
 		Preload("BankAccount").
 		Preload("StudentCardVerification", func(db *gorm.DB) *gorm.DB {
 			return db.Order("created_at DESC").Limit(1)
