@@ -59,10 +59,11 @@ type UserService interface {
 }
 
 type userService struct {
-	Repo   repository.UserRepository
-	URepo  repository.UniversityRepository
-	Auth   helper.AuthService
-	Config config.AppConfig
+	Repo     repository.UserRepository
+	URepo    repository.UniversityRepository
+	Auth     helper.AuthService
+	Config   config.AppConfig
+	notifSvc NotificationService
 }
 
 func NewUserService(
@@ -70,12 +71,14 @@ func NewUserService(
 	urepo repository.UniversityRepository,
 	auth helper.AuthService,
 	cfg config.AppConfig,
+	notifSvc NotificationService,
 ) UserService {
 	return &userService{
-		Repo:   repo,
-		URepo:  urepo,
-		Auth:   auth,
-		Config: cfg,
+		Repo:     repo,
+		URepo:    urepo,
+		Auth:     auth,
+		Config:   cfg,
+		notifSvc: notifSvc,
 	}
 }
 
@@ -493,7 +496,19 @@ func (s *userService) RejectIdCard(userID uint, adminID uint) error {
 		ReviewedBy: &adminID,
 	}
 
-	return s.Repo.UpdateIdCardVerification(v)
+	if err := s.Repo.UpdateIdCardVerification(v); err != nil {
+		return err
+	}
+
+	if s.notifSvc != nil {
+		s.notifSvc.CreateAndPush(userID, domain.NotifVerificationRejected,
+			"บัตรประชาชนถูกปฏิเสธ",
+			"บัตรประชาชนของคุณไม่ผ่านการตรวจสอบ กรุณาอัปโหลดใหม่",
+			nil, nil,
+		)
+	}
+
+	return nil
 }
 
 func (s *userService) RejectStudentCard(userID uint, adminID uint) error {
@@ -535,7 +550,19 @@ func (s *userService) RejectStudentCard(userID uint, adminID uint) error {
 		ReviewedBy: &adminID,
 	}
 
-	return s.Repo.UpdateStudentCardVerification(v)
+	if err := s.Repo.UpdateStudentCardVerification(v); err != nil {
+		return err
+	}
+
+	if s.notifSvc != nil {
+		s.notifSvc.CreateAndPush(userID, domain.NotifVerificationRejected,
+			"บัตรนักศึกษาถูกปฏิเสธ",
+			"บัตรนักศึกษาของคุณไม่ผ่านการตรวจสอบ กรุณาอัปโหลดใหม่",
+			nil, nil,
+		)
+	}
+
+	return nil
 }
 
 func (s *userService) ApproveStudentCard(userID uint, adminID uint) error {
@@ -580,7 +607,19 @@ func (s *userService) ApproveStudentCard(userID uint, adminID uint) error {
 		ReviewedBy: &adminID,
 	}
 
-	return s.Repo.UpdateStudentCardVerification(v)
+	if err := s.Repo.UpdateStudentCardVerification(v); err != nil {
+		return err
+	}
+
+	if s.notifSvc != nil {
+		s.notifSvc.CreateAndPush(userID, domain.NotifVerificationApproved,
+			"บัตรนักศึกษาอนุมัติแล้ว",
+			"บัตรนักศึกษาของคุณได้รับการอนุมัติเรียบร้อยแล้ว",
+			nil, nil,
+		)
+	}
+
+	return nil
 }
 
 func (s *userService) ApproveIdCard(userID uint, adminID uint) error {
@@ -624,7 +663,20 @@ func (s *userService) ApproveIdCard(userID uint, adminID uint) error {
 		VerifiedAt: &now,
 		ReviewedBy: &adminID,
 	}
-	return s.Repo.UpdateIdCardVerification(v)
+
+	if err := s.Repo.UpdateIdCardVerification(v); err != nil {
+		return err
+	}
+
+	if s.notifSvc != nil {
+		s.notifSvc.CreateAndPush(userID, domain.NotifVerificationApproved,
+			"บัตรประชาชนอนุมัติแล้ว",
+			"บัตรประชาชนของคุณได้รับการอนุมัติเรียบร้อยแล้ว",
+			nil, nil,
+		)
+	}
+
+	return nil
 }
 
 func (s *userService) FindBankByUserID(userID uint) ([]domain.BankAccount, error) {
@@ -1038,6 +1090,18 @@ func (s *userService) GetProfile(userID uint) (*domain.User, error) {
 	user, err := s.Repo.FindUserById(userID)
 	if err != nil {
 		return nil, err
+	}
+
+	// ดึง university จาก university_domains ตาม email domain ของ user
+	parts := strings.Split(user.Email, "@")
+	if len(parts) == 2 {
+		uniDomain, err := s.URepo.GetUniversityByDomain(parts[1])
+		if err == nil && uniDomain != nil {
+			if user.StudentProfile == nil {
+				user.StudentProfile = &domain.StudentProfile{}
+			}
+			user.StudentProfile.University = &uniDomain.University
+		}
 	}
 
 	return user, nil

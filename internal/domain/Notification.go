@@ -5,12 +5,14 @@ import "gorm.io/gorm"
 type NotificationType string
 
 const (
-	NotifNewInvestment NotificationType = "new_investment"
-	NotifMilestone     NotificationType = "milestone"
-	NotifVote          NotificationType = "vote"
-	NotifProjectStatus NotificationType = "project_status"
-	NotifProfit        NotificationType = "profit"
-	NotifMeeting       NotificationType = "meeting"
+	NotifNewInvestment          NotificationType = "new_investment"
+	NotifMilestone              NotificationType = "milestone"
+	NotifVote                   NotificationType = "vote"
+	NotifProjectStatus          NotificationType = "project_status"
+	NotifProfit                 NotificationType = "profit"
+	NotifMeeting                NotificationType = "meeting"
+	NotifVerificationApproved   NotificationType = "verification_approved"
+	NotifVerificationRejected   NotificationType = "verification_rejected"
 )
 
 type Notification struct {
