@@ -248,6 +248,7 @@ func TestSignup_Success(t *testing.T) {
 		config.AppConfig{
 			BaseURL: "http://localhost",
 		},
+		nil,
 	)
 
 	input := dto.UserSignUp{
@@ -302,7 +303,7 @@ func TestGoogleSignin_NewUser_Success(t *testing.T) {
 	repo := new(mockUserRepository)
 	auth := new(mockAuth)
 
-	svc := NewUserService(repo, nil, auth, config.AppConfig{})
+	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil)
 	oauthConf := &oauth2.Config{
 		ClientID: "test", ClientSecret: "test", Endpoint: oauth2.Endpoint{
 			TokenURL: "https://oauth2.googleapis.com/token",
@@ -329,7 +330,7 @@ func TestGoogleSignin_NewUser_Success(t *testing.T) {
 func TestSigning_Success(t *testing.T) {
 	repo := new(mockUserRepository)
 	auth := new(mockAuth)
-	svc := NewUserService(repo, nil, auth, config.AppConfig{})
+	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil)
 
 	existingUser := &domain.User{
 		ID:              2,
@@ -355,7 +356,7 @@ func TestSigning_Success(t *testing.T) {
 
 func TestVerifyEmail_Success(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
 
 	existingUser := &domain.User{
 		ID:                         3,
@@ -379,7 +380,7 @@ func TestVerifyEmail_Success(t *testing.T) {
 func TestForgotPassword_Success(t *testing.T) {
 	repo := new(mockUserRepository)
 	auth := new(mockAuth)
-	svc := NewUserService(repo, nil, auth, config.AppConfig{})
+	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil)
 
 	existingUser := &domain.User{
 		ID:     4,
@@ -405,7 +406,7 @@ func TestForgotPassword_Success(t *testing.T) {
 func TestSetPassword_Success(t *testing.T) {
 	repo := new(mockUserRepository)
 	auth := new(mockAuth)
-	svc := NewUserService(repo, nil, auth, config.AppConfig{})
+	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil)
 
 	existingUser := &domain.User{
 		ID:                  5,
@@ -428,7 +429,7 @@ func TestSetPassword_Success(t *testing.T) {
 
 func TestAddBankAccount_Success(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
 
 	userID := uint(10)
 	accNum := "123456789"
@@ -453,7 +454,7 @@ func TestAddBankAccount_Success(t *testing.T) {
 
 func TestAddBankAccount_Fail_Duplicate(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
 
 	userID := uint(10)
 	accNum := "123456789"
@@ -481,7 +482,7 @@ func TestAddBankAccount_Fail_Duplicate(t *testing.T) {
 
 func TestGetProfile_Success(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
 
 	userID := uint(7)
 	expected := &domain.User{ID: userID, Email: "user@test.com", Role: "booster"}
@@ -501,7 +502,7 @@ func TestGetProfile_Success(t *testing.T) {
 
 func TestVerifyStudent_Success_FirstTime(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
 
 	userID := uint(20)
 	cardURL := "https://res.cloudinary.com/test/student-card.jpg"
@@ -531,7 +532,7 @@ func TestVerifyStudent_Success_FirstTime(t *testing.T) {
 
 func TestVerifyStudent_Fail_AlreadyPending(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
 
 	userID := uint(20)
 	cardURL := "https://res.cloudinary.com/test/student-card.jpg"
@@ -559,7 +560,7 @@ func TestVerifyStudent_Fail_AlreadyPending(t *testing.T) {
 
 func TestVerifyStudent_Fail_NotPioneer(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
 
 	userID := uint(20)
 	cardURL := "https://res.cloudinary.com/test/student-card.jpg"
@@ -587,7 +588,7 @@ func TestVerifyStudent_Fail_NotPioneer(t *testing.T) {
 func TestVerifyID_Success_FirstTime(t *testing.T) {
 	repo := new(mockUserRepository)
 	// IApp OCR will fail → falls back to pending status (still success path)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{IAppAPIKey: ""})
+	svc := NewUserService(repo, nil, nil, config.AppConfig{IAppAPIKey: ""}, nil)
 
 	userID := uint(30)
 	idCardURL := "https://res.cloudinary.com/test/idcard.jpg"
@@ -615,7 +616,7 @@ func TestVerifyID_Success_FirstTime(t *testing.T) {
 
 func TestVerifyID_Fail_AlreadyApproved(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
 
 	userID := uint(30)
 	idCardURL := "https://res.cloudinary.com/test/idcard.jpg"
@@ -643,7 +644,7 @@ func TestVerifyID_Fail_AlreadyApproved(t *testing.T) {
 func TestChangePassword_Success(t *testing.T) {
 	repo := new(mockUserRepository)
 	auth := new(mockAuth)
-	svc := NewUserService(repo, nil, auth, config.AppConfig{})
+	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil)
 
 	userID := uint(30)
 	oldPassword := "Oldpass1!"
@@ -677,7 +678,7 @@ func TestChangePassword_Success(t *testing.T) {
 func TestChangePassword_Fail_incorrectOldPassword(t *testing.T) {
 	repo := new(mockUserRepository)
 	auth := new(mockAuth)
-	svc := NewUserService(repo, nil, auth, config.AppConfig{})
+	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil)
 
 	userID := uint(30)
 	oldPassword := "Oldpass11!"
@@ -711,7 +712,7 @@ func TestChangePassword_Validation(t *testing.T) {
 	repo := new(mockUserRepository)
 	auth := new(mockAuth)
 
-	svc := NewUserService(repo, nil, auth, config.AppConfig{})
+	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil)
 
 	userID := uint(1)
 
@@ -753,7 +754,7 @@ func TestChangePassword_Validation(t *testing.T) {
 
 func TestGetAllPendingStatusStudentRequests(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
 
 	// mock data
 	expected := []domain.StudentCardVerification{
@@ -777,7 +778,7 @@ func TestGetAllPendingStatusStudentRequests(t *testing.T) {
 
 func TestGetAllPendingStatusStudentRequests_Error(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
 
 	repo.On("FindStudentRequest", string(domain.VerifyStatusPending)).
 		Return(nil, errors.New("db error"))
@@ -792,7 +793,7 @@ func TestGetAllPendingStatusStudentRequests_Error(t *testing.T) {
 
 func TestGetAllPendingStatusCardIDRequests(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
 
 	// mock data
 	expected := []domain.IdCardVerification{
@@ -816,7 +817,7 @@ func TestGetAllPendingStatusCardIDRequests(t *testing.T) {
 
 func TestGetAllPendingStatusCardIDRequests_Error(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{})
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
 
 	repo.On("FindUserIDCardRequest", string(domain.VerifyStatusPending)).
 		Return(nil, errors.New("db error"))
