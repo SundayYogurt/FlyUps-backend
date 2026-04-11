@@ -44,7 +44,7 @@ type userRepository struct {
 
 func (r *userRepository) FindUserIDCardRequest(status string) ([]domain.IdCardVerification, error) {
 	var cardsID []domain.IdCardVerification
-	err := r.db.Where("status = ?", status).Order("created_at DESC").Find(&cardsID).Error
+	err := r.db.Preload("User").Where("status = ?", status).Order("created_at DESC").Find(&cardsID).Error
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (r *userRepository) FindUserIDCardRequest(status string) ([]domain.IdCardVe
 
 func (r *userRepository) FindStudentRequest(status string) ([]domain.StudentCardVerification, error) {
 	var students []domain.StudentCardVerification
-	err := r.db.Where("status = ?", status).Order("created_at DESC").Find(&students).Error
+	err := r.db.Preload("User").Where("status = ?", status).Order("created_at DESC").Find(&students).Error
 	if err != nil {
 		return nil, err
 	}
