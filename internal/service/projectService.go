@@ -80,6 +80,7 @@ type ProjectService interface {
 	CloseProject(projectID uint, user domain.User) error
 	CancelProject(projectID uint, user domain.User) error
 	GetAllProjectsRequest() ([]domain.Project, error)
+	GetProjectDetailRequest(projectID uint) (*domain.Project, error)
 }
 
 type projectService struct {
@@ -1189,4 +1190,24 @@ func (s *projectService) CancelProject(projectID uint, user domain.User) error {
 func (s *projectService) GetAllProjectsRequest() ([]domain.Project, error) {
 	state := domain.StatePendingReview
 	return s.projectRepo.FindProjectsState(string(state))
+}
+
+func (s *projectService) GetProjectDetailRequest(projectID uint) (*domain.Project, error) {
+	if projectID == 0 {
+		return nil, errors.New("invalid project ID")
+	}
+
+	project, err := s.projectRepo.FindProjectsPendingDetail(
+		projectID,
+		string(domain.StatePendingReview),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if project == nil {
+		return nil, errors.New("project not found")
+	}
+
+	return project, nil
 }

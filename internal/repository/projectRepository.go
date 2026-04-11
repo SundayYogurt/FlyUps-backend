@@ -25,6 +25,7 @@ type ProjectRepository interface {
 	GetApprovedIdCard(userID uint) (*domain.IdCardVerification, error)
 	GetApprovedStudentCard(userID uint) (*domain.StudentCardVerification, error)
 	FindProjectsState(state string) ([]domain.Project, error)
+	FindProjectsPendingDetail(projectID uint, state string) (*domain.Project, error)
 
 	FindMediaByProjectID(projectID uint) ([]domain.ProjectMedia, error)
 	FindMediaByID(id uint) (*domain.ProjectMedia, error)
@@ -81,6 +82,19 @@ type projectRepository struct {
 
 func NewProjectRepository(db *gorm.DB) ProjectRepository {
 	return &projectRepository{db: db}
+}
+
+func (p *projectRepository) FindProjectsPendingDetail(projectID uint, state string) (*domain.Project, error) {
+	var projects *domain.Project
+	err := p.db.Preload("Owner").Preload("Media").
+		Preload("Milestones").
+		Preload("Stories").
+		Preload("FAQs").
+		Where("id = ? AND state = ?", projectID, state).Order("created_at DESC").First(&projects).Error
+	if err != nil {
+		return nil, err
+	}
+	return projects, nil
 }
 
 func (p *projectRepository) FindProjectsState(state string) ([]domain.Project, error) {

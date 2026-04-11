@@ -106,6 +106,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	adminProj.Patch("/:id/reject", handler.RejectProject)
 	adminProj.Patch("/:id/status", handler.UpdateProjectStatus)
 	adminProj.Get("/pending-review", handler.ProjectsPendingList)
+	adminProj.Get("/:id/detail/pending-review", handler.ProjectDetailReview)
 }
 
 // CancelProject godoc
@@ -1453,8 +1454,23 @@ func (h *ProjectHandler) ProjectsPendingList(ctx fiber.Ctx) error {
 		return rest.InternalError(ctx, err)
 	}
 
-	return ctx.JSON(fiber.Map{
-		"message": "get all projects pending request success",
-		"data":    reqs,
-	})
+	return rest.SuccessResponse(ctx, "successfully", reqs)
+}
+
+func (h *ProjectHandler) ProjectDetailReview(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.BadRequestError(ctx, "unauthorized")
+	}
+	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+	}
+
+	project, err := h.svc.GetProjectDetailRequest(uint(id))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
+	}
+
+	return rest.SuccessResponse(ctx, "project detail review success", project)
 }
