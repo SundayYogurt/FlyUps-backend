@@ -249,3 +249,35 @@ func TestGetAllPendingStateProjectRequests_Error(t *testing.T) {
 
 	projRepo.AssertExpectations(t)
 }
+
+func TestGetProjectPendingDetail(t *testing.T) {
+	projRepo := new(ProjectRepository)
+	svc := NewProjectService(projRepo, nil, nil, nil)
+
+	projectID := uint(100)
+
+	expected := &domain.Project{
+		ID: projectID,
+	}
+
+	projRepo.On("FindProjectsPendingDetail", projectID, string(domain.StatePendingReview)).
+		Return(expected, nil)
+
+	result, err := svc.GetProjectDetailRequest(projectID)
+
+	// assert
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+
+	projRepo.AssertExpectations(t)
+}
+
+func TestGetProjectPendingDetail_fail_invalidID(t *testing.T) {
+	projRepo := new(ProjectRepository)
+	svc := NewProjectService(projRepo, nil, nil, nil)
+
+	result, err := svc.GetProjectDetailRequest(0)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
