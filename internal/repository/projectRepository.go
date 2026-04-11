@@ -85,7 +85,7 @@ func NewProjectRepository(db *gorm.DB) ProjectRepository {
 
 func (p *projectRepository) FindProjectsState(state string) ([]domain.Project, error) {
 	var projects []domain.Project
-	err := p.db.Where("state = ?", state).Order("created_at DESC").Find(&projects).Error
+	err := p.db.Preload("Owner").Where("state = ?", state).Order("created_at DESC").Find(&projects).Error
 	if err != nil {
 		return nil, err
 	}
