@@ -13,6 +13,16 @@ type ProjectRepository struct {
 	mock.Mock
 }
 
+func (_m *ProjectRepository) FindProjectsPendingDetail(projectID uint, state string)  (*domain.Project, error) {
+	args := _m.Called(projectID, state)
+
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+
+	return args.Get(0).(*domain.Project), args.Error(1)
+}
+
 func (_m *ProjectRepository) FindProjectsState(state string) ([]domain.Project, error) {
 	args := _m.Called(state)
 
