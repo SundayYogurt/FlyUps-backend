@@ -24,7 +24,7 @@ type ProjectService interface {
 	GetPublicProjectByID(id uint) (*domain.Project, error)
 	GetOwnerProjectByID(id uint, ownerID uint) (*domain.Project, error)
 	GetProjectsByCategory(categoryID uint) ([]domain.Project, error)
-	UpdateProjectStatus(projectID uint, newState domain.ProjectState, newStatus domain.ProjectStatus, user domain.User) error
+	UpdateProjectStatus(projectID uint, newState domain.ProjectState, newStatus domain.ProjectStatus) error
 
 	// MEDIA
 	AttachProjectMedia(ctx context.Context, projectID uint, url string, mediaType domain.MediaType, user domain.User) error
@@ -323,7 +323,7 @@ func (s *projectService) GetProjectsByCategory(categoryID uint) ([]domain.Projec
 	return projects, nil
 }
 
-func (s *projectService) UpdateProjectStatus(projectID uint, newState domain.ProjectState, newStatus domain.ProjectStatus, user domain.User) error {
+func (s *projectService) UpdateProjectStatus(projectID uint, newState domain.ProjectState, newStatus domain.ProjectStatus) error {
 	project, err := s.projectRepo.FindProjectByID(projectID)
 	if err != nil {
 		return err
@@ -485,12 +485,8 @@ func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMiles
 		m.PercentRelease = percent
 	}
 
-	if input.StartDate != nil {
-		m.StartDate = input.StartDate
-	}
-
-	if input.EndDate != nil {
-		m.EndDate = input.EndDate
+	if input.Duration != nil {
+		m.Duration = input.Duration
 	}
 
 	if input.AcceptanceCriteria != nil {
@@ -555,12 +551,6 @@ func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMiles
 		}
 
 		m.Status = *input.Status
-	}
-
-	if m.StartDate != nil && m.EndDate != nil {
-		if m.EndDate.Before(*m.StartDate) {
-			return errors.New("end date cannot be before start date")
-		}
 	}
 
 	return s.projectRepo.UpdateMilestone(m)

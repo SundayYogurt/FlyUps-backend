@@ -118,8 +118,7 @@ type Milestone struct {
 	PhaseNo            int             `json:"phase_no"`
 	Title              string          `json:"title"`
 	Description        *string         `json:"description"`
-	StartDate          *time.Time      `json:"start_date"`
-	EndDate            *time.Time      `json:"end_date"`
+	Duration           *int            `json:"duration,omitempty"`
 	AcceptanceCriteria *string         `json:"acceptance_criteria"`
 	Type               MediaType       `json:"type"`
 	URLs               []string        `json:"urls" gorm:"type:json;serializer:json"`
