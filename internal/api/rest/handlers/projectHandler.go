@@ -972,7 +972,7 @@ func (h *ProjectHandler) UpdateProjectStatus(ctx fiber.Ctx) error {
 	if err := ctx.Bind().Body(&body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
-	if err := h.svc.UpdateProjectStatus(uint(id), domain.ProjectState(body.State), domain.ProjectStatus(body.Status), user); err != nil {
+	if err := h.svc.UpdateProjectStatus(uint(id), domain.ProjectState(body.State), domain.ProjectStatus(body.Status)); err != nil {
 		return rest.InternalError(ctx, err)
 	}
 	return rest.SuccessResponse(ctx, "status updated successfully", nil)
