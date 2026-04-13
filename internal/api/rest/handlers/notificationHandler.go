@@ -32,6 +32,18 @@ func SetupNotificationRoutes(rh *rest.RestHandler) {
 	priv.Patch("/:id/read", h.MarkAsRead)
 }
 
+// List godoc
+// @Summary List notifications
+// @Description Get paginated notifications for the current user
+// @Tags Notifications
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number (default 1)"
+// @Param limit query int false "Items per page (default 20, max 100)"
+// @Success 200 {object} object "Paginated notifications with unread count"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /notifications [get]
 func (h *NotificationHandler) List(c fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(c)
 	if user.ID == 0 {
@@ -63,6 +75,15 @@ func (h *NotificationHandler) List(c fiber.Ctx) error {
 	})
 }
 
+// Stream godoc
+// @Summary Server-Sent Events notification stream
+// @Description Subscribe to real-time notifications via SSE. Returns `text/event-stream` content.
+// @Tags Notifications
+// @Produce text/event-stream
+// @Security BearerAuth
+// @Success 200 {string} string "SSE stream (ping and notification events)"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /notifications/stream [get]
 func (h *NotificationHandler) Stream(c fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(c)
 	if user.ID == 0 {
@@ -112,6 +133,18 @@ func (h *NotificationHandler) Stream(c fiber.Ctx) error {
 	return nil
 }
 
+// MarkAsRead godoc
+// @Summary Mark notification as read
+// @Description Mark a specific notification as read by ID
+// @Tags Notifications
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Notification ID"
+// @Success 200 {object} object "marked as read"
+// @Failure 400 {object} object "Invalid notification ID"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /notifications/{id}/read [patch]
 func (h *NotificationHandler) MarkAsRead(c fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(c)
 	if user.ID == 0 {
@@ -130,6 +163,16 @@ func (h *NotificationHandler) MarkAsRead(c fiber.Ctx) error {
 	return rest.SuccessResponse(c, "marked as read", nil)
 }
 
+// MarkAllAsRead godoc
+// @Summary Mark all notifications as read
+// @Description Mark all notifications for the current user as read
+// @Tags Notifications
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} object "all marked as read"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /notifications/read-all [patch]
 func (h *NotificationHandler) MarkAllAsRead(c fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(c)
 	if user.ID == 0 {

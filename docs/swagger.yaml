@@ -47,6 +47,23 @@ definitions:
       bank_name:
         type: string
     type: object
+  dto.ChangePasswordRequest:
+    properties:
+      new_password:
+        minLength: 8
+        type: string
+      old_password:
+        minLength: 8
+        type: string
+    required:
+    - new_password
+    - old_password
+    type: object
+  dto.CreateDomainRequest:
+    properties:
+      domain:
+        type: string
+    type: object
   dto.CreateInvestmentRequest:
     properties:
       amount:
@@ -63,14 +80,12 @@ definitions:
         type: string
       description:
         type: string
-      end_date:
-        type: string
+      duration:
+        type: integer
       phase_no:
         type: integer
       sortOrder:
         type: integer
-      start_date:
-        type: string
       status:
         $ref: '#/definitions/domain.MilestoneStatus'
       title:
@@ -92,6 +107,15 @@ definitions:
         type: string
       visibility:
         $ref: '#/definitions/domain.ProjectVisibility'
+    type: object
+  dto.CreateUniversityRequest:
+    properties:
+      name_en:
+        type: string
+      name_th:
+        type: string
+      province:
+        type: string
     type: object
   dto.ForgotPasswordRequest:
     properties:
@@ -118,7 +142,6 @@ definitions:
   dto.ProfileInput:
     properties:
       address:
-        description: optional
         type: string
       bio:
         type: string
@@ -133,9 +156,13 @@ definitions:
         type: string
       phone:
         type: string
+      picture:
+        type: string
       portfolio:
         type: string
       skills:
+        type: string
+      student_code:
         type: string
       university_id:
         description: |-
@@ -144,20 +171,45 @@ definitions:
           ยังคงไว้เพื่อ backward compatibility แต่ server จะ ignore ค่า input นี้
         type: integer
     type: object
+  dto.RefundResponse:
+    properties:
+      fees_deducted:
+        type: number
+      investment_id:
+        type: integer
+      reference_number:
+        type: string
+      refund_amount:
+        type: number
+      total_paid:
+        type: number
+    type: object
+  dto.SuspendUserInput:
+    properties:
+      reason:
+        type: string
+    required:
+    - reason
+    type: object
+  dto.UpdateDomainRequest:
+    properties:
+      domain:
+        type: string
+      is_active:
+        type: boolean
+    type: object
   dto.UpdateMilestoneRequest:
     properties:
       acceptance_criteria:
         type: string
       description:
         type: string
-      end_date:
-        type: string
+      duration:
+        type: integer
       phase_no:
         type: integer
       sort_order:
         type: integer
-      start_date:
-        type: string
       status:
         $ref: '#/definitions/domain.MilestoneStatus'
       title:
@@ -205,14 +257,7 @@ definitions:
       title:
         type: string
     type: object
-  dto.UserSignin:
-    properties:
-      email:
-        type: string
-      password:
-        type: string
-    type: object
-  dto.UserSignup:
+  dto.UserSignUp:
     properties:
       accept_terms:
         description: ยอมรับข้อตกลง
@@ -246,6 +291,13 @@ definitions:
     - phone
     - role
     type: object
+  dto.UserSigning:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
   dto.VerifyIDInput:
     properties:
       declare_truth:
@@ -276,6 +328,40 @@ info:
   title: FlyUps API
   version: "1.0"
 paths:
+  /SignUp:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account
+      parameters:
+      - description: SignUp Request body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UserSignUp'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Success message
+          schema:
+            type: object
+        "400":
+          description: Validation failed
+          schema:
+            type: object
+        "409":
+          description: User already registered
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: Register a new user
+      tags:
+      - Users
   /admin/approve-id-card/{id}:
     patch:
       description: Admin approves an ID card verification
@@ -409,6 +495,215 @@ paths:
       summary: Update Category
       tags:
       - Categories
+  /admin/create-university:
+    post:
+      consumes:
+      - application/json
+      description: Admin creates a new university
+      parameters:
+      - description: University data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateUniversityRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: create university success
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create university
+      tags:
+      - Admin
+  /admin/create-university-domain/{id}:
+    post:
+      consumes:
+      - application/json
+      description: Admin adds a new email domain for a university
+      parameters:
+      - description: University ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Domain data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateDomainRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: create domain of university success
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create university domain
+      tags:
+      - Admin
+  /admin/delete-university-domain/{id}:
+    delete:
+      description: Admin removes an email domain from a university
+      parameters:
+      - description: Domain ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: delete university domain success
+          schema:
+            type: object
+        "400":
+          description: Invalid domain ID
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete university domain
+      tags:
+      - Admin
+  /admin/delete-university/{id}:
+    delete:
+      description: Admin deletes a university by ID
+      parameters:
+      - description: University ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: delete university success
+          schema:
+            type: object
+        "400":
+          description: Invalid university ID
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete university
+      tags:
+      - Admin
+  /admin/id-card-verifications:
+    get:
+      description: Admin gets all pending national ID card verification requests
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: get users cardID verify request success
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get ID card verification requests
+      tags:
+      - Admin
+  /admin/investments/{id}/approve-refund:
+    patch:
+      description: Mark a refund_pending investment as refunded after manual bank
+        transfer
+      parameters:
+      - description: Investment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: refund approved
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: invalid id or business rule violation
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: access denied
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Approve a refund request (admin only)
+      tags:
+      - Admin
+  /admin/investments/refund-requests:
+    get:
+      description: Get all investments with refund_pending status including booster
+        bank account
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: list of refund requests
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: access denied
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List pending refund requests (admin only)
+      tags:
+      - Admin
   /admin/projects/{id}/approve:
     patch:
       consumes:
@@ -432,6 +727,35 @@ paths:
       summary: Approve Project
       tags:
       - Projects
+  /admin/projects/{id}/detail/pending-review:
+    get:
+      description: Admin gets full detail of a specific project for review
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project detail for review
+          schema:
+            type: object
+        "400":
+          description: Invalid project ID or error
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get project detail for review
+      tags:
+      - Admin
   /admin/projects/{id}/reject:
     patch:
       consumes:
@@ -484,6 +808,29 @@ paths:
       summary: Update Project Status
       tags:
       - Projects
+  /admin/projects/pending-review:
+    get:
+      description: Admin gets all projects that are pending review/approval
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of projects pending review
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get projects pending review
+      tags:
+      - Admin
   /admin/reject-id-card/{id}:
     patch:
       description: Admin rejects an ID card verification
@@ -542,6 +889,217 @@ paths:
       summary: Reject student card
       tags:
       - Admin
+  /admin/rollback-user/{id}:
+    patch:
+      description: Admin restores a suspended user back to active status
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: user come back to active!
+          schema:
+            type: object
+        "400":
+          description: Invalid user ID or rollback error
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Rollback suspended user
+      tags:
+      - Admin
+  /admin/student-verifications:
+    get:
+      description: Admin gets all pending student card verification requests
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: get students card verify request success
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get student card verification requests
+      tags:
+      - Admin
+  /admin/suspend-user/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Admin suspends a user account with a reason
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Suspend reason
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SuspendUserInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: user suspended
+          schema:
+            type: object
+        "400":
+          description: Invalid request or reason
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Suspend user account
+      tags:
+      - Admin
+  /admin/universities:
+    get:
+      description: Admin gets list of all universities
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: get universities success
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get all universities
+      tags:
+      - Admin
+  /admin/university/{id}:
+    get:
+      description: Admin gets university details by ID
+      parameters:
+      - description: University ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: get university success
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get university by ID
+      tags:
+      - Admin
+  /admin/update-university-domain/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Admin updates an email domain for a university
+      parameters:
+      - description: Domain ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Domain data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateDomainRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: update domain of university success
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update university domain
+      tags:
+      - Admin
+  /admin/update-university/{id}:
+    put:
+      consumes:
+      - application/json
+      description: Admin updates university information
+      parameters:
+      - description: University ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: University data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateUniversityRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: update university success
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update university
+      tags:
+      - Admin
   /admin/user-banks/{id}:
     get:
       description: Get bank accounts for a user (admin only)
@@ -567,6 +1125,20 @@ paths:
       summary: Admin get user bank accounts
       tags:
       - Admin
+  /auth/google:
+    get:
+      description: Redirect to Google Login
+      responses: {}
+      summary: Google Login
+      tags:
+      - Auth
+  /auth/google/callback:
+    get:
+      description: Callback from Google Login
+      responses: {}
+      summary: Google Callback
+      tags:
+      - Auth
   /categories:
     get:
       consumes:
@@ -741,6 +1313,208 @@ paths:
       summary: Get investment detail
       tags:
       - Investments
+  /investments/{id}/refund:
+    post:
+      description: Refund a verified investment while project is in funding state.
+        Platform fee and VAT are non-refundable.
+      parameters:
+      - description: Investment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: refund processed
+          schema:
+            $ref: '#/definitions/dto.RefundResponse'
+        "400":
+          description: invalid id or business rule violation
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: investment not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Refund an investment
+      tags:
+      - Investments
+  /investments/my-projects:
+    get:
+      description: Get all projects that the current booster user has invested in
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of invested projects
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List my invested projects
+      tags:
+      - Investments
+  /investments/projects/{projectId}/investors:
+    get:
+      description: Get all investors for a specific project (public endpoint)
+      parameters:
+      - description: Project ID
+        in: path
+        name: projectId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project investors list
+          schema:
+            type: object
+        "400":
+          description: Invalid project ID
+          schema:
+            type: object
+        "404":
+          description: Project not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: Get project investors
+      tags:
+      - Investments
+  /notifications:
+    get:
+      description: Get paginated notifications for the current user
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Paginated notifications with unread count
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List notifications
+      tags:
+      - Notifications
+  /notifications/{id}/read:
+    patch:
+      description: Mark a specific notification as read by ID
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: marked as read
+          schema:
+            type: object
+        "400":
+          description: Invalid notification ID
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark notification as read
+      tags:
+      - Notifications
+  /notifications/read-all:
+    patch:
+      description: Mark all notifications for the current user as read
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: all marked as read
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Mark all notifications as read
+      tags:
+      - Notifications
+  /notifications/stream:
+    get:
+      description: Subscribe to real-time notifications via SSE. Returns `text/event-stream`
+        content.
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE stream (ping and notification events)
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Server-Sent Events notification stream
+      tags:
+      - Notifications
   /pioneer/projects:
     get:
       consumes:
@@ -1720,12 +2494,12 @@ paths:
       - application/json
       description: Authenticate a user and return login token
       parameters:
-      - description: Signin Request body
+      - description: Signing Request body
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/dto.UserSignin'
+          $ref: '#/definitions/dto.UserSigning'
       produces:
       - application/json
       responses:
@@ -1745,41 +2519,7 @@ paths:
           description: Email not verified
           schema:
             type: object
-      summary: User Signin
-      tags:
-      - Users
-  /signup:
-    post:
-      consumes:
-      - application/json
-      description: Create a new user account
-      parameters:
-      - description: Signup Request body
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/dto.UserSignup'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Success message
-          schema:
-            type: object
-        "400":
-          description: Validation failed
-          schema:
-            type: object
-        "409":
-          description: User already registered
-          schema:
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            type: object
-      summary: Register a new user
+      summary: User Signing
       tags:
       - Users
   /stripe/webhook:
@@ -1883,6 +2623,42 @@ paths:
       summary: Add bank account
       tags:
       - Users
+  /user/change-password:
+    put:
+      consumes:
+      - application/json
+      description: Authenticated user changes their current password
+      parameters:
+      - description: Change password data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: change password success
+          schema:
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Change password
+      tags:
+      - Users
   /user/id-verify:
     post:
       consumes:
@@ -1974,6 +2750,21 @@ paths:
       security:
       - BearerAuth: []
       summary: Update User Profile
+      tags:
+      - Users
+  /user/signout:
+    post:
+      description: Sign out and clear the auth cookie
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: logout success
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Sign out
       tags:
       - Users
   /user/student-verify:

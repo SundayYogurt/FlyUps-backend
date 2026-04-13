@@ -1443,6 +1443,16 @@ func (h *ProjectHandler) CloseProject(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "project closed successfully", nil)
 }
 
+// ProjectsPendingList godoc
+// @Summary Get projects pending review
+// @Description Admin gets all projects that are pending review/approval
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} object "List of projects pending review"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /admin/projects/pending-review [get]
 func (h *ProjectHandler) ProjectsPendingList(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -1457,6 +1467,17 @@ func (h *ProjectHandler) ProjectsPendingList(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "successfully", reqs)
 }
 
+// ProjectDetailReview godoc
+// @Summary Get project detail for review
+// @Description Admin gets full detail of a specific project for review
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "Project detail for review"
+// @Failure 400 {object} object "Invalid project ID or error"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/projects/{id}/detail/pending-review [get]
 func (h *ProjectHandler) ProjectDetailReview(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {

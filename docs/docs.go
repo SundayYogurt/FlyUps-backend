@@ -15,6 +15,58 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/SignUp": {
+            "post": {
+                "description": "Create a new user account",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Register a new user",
+                "parameters": [
+                    {
+                        "description": "SignUp Request body",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UserSignUp"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Success message",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Validation failed",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "409": {
+                        "description": "User already registered",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/approve-id-card/{id}": {
             "patch": {
                 "security": [
@@ -227,6 +279,371 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/create-university": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin creates a new university",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Create university",
+                "parameters": [
+                    {
+                        "description": "University data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateUniversityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "create university success",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/create-university-domain/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin adds a new email domain for a university",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Create university domain",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "University ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Domain data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateDomainRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "create domain of university success",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/delete-university-domain/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin removes an email domain from a university",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Delete university domain",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Domain ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "delete university domain success",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid domain ID",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/delete-university/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin deletes a university by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Delete university",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "University ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "delete university success",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid university ID",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/id-card-verifications": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin gets all pending national ID card verification requests",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get ID card verification requests",
+                "responses": {
+                    "200": {
+                        "description": "get users cardID verify request success",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/investments/refund-requests": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all investments with refund_pending status including booster bank account",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "List pending refund requests (admin only)",
+                "responses": {
+                    "200": {
+                        "description": "list of refund requests",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "access denied",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/investments/{id}/approve-refund": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mark a refund_pending investment as refunded after manual bank transfer",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Approve a refund request (admin only)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Investment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "refund approved",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "invalid id or business rule violation",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "access denied",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/projects/pending-review": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin gets all projects that are pending review/approval",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get projects pending review",
+                "responses": {
+                    "200": {
+                        "description": "List of projects pending review",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/projects/{id}/approve": {
             "patch": {
                 "security": [
@@ -257,6 +674,52 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "Project approved",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/projects/{id}/detail/pending-review": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin gets full detail of a specific project for review",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get project detail for review",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Project ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Project detail for review",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project ID or error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object"
                         }
@@ -439,6 +902,340 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/rollback-user/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin restores a suspended user back to active status",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Rollback suspended user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "user come back to active!",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid user ID or rollback error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/student-verifications": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin gets all pending student card verification requests",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get student card verification requests",
+                "responses": {
+                    "200": {
+                        "description": "get students card verify request success",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/suspend-user/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin suspends a user account with a reason",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Suspend user account",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Suspend reason",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.SuspendUserInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "user suspended",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or reason",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/universities": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin gets list of all universities",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get all universities",
+                "responses": {
+                    "200": {
+                        "description": "get universities success",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/university/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin gets university details by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Get university by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "University ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "get university success",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/update-university-domain/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin updates an email domain for a university",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Update university domain",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Domain ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Domain data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateDomainRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "update domain of university success",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/update-university/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin updates university information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Update university",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "University ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "University data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateUniversityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "update university success",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/user-banks/{id}": {
             "get": {
                 "security": [
@@ -477,6 +1274,26 @@ const docTemplate = `{
                         }
                     }
                 }
+            }
+        },
+        "/auth/google": {
+            "get": {
+                "description": "Redirect to Google Login",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Google Login",
+                "responses": {}
+            }
+        },
+        "/auth/google/callback": {
+            "get": {
+                "description": "Callback from Google Login",
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Google Callback",
+                "responses": {}
             }
         },
         "/categories": {
@@ -673,6 +1490,90 @@ const docTemplate = `{
                 }
             }
         },
+        "/investments/my-projects": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all projects that the current booster user has invested in",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Investments"
+                ],
+                "summary": "List my invested projects",
+                "responses": {
+                    "200": {
+                        "description": "List of invested projects",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/investments/projects/{projectId}/investors": {
+            "get": {
+                "description": "Get all investors for a specific project (public endpoint)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Investments"
+                ],
+                "summary": "Get project investors",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Project ID",
+                        "name": "projectId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Project investors list",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project ID",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Project not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/investments/{id}": {
             "get": {
                 "security": [
@@ -742,6 +1643,238 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/investments/{id}/refund": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Refund a verified investment while project is in funding state. Platform fee and VAT are non-refundable.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Investments"
+                ],
+                "summary": "Refund an investment",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Investment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "refund processed",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RefundResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "invalid id or business rule violation",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "investment not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated notifications for the current user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "List notifications",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated notifications with unread count",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/read-all": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mark all notifications for the current user as read",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark all notifications as read",
+                "responses": {
+                    "200": {
+                        "description": "all marked as read",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/stream": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Subscribe to real-time notifications via SSE. Returns ` + "`" + `text/event-stream` + "`" + ` content.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Server-Sent Events notification stream",
+                "responses": {
+                    "200": {
+                        "description": "SSE stream (ping and notification events)",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/notifications/{id}/read": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Mark a specific notification as read by ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Mark notification as read",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Notification ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "marked as read",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid notification ID",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
                         }
                     }
                 }
@@ -2304,7 +3437,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.UserSignin"
+                            "$ref": "#/definitions/dto.UserSigning"
                         }
                     }
                 ],
@@ -2329,58 +3462,6 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Email not verified",
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                }
-            }
-        },
-        "/signup": {
-            "post": {
-                "description": "Create a new user account",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Users"
-                ],
-                "summary": "Register a new user",
-                "parameters": [
-                    {
-                        "description": "Signup Request body",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.UserSignup"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Success message",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "400": {
-                        "description": "Validation failed",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "409": {
-                        "description": "User already registered",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
                         }
@@ -2544,6 +3625,63 @@ const docTemplate = `{
                 }
             }
         },
+        "/user/change-password": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Authenticated user changes their current password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Change password",
+                "parameters": [
+                    {
+                        "description": "Change password data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "change password success",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/user/id-verify": {
             "post": {
                 "security": [
@@ -2685,6 +3823,31 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/signout": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Sign out and clear the auth cookie",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Sign out",
+                "responses": {
+                    "200": {
+                        "description": "logout success",
                         "schema": {
                             "type": "object"
                         }
@@ -2902,6 +4065,31 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ChangePasswordRequest": {
+            "type": "object",
+            "required": [
+                "new_password",
+                "old_password"
+            ],
+            "properties": {
+                "new_password": {
+                    "type": "string",
+                    "minLength": 8
+                },
+                "old_password": {
+                    "type": "string",
+                    "minLength": 8
+                }
+            }
+        },
+        "dto.CreateDomainRequest": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.CreateInvestmentRequest": {
             "type": "object",
             "required": [
@@ -2926,17 +4114,14 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
-                "end_date": {
-                    "type": "string"
+                "duration": {
+                    "type": "integer"
                 },
                 "phase_no": {
                     "type": "integer"
                 },
                 "sortOrder": {
                     "type": "integer"
-                },
-                "start_date": {
-                    "type": "string"
                 },
                 "status": {
                     "$ref": "#/definitions/domain.MilestoneStatus"
@@ -2969,6 +4154,20 @@ const docTemplate = `{
                 },
                 "visibility": {
                     "$ref": "#/definitions/domain.ProjectVisibility"
+                }
+            }
+        },
+        "dto.CreateUniversityRequest": {
+            "type": "object",
+            "properties": {
+                "name_en": {
+                    "type": "string"
+                },
+                "name_th": {
+                    "type": "string"
+                },
+                "province": {
+                    "type": "string"
                 }
             }
         },
@@ -3010,7 +4209,6 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "address": {
-                    "description": "optional",
                     "type": "string"
                 },
                 "bio": {
@@ -3032,15 +4230,63 @@ const docTemplate = `{
                 "phone": {
                     "type": "string"
                 },
+                "picture": {
+                    "type": "string"
+                },
                 "portfolio": {
                     "type": "string"
                 },
                 "skills": {
                     "type": "string"
                 },
+                "student_code": {
+                    "type": "string"
+                },
                 "university_id": {
                     "description": "--- Pioneer only ---\nUniversityID: จะถูก derive จาก domain ของ email ที่สมัคร (pioneer)\nยังคงไว้เพื่อ backward compatibility แต่ server จะ ignore ค่า input นี้",
                     "type": "integer"
+                }
+            }
+        },
+        "dto.RefundResponse": {
+            "type": "object",
+            "properties": {
+                "fees_deducted": {
+                    "type": "number"
+                },
+                "investment_id": {
+                    "type": "integer"
+                },
+                "reference_number": {
+                    "type": "string"
+                },
+                "refund_amount": {
+                    "type": "number"
+                },
+                "total_paid": {
+                    "type": "number"
+                }
+            }
+        },
+        "dto.SuspendUserInput": {
+            "type": "object",
+            "required": [
+                "reason"
+            ],
+            "properties": {
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UpdateDomainRequest": {
+            "type": "object",
+            "properties": {
+                "domain": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
                 }
             }
         },
@@ -3053,17 +4299,14 @@ const docTemplate = `{
                 "description": {
                     "type": "string"
                 },
-                "end_date": {
-                    "type": "string"
+                "duration": {
+                    "type": "integer"
                 },
                 "phase_no": {
                     "type": "integer"
                 },
                 "sort_order": {
                     "type": "integer"
-                },
-                "start_date": {
-                    "type": "string"
                 },
                 "status": {
                     "$ref": "#/definitions/domain.MilestoneStatus"
@@ -3137,18 +4380,7 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.UserSignin": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.UserSignup": {
+        "dto.UserSignUp": {
             "type": "object",
             "required": [
                 "accept_terms",
@@ -3189,6 +4421,17 @@ const docTemplate = `{
                         "pioneer",
                         "booster"
                     ]
+                }
+            }
+        },
+        "dto.UserSigning": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
                 }
             }
         },
