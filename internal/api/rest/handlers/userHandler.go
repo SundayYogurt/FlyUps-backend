@@ -223,7 +223,7 @@ func (h *UserHandler) Signing(ctx fiber.Ctx) error {
 		Value:    token,
 		HTTPOnly: true,
 		Secure:   true, // false ถ้า localhost
-		SameSite: "None",
+		SameSite: "Lax", // เปลี่ยนจาก "None" เป็น "Lax" เพื่อรองรับ iOS
 		Path:     "/",
 		MaxAge:   60 * 60 * 24, // 1 day
 	})
@@ -762,6 +762,8 @@ func (h *UserHandler) GoogleLogin(ctx fiber.Ctx) error {
 		Value:    state,
 		HTTPOnly: true,
 		Secure:   true,
+		SameSite: "Lax", // เพิ่ม SameSite เพื่อรองรับ iOS
+		Path:     "/",   // เพิ่ม Path
 		MaxAge:   300,
 	})
 	ctx.Cookie(&fiber.Cookie{
@@ -769,6 +771,8 @@ func (h *UserHandler) GoogleLogin(ctx fiber.Ctx) error {
 		Value:    role,
 		HTTPOnly: true,
 		Secure:   true,
+		SameSite: "Lax", // เพิ่ม SameSite เพื่อรองรับ iOS
+		Path:     "/",   // เพิ่ม Path
 		MaxAge:   300,
 	})
 
@@ -810,14 +814,30 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 		Value:    token,
 		HTTPOnly: true,
 		Secure:   true,
-		SameSite: "None",
+		SameSite: "Lax", // เปลี่ยนจาก "None" เป็น "Lax" เพื่อรองรับ iOS
 		Path:     "/",
 		MaxAge:   3600,
 	})
 
-	// ลบ oauth cookie
-	ctx.Cookie(&fiber.Cookie{Name: "oauthstate", Value: "", MaxAge: -1})
-	ctx.Cookie(&fiber.Cookie{Name: "oauth_role", Value: "", MaxAge: -1})
+	// ลบ oauth cookie (ต้อง set attributes ให้ตรงกับตอนสร้าง)
+	ctx.Cookie(&fiber.Cookie{
+		Name:     "oauthstate",
+		Value:    "",
+		MaxAge:   -1,
+		Path:     "/",
+		HTTPOnly: true,
+		Secure:   true,
+		SameSite: "Lax",
+	})
+	ctx.Cookie(&fiber.Cookie{
+		Name:     "oauth_role",
+		Value:    "",
+		MaxAge:   -1,
+		Path:     "/",
+		HTTPOnly: true,
+		Secure:   true,
+		SameSite: "Lax",
+	})
 
 	// Send token to frontend
 	redirectUrl := baseURL + "/"
@@ -837,7 +857,8 @@ func (h *UserHandler) SignOut(ctx fiber.Ctx) error {
 		Name:     "auth_token",
 		Value:    "",
 		Expires:  time.Now().Add(-time.Hour), // ทำให้หมดอายุทันที
-		SameSite: "None",
+		MaxAge:   -1,                          // เพิ่ม MaxAge เพื่อให้แน่ใจว่าลบได้
+		SameSite: "Lax",                       // เปลี่ยนจาก "None" เป็น "Lax"
 		Path:     "/",
 		HTTPOnly: true,
 		Secure:   true,
