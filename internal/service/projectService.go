@@ -251,6 +251,10 @@ func (s *projectService) DeleteProject(projectID uint, user domain.User) error {
 		return errors.New("permission denied")
 	}
 
+	if project.State != domain.StateDraft {
+		return errors.New("cannot delete project: only projects in draft state can be edited")
+	}
+
 	return s.projectRepo.DeleteProject(projectID)
 }
 
