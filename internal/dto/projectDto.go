@@ -73,7 +73,7 @@ type UpdateMilestoneRequest struct {
 	PhaseNo            *int                    `json:"phase_no"`
 	Status             *domain.MilestoneStatus `json:"status,omitempty"`
 	URLs               []string                `json:"urls,omitempty"`
-	Type               *domain.MediaType       `json:"type,omitempty"`
+	Type               []domain.MediaType      `json:"type,omitempty"`
 	SortOrder          *int                    `json:"sort_order,omitempty"`
 }
 
@@ -85,8 +85,8 @@ type CreateMilestoneRequest struct {
 	Status             *domain.MilestoneStatus `json:"status,omitempty"`
 	PhaseNo            int                     `json:"phase_no"`
 	URLs               []string                `json:"urls,omitempty"`
-	Type               domain.MediaType
-	SortOrder          int
+	Type               []domain.MediaType      `json:"type,omitempty"`
+	SortOrder          int                     `json:"sort_order,omitempty"`
 }
 
 type CreateProjectUpdateRequest struct {
@@ -100,3 +100,9 @@ type UpdateProjectUpdateRequest struct {
 	Title   *string `json:"title,omitempty"`
 	Content *string `json:"content,omitempty"`
 }
+
+type ProjectMediaItem struct {
+	URL  string               `json:"url" validate:"required" example:"https://res.cloudinary.com/dsvexmpb6/video/upload/v1774969166/flyup/projects/videos/demo.mp4"`
+	Type []domain.MediaType   `json:"type" validate:"required" example:"video"`
+}
+

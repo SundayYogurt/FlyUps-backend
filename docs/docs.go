@@ -2825,7 +2825,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Pioneer uploads media (image/video) URL to project",
+                "description": "Pioneer uploads multiple media (image/video) URLs to project in one request\nPioneer uploads array of media items (each with url and type array) to project",
                 "consumes": [
                     "application/json"
                 ],
@@ -2833,9 +2833,10 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
+                    "Projects",
                     "Projects"
                 ],
-                "summary": "Attach Media to Project",
+                "summary": "Attach Media Array to Project",
                 "parameters": [
                     {
                         "type": "integer",
@@ -2845,18 +2846,33 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Media Data",
+                        "description": "Array of Media Items",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.ProjectMediaItem"
+                            }
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Media attached",
+                        "description": "Media attached successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid body format or missing required fields",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object"
                         }
@@ -4120,7 +4136,7 @@ const docTemplate = `{
                 "phase_no": {
                     "type": "integer"
                 },
-                "sortOrder": {
+                "sort_order": {
                     "type": "integer"
                 },
                 "status": {
@@ -4130,7 +4146,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
-                    "$ref": "#/definitions/domain.MediaType"
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.MediaType"
+                    }
                 },
                 "urls": {
                     "type": "array",
@@ -4248,6 +4267,28 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ProjectMediaItem": {
+            "type": "object",
+            "required": [
+                "type",
+                "url"
+            ],
+            "properties": {
+                "type": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.MediaType"
+                    },
+                    "example": [
+                        "video"
+                    ]
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://res.cloudinary.com/dsvexmpb6/video/upload/v1774969166/flyup/projects/videos/demo.mp4"
+                }
+            }
+        },
         "dto.RefundResponse": {
             "type": "object",
             "properties": {
@@ -4315,7 +4356,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
-                    "$ref": "#/definitions/domain.MediaType"
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.MediaType"
+                    }
                 },
                 "urls": {
                     "type": "array",

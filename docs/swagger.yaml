@@ -84,14 +84,16 @@ definitions:
         type: integer
       phase_no:
         type: integer
-      sortOrder:
+      sort_order:
         type: integer
       status:
         $ref: '#/definitions/domain.MilestoneStatus'
       title:
         type: string
       type:
-        $ref: '#/definitions/domain.MediaType'
+        items:
+          $ref: '#/definitions/domain.MediaType'
+        type: array
       urls:
         items:
           type: string
@@ -171,6 +173,21 @@ definitions:
           ยังคงไว้เพื่อ backward compatibility แต่ server จะ ignore ค่า input นี้
         type: integer
     type: object
+  dto.ProjectMediaItem:
+    properties:
+      type:
+        example:
+        - video
+        items:
+          $ref: '#/definitions/domain.MediaType'
+        type: array
+      url:
+        example: https://res.cloudinary.com/dsvexmpb6/video/upload/v1774969166/flyup/projects/videos/demo.mp4
+        type: string
+    required:
+    - type
+    - url
+    type: object
   dto.RefundResponse:
     properties:
       fees_deducted:
@@ -215,7 +232,9 @@ definitions:
       title:
         type: string
       type:
-        $ref: '#/definitions/domain.MediaType'
+        items:
+          $ref: '#/definitions/domain.MediaType'
+        type: array
       urls:
         items:
           type: string
@@ -1722,30 +1741,43 @@ paths:
     post:
       consumes:
       - application/json
-      description: Pioneer uploads media (image/video) URL to project
+      description: |-
+        Pioneer uploads multiple media (image/video) URLs to project in one request
+        Pioneer uploads array of media items (each with url and type array) to project
       parameters:
       - description: Project ID
         in: path
         name: id
         required: true
         type: integer
-      - description: Media Data
+      - description: Array of Media Items
         in: body
         name: request
         required: true
         schema:
-          type: object
+          items:
+            $ref: '#/definitions/dto.ProjectMediaItem'
+          type: array
       produces:
       - application/json
       responses:
         "200":
-          description: Media attached
+          description: Media attached successfully
+          schema:
+            type: object
+        "400":
+          description: Invalid body format or missing required fields
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
           schema:
             type: object
       security:
       - BearerAuth: []
-      summary: Attach Media to Project
+      summary: Attach Media Array to Project
       tags:
+      - Projects
       - Projects
   /pioneer/projects/{id}/milestones:
     get:

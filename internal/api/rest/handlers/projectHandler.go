@@ -140,14 +140,20 @@ func (h *ProjectHandler) CancelProject(ctx fiber.Ctx) error {
 
 // AttachProjectMedia godoc
 // @Summary Attach Media to Project
-// @Description Pioneer uploads media (image/video) URL to project
+// @Description Pioneer uploads multiple media (image/video) URLs to project in one request
+// @Tags Projects
+// AttachProjectMedia godoc
+// @Summary Attach Media Array to Project
+// @Description Pioneer uploads array of media items (each with url and type array) to project
 // @Tags Projects
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "Project ID"
-// @Param request body object true "Media Data"
-// @Success 200 {object} object "Media attached"
+// @Param request body []dto.ProjectMediaItem true "Array of Media Items"
+// @Success 200 {object} object "Media attached successfully"
+// @Failure 400 {object} object "Invalid body format or missing required fields"
+// @Failure 401 {object} object "Unauthorized"
 // @Router /pioneer/projects/{id}/media [post]
 func (h *ProjectHandler) AttachProjectMedia(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
@@ -160,30 +166,39 @@ func (h *ProjectHandler) AttachProjectMedia(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid project id")
 	}
 
-	var body struct {
-		URL  string           `json:"url" validate:"required"`
-		Type domain.MediaType `json:"type" validate:"required"`
+	type mediaItem struct {
+		URL  string             `json:"url" validate:"required"`
+		Type []domain.MediaType `json:"type" validate:"required"`
 	}
 
-	if err := ctx.Bind().Body(&body); err != nil {
-		return rest.BadRequestError(ctx, "invalid body")
+	var items []mediaItem
+	if err := ctx.Bind().Body(&items); err != nil {
+		return rest.BadRequestError(ctx, "invalid body: expected array of {url, type[]}")
 	}
 
-	if err := h.validator.Struct(body); err != nil {
-		return rest.BadRequestError(ctx, "invalid input")
+	if len(items) == 0 {
+		return rest.BadRequestError(ctx, "at least one media item is required")
 	}
 
-	media := &domain.ProjectMedia{
-		Type: body.Type,
-		URL:  body.URL,
+	var created []domain.ProjectMedia
+	for _, item := range items {
+		if err := h.validator.Struct(item); err != nil {
+			return rest.BadRequestError(ctx, "invalid item: "+err.Error())
+		}
+		if len(item.Type) == 0 {
+			return rest.BadRequestError(ctx, "type is required for each media item")
+		}
+		if err := h.svc.AttachProjectMedia(ctx.Context(), uint(id), item.URL, item.Type, user); err != nil {
+			return rest.InternalError(ctx, err)
+		}
+		created = append(created, domain.ProjectMedia{
+			ProjectID: uint(id),
+			URL:       item.URL,
+			Type:      item.Type,
+		})
 	}
 
-	err = h.svc.AttachProjectMedia(ctx.Context(), uint(id), body.URL, body.Type, user)
-	if err != nil {
-		return rest.InternalError(ctx, err)
-	}
-
-	return rest.SuccessResponse(ctx, "media attached", media)
+	return rest.SuccessResponse(ctx, "media attached", created)
 }
 
 // CreateCategory godoc
