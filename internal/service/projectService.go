@@ -27,7 +27,7 @@ type ProjectService interface {
 	UpdateProjectStatus(projectID uint, newState domain.ProjectState, newStatus domain.ProjectStatus) error
 
 	// MEDIA
-	AttachProjectMedia(ctx context.Context, projectID uint, url string, mediaType domain.MediaType, user domain.User) error
+	AttachProjectMedia(ctx context.Context, projectID uint, url string, mediaTypes []domain.MediaType, user domain.User) error
 	GetProjectMedia(projectID uint) ([]domain.ProjectMedia, error)
 	UpdateProjectMedia(mediaID uint, input *domain.ProjectMedia, user domain.User) error
 	DeleteProjectMedia(mediaID uint, user domain.User) error
@@ -341,7 +341,7 @@ func (s *projectService) UpdateProjectStatus(projectID uint, newState domain.Pro
 }
 
 // MEDIA
-func (s *projectService) AttachProjectMedia(ctx context.Context, projectID uint, url string, mediaType domain.MediaType, user domain.User) error {
+func (s *projectService) AttachProjectMedia(ctx context.Context, projectID uint, url string, mediaTypes []domain.MediaType, user domain.User) error {
 	project, err := s.projectRepo.FindProjectByID(projectID)
 	if err != nil {
 		return err
@@ -354,7 +354,7 @@ func (s *projectService) AttachProjectMedia(ctx context.Context, projectID uint,
 	media := &domain.ProjectMedia{
 		ProjectID: projectID,
 		URL:       url,
-		Type:      mediaType,
+		Type:      mediaTypes,
 	}
 
 	return s.projectRepo.CreateProjectMedia(media)
@@ -388,7 +388,7 @@ func (s *projectService) UpdateProjectMedia(mediaID uint, input *domain.ProjectM
 	if input.URL != "" {
 		media.URL = input.URL
 	}
-	if input.Type != "" {
+	if len(input.Type) > 0 {
 		media.Type = input.Type
 	}
 	if input.SortOrder != 0 {
@@ -519,16 +519,13 @@ func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMiles
 		}
 	}
 
-	if input.Type != nil {
-		if strings.TrimSpace(string(*input.Type)) == "" {
-			// ignore empty type from clients
-		} else {
-			// milestone รับแค่ excel
-			if *input.Type != domain.MediaTypeRaw && *input.Type != domain.MediaTypeImage && *input.Type != domain.MediaTypeVideo {
-				return errors.New("milestone supports only raw file (excel)")
+	if len(input.Type) > 0 {
+		for _, t := range input.Type {
+			if t != domain.MediaTypeRaw && t != domain.MediaTypeImage && t != domain.MediaTypeVideo {
+				return errors.New("unsupported media type: " + string(t))
 			}
-			m.Type = *input.Type
 		}
+		m.Type = input.Type
 	}
 
 	if input.SortOrder != nil {

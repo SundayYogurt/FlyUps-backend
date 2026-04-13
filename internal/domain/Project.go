@@ -79,7 +79,7 @@ const (
 type ProjectMedia struct {
 	ID        uint      `json:"id"`
 	ProjectID uint      `json:"project_id"`
-	Type      MediaType `json:"type"`
+	Type      []MediaType `json:"type" gorm:"type:json;serializer:json"`
 	URL       string    `json:"url"`
 	SortOrder int       `json:"sort_order"`
 }
@@ -120,7 +120,7 @@ type Milestone struct {
 	Description        *string         `json:"description"`
 	Duration           *int            `json:"duration,omitempty"`
 	AcceptanceCriteria *string         `json:"acceptance_criteria"`
-	Type               MediaType       `json:"type"`
+	Type               []MediaType     `json:"type" gorm:"type:json;serializer:json"`
 	URLs               []string        `json:"urls" gorm:"type:json;serializer:json"`
 	SortOrder          int             `json:"sort_order"`
 	PercentRelease     int             `json:"percent_release"`
