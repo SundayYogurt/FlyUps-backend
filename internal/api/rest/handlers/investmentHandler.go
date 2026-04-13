@@ -249,6 +249,17 @@ func (h *InvestmentHandler) StripeWebhook(ctx fiber.Ctx) error {
 	return ctx.Status(http.StatusOK).JSON(fiber.Map{"received": true})
 }
 
+// GetProjectInvestors godoc
+// @Summary Get project investors
+// @Description Get all investors for a specific project (public endpoint)
+// @Tags Investments
+// @Produce json
+// @Param projectId path int true "Project ID"
+// @Success 200 {object} object "Project investors list"
+// @Failure 400 {object} object "Invalid project ID"
+// @Failure 404 {object} object "Project not found"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /investments/projects/{projectId}/investors [get]
 func (h *InvestmentHandler) GetProjectInvestors(ctx fiber.Ctx) error {
 	projectID, err := strconv.ParseUint(ctx.Params("projectId"), 10, 32)
 	if err != nil {
@@ -269,6 +280,16 @@ func (h *InvestmentHandler) GetProjectInvestors(ctx fiber.Ctx) error {
 	})
 }
 
+// ListMyInvestedProjects godoc
+// @Summary List my invested projects
+// @Description Get all projects that the current booster user has invested in
+// @Tags Investments
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} object "List of invested projects"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /investments/my-projects [get]
 func (h *InvestmentHandler) ListMyInvestedProjects(ctx fiber.Ctx) error {
 	currentUser := h.auth.GetCurrentUser(ctx)
 	if currentUser.ID == 0 {

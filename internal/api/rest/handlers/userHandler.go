@@ -670,6 +670,19 @@ func (h *UserHandler) RejectCardID(ctx fiber.Ctx) error {
 	})
 }
 
+// SuspendUser godoc
+// @Summary Suspend user account
+// @Description Admin suspends a user account with a reason
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "User ID"
+// @Param request body dto.SuspendUserInput true "Suspend reason"
+// @Success 200 {object} object "user suspended"
+// @Failure 400 {object} object "Invalid request or reason"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/suspend-user/{id} [patch]
 func (h *UserHandler) SuspendUser(ctx fiber.Ctx) error {
 	admin := h.auth.GetCurrentUser(ctx)
 	if admin.ID == 0 {
@@ -699,6 +712,17 @@ func (h *UserHandler) SuspendUser(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "user suspended", nil)
 }
 
+// RollbackUser godoc
+// @Summary Rollback suspended user
+// @Description Admin restores a suspended user back to active status
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "User ID"
+// @Success 200 {object} object "user come back to active!"
+// @Failure 400 {object} object "Invalid user ID or rollback error"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/rollback-user/{id} [patch]
 func (h *UserHandler) RollbackUser(ctx fiber.Ctx) error {
 	admin := h.auth.GetCurrentUser(ctx)
 	if admin.ID == 0 {
@@ -800,6 +824,14 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 	return ctx.Redirect().To(redirectUrl)
 }
 
+// SignOut godoc
+// @Summary Sign out
+// @Description Sign out and clear the auth cookie
+// @Tags Users
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} object "logout success"
+// @Router /user/signout [post]
 func (h *UserHandler) SignOut(ctx fiber.Ctx) error {
 	ctx.Cookie(&fiber.Cookie{
 		Name:     "auth_token",
@@ -816,6 +848,19 @@ func (h *UserHandler) SignOut(ctx fiber.Ctx) error {
 	})
 }
 
+// UpdateUniversity godoc
+// @Summary Update university
+// @Description Admin updates university information
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "University ID"
+// @Param request body dto.CreateUniversityRequest true "University data"
+// @Success 200 {object} object "update university success"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/update-university/{id} [put]
 func (h *UserHandler) UpdateUniversity(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -844,6 +889,18 @@ func (h *UserHandler) UpdateUniversity(ctx fiber.Ctx) error {
 	})
 }
 
+// CreateUniversity godoc
+// @Summary Create university
+// @Description Admin creates a new university
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.CreateUniversityRequest true "University data"
+// @Success 200 {object} object "create university success"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/create-university [post]
 func (h *UserHandler) CreateUniversity(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -867,6 +924,17 @@ func (h *UserHandler) CreateUniversity(ctx fiber.Ctx) error {
 	})
 }
 
+// GetUniversity godoc
+// @Summary Get university by ID
+// @Description Admin gets university details by ID
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "University ID"
+// @Success 200 {object} object "get university success"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/university/{id} [get]
 func (h *UserHandler) GetUniversity(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -890,6 +958,15 @@ func (h *UserHandler) GetUniversity(ctx fiber.Ctx) error {
 	})
 }
 
+// GetUniversities godoc
+// @Summary Get all universities
+// @Description Admin gets list of all universities
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} object "get universities success"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/universities [get]
 func (h *UserHandler) GetUniversities(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -907,6 +984,17 @@ func (h *UserHandler) GetUniversities(ctx fiber.Ctx) error {
 	})
 }
 
+// DeleteUniversity godoc
+// @Summary Delete university
+// @Description Admin deletes a university by ID
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "University ID"
+// @Success 200 {object} object "delete university success"
+// @Failure 400 {object} object "Invalid university ID"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/delete-university/{id} [delete]
 func (h *UserHandler) DeleteUniversity(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -929,6 +1017,19 @@ func (h *UserHandler) DeleteUniversity(ctx fiber.Ctx) error {
 	})
 }
 
+// CreateUniversityDomain godoc
+// @Summary Create university domain
+// @Description Admin adds a new email domain for a university
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "University ID"
+// @Param request body dto.CreateDomainRequest true "Domain data"
+// @Success 200 {object} object "create domain of university success"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/create-university-domain/{id} [post]
 func (h *UserHandler) CreateUniversityDomain(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -958,6 +1059,19 @@ func (h *UserHandler) CreateUniversityDomain(ctx fiber.Ctx) error {
 	})
 }
 
+// UpdateUniversityDomain godoc
+// @Summary Update university domain
+// @Description Admin updates an email domain for a university
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Domain ID"
+// @Param request body dto.UpdateDomainRequest true "Domain data"
+// @Success 200 {object} object "update domain of university success"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/update-university-domain/{id} [put]
 func (h *UserHandler) UpdateUniversityDomain(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -987,6 +1101,17 @@ func (h *UserHandler) UpdateUniversityDomain(ctx fiber.Ctx) error {
 	})
 }
 
+// DeleteUniversityDomain godoc
+// @Summary Delete university domain
+// @Description Admin removes an email domain from a university
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Domain ID"
+// @Success 200 {object} object "delete university domain success"
+// @Failure 400 {object} object "Invalid domain ID"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/delete-university-domain/{id} [delete]
 func (h *UserHandler) DeleteUniversityDomain(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -1009,6 +1134,19 @@ func (h *UserHandler) DeleteUniversityDomain(ctx fiber.Ctx) error {
 
 }
 
+// ChangePassword godoc
+// @Summary Change password
+// @Description Authenticated user changes their current password
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.ChangePasswordRequest true "Change password data"
+// @Success 200 {object} object "change password success"
+// @Failure 400 {object} object "Invalid request body"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /user/change-password [put]
 func (h *UserHandler) ChangePassword(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -1032,6 +1170,16 @@ func (h *UserHandler) ChangePassword(ctx fiber.Ctx) error {
 
 }
 
+// GetStudentsCardRequest godoc
+// @Summary Get student card verification requests
+// @Description Admin gets all pending student card verification requests
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} object "get students card verify request success"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /admin/student-verifications [get]
 func (h *UserHandler) GetStudentsCardRequest(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -1049,6 +1197,16 @@ func (h *UserHandler) GetStudentsCardRequest(ctx fiber.Ctx) error {
 	})
 }
 
+// GetCardIDRequests godoc
+// @Summary Get ID card verification requests
+// @Description Admin gets all pending national ID card verification requests
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} object "get users cardID verify request success"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /admin/id-card-verifications [get]
 func (h *UserHandler) GetCardIDRequests(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
