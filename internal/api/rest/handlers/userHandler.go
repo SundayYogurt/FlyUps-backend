@@ -203,19 +203,30 @@ func (h *UserHandler) Signing(ctx fiber.Ctx) error {
 	token, err := h.svc.Signing(signingInput.Email, signingInput.Password)
 
 	if err != nil {
+		errMsg := err.Error()
 
-		// แยก error verify email
-		if err.Error() == "please verify your email first" {
+		// แยก error แต่ละประเภท
+		switch errMsg {
+		case "please verify your email first":
 			return ctx.Status(http.StatusForbidden).JSON(fiber.Map{
-				"message": err.Error(),
+				"message": errMsg,
+			})
+		case "your account has been suspended":
+			return ctx.Status(http.StatusForbidden).JSON(fiber.Map{
+				"message": errMsg,
+			})
+		case "this email is registered with Google. Please use 'Continue with Google' to login":
+			return ctx.Status(http.StatusBadRequest).JSON(fiber.Map{
+				"message": errMsg,
+				"login_method": "google",
+			})
+		default:
+			// invalid email or password
+			log.Println("signin error:", err)
+			return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{
+				"message": "invalid email or password",
 			})
 		}
-
-		log.Println("signin error:", err)
-
-		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{
-			"message": "please provide correct email and password",
-		})
 	}
 	// set cookie
 	ctx.Cookie(&fiber.Cookie{
