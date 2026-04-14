@@ -217,7 +217,7 @@ func (h *UserHandler) Signing(ctx fiber.Ctx) error {
 			})
 		case "this email is registered with Google. Please use 'Continue with Google' to login":
 			return ctx.Status(http.StatusBadRequest).JSON(fiber.Map{
-				"message": errMsg,
+				"message":      errMsg,
 				"login_method": "google",
 			})
 		default:
@@ -233,7 +233,7 @@ func (h *UserHandler) Signing(ctx fiber.Ctx) error {
 		Name:     "auth_token",
 		Value:    token,
 		HTTPOnly: true,
-		Secure:   true, // false ถ้า localhost
+		Secure:   true,   // false ถ้า localhost
 		SameSite: "None", // required for cross-site cookie on Safari/iOS
 		Path:     "/",
 		MaxAge:   60 * 60 * 24, // 1 day
@@ -828,7 +828,7 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 	})
 
 	// Send token to frontend
-	redirectUrl := baseURL + "/"
+	redirectUrl := baseURL + "/?token=" + token
 	return ctx.Redirect().To(redirectUrl)
 }
 
@@ -845,8 +845,8 @@ func (h *UserHandler) SignOut(ctx fiber.Ctx) error {
 		Name:     "auth_token",
 		Value:    "",
 		Expires:  time.Now().Add(-time.Hour), // ทำให้หมดอายุทันที
-		MaxAge:   -1,                          // เพิ่ม MaxAge เพื่อให้แน่ใจว่าลบได้
-		SameSite: "None",                      // keep same attributes when deleting
+		MaxAge:   -1,                         // เพิ่ม MaxAge เพื่อให้แน่ใจว่าลบได้
+		SameSite: "None",                     // keep same attributes when deleting
 		Path:     "/",
 		HTTPOnly: true,
 		Secure:   true,
