@@ -31,6 +31,7 @@ type InvestmentService interface {
 	ListRefundRequests() ([]dto.RefundRequestItem, error)
 	GetProjectInvestors(projectID uint) ([]dto.ProjectInvestorItem, error)
 	ListInvestedProjects(boosterUserID uint) ([]dto.InvestedProjectItem, error)
+	VoteMilestone(boosterUserID uint, milestoneID uint, choice domain.MilestoneVoteChoice) (*domain.MilestoneVote, error)
 }
 
 type investmentService struct {
@@ -301,6 +302,67 @@ func (s *investmentService) GetProjectInvestors(projectID uint) ([]dto.ProjectIn
 
 func (s *investmentService) ListInvestedProjects(boosterUserID uint) ([]dto.InvestedProjectItem, error) {
 	return s.investmentRepo.ListInvestedProjectsByUserID(boosterUserID)
+}
+
+func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, choice domain.MilestoneVoteChoice) (*domain.MilestoneVote, error) {
+	if boosterUserID == 0 {
+		return nil, errors.New("unauthorized")
+	}
+	if choice != domain.MilestoneVoteApprove && choice != domain.MilestoneVoteReject {
+		return nil, errors.New("invalid vote choice")
+	}
+
+	m, err := s.projectRepo.FindMilestoneByID(milestoneID)
+	if err != nil {
+		return nil, errors.New("milestone not found")
+	}
+
+	// allow voting only when pioneer opened voting after admin approval
+	if m.Status != domain.MilestoneApproved || !m.VotingOpen {
+		return nil, errors.New("voting is not open")
+	}
+
+	ok, err := s.projectRepo.HasVerifiedInvestment(m.ProjectID, boosterUserID)
+	if err != nil {
+		return nil, errors.New("internal server error")
+	}
+	if !ok {
+		return nil, errors.New("only verified investors can vote")
+	}
+
+	vote := &domain.MilestoneVote{
+		MilestoneID:   milestoneID,
+		ProjectID:     m.ProjectID,
+		BoosterUserID: boosterUserID,
+		Choice:        choice,
+	}
+	if err := s.projectRepo.UpsertMilestoneVote(vote); err != nil {
+		return nil, errors.New("failed to save vote")
+	}
+
+	// auto-finalize: if approval reaches strict majority of eligible verified investors -> paid
+	eligible, err := s.projectRepo.CountVerifiedBoostersByProjectID(m.ProjectID)
+	if err == nil && eligible > 0 {
+		approveCount, err2 := s.projectRepo.CountMilestoneVotes(milestoneID, domain.MilestoneVoteApprove)
+		if err2 == nil && approveCount*2 > eligible {
+			now := time.Now().UTC()
+			m.Status = domain.MilestonePaid
+			m.VotingOpen = false
+			m.VotingClosedAt = &now
+			_ = s.projectRepo.UpdateMilestone(m)
+		}
+
+		rejectCount, err3 := s.projectRepo.CountMilestoneVotes(milestoneID, domain.MilestoneVoteReject)
+		if err3 == nil && rejectCount*2 > eligible {
+			now := time.Now().UTC()
+			m.Status = domain.MilestoneRejected
+			m.VotingOpen = false
+			m.VotingClosedAt = &now
+			_ = s.projectRepo.UpdateMilestone(m)
+		}
+	}
+
+	return vote, nil
 }
 
 // // private methods

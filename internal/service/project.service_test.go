@@ -85,7 +85,11 @@ func TestDeleteProject_Success(t *testing.T) {
 	projectID := uint(10)
 
 	// Mock finding project
-	projRepo.On("FindProjectByID", projectID).Return(&domain.Project{ID: projectID, OwnerUserID: user.ID}, nil)
+	projRepo.On("FindProjectByID", projectID).Return(&domain.Project{
+		ID:          projectID,
+		OwnerUserID: user.ID,
+		State:       domain.StateDraft,
+	}, nil)
 
 	// Mock executing delete
 	projRepo.On("DeleteProject", projectID).Return(nil)
@@ -152,13 +156,11 @@ func TestGetProjectDetailByID_Success(t *testing.T) {
 	svc := NewProjectService(projRepo, nil, nil, nil)
 
 	projectID := uint(100)
-	expectedProject := &domain.Project{ID: projectID, Title: "Detail View"}
+	expectedProject := &domain.Project{ID: projectID, Title: "Detail View", State: domain.StateFunding}
 
-	// Mock call expects pointers. We will just pass mock.Anything or correct ptrs.
-	statePtr := domain.StateFunding
 	statusPtr := domain.StatusActive
 	visibilityPtr := domain.VisibilityPublic
-	projRepo.On("FindProjectDetailByID", projectID, &statePtr, &statusPtr, &visibilityPtr).Return(expectedProject, nil)
+	projRepo.On("FindProjectDetailByID", projectID, (*domain.ProjectState)(nil), &statusPtr, &visibilityPtr).Return(expectedProject, nil)
 
 	res, err := svc.GetProjectDetailByID(projectID)
 

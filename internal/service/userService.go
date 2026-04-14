@@ -1105,7 +1105,7 @@ func (s *userService) GetProfile(userID uint) (*domain.User, error) {
 
 	// ดึง university จาก university_domains ตาม email domain ของ user
 	parts := strings.Split(user.Email, "@")
-	if len(parts) == 2 {
+	if len(parts) == 2 && s.URepo != nil {
 		uniDomain, err := s.URepo.GetUniversityByDomain(parts[1])
 		if err == nil && uniDomain != nil {
 			if user.StudentProfile == nil {

@@ -605,6 +605,124 @@
                 }
             }
         },
+        "/admin/projects/milestones/submitted": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin gets milestones waiting review (status=submitted). Optional filter by project_id query.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Admin list submitted milestones",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Project ID filter",
+                        "name": "project_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Submitted milestones",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/projects/milestones/{milestone_id}/approve": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin approves milestone submission and marks it as paid (no approved state)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Admin approves milestone submission",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Milestone ID",
+                        "name": "milestone_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Milestone marked as paid",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/projects/milestones/{milestone_id}/reject": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin rejects milestone submission (keeps rejected state for resubmission)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Admin rejects milestone submission",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Milestone ID",
+                        "name": "milestone_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Optional reason",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Milestone rejected",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/projects/pending-review": {
             "get": {
                 "security": [
@@ -1488,6 +1606,64 @@
                 }
             }
         },
+        "/investments/milestones/{milestone_id}/vote": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Verified investor votes approve/reject on a submitted milestone",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Investments"
+                ],
+                "summary": "Vote on milestone submission",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Milestone ID",
+                        "name": "milestone_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Vote payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.VoteMilestoneRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Vote saved",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/investments/my-projects": {
             "get": {
                 "security": [
@@ -2249,6 +2425,89 @@
                 "responses": {
                     "200": {
                         "description": "Milestone updated",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/pioneer/projects/milestones/{milestone_id}/open-vote": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Pioneer opens booster voting after admin approves milestone submission",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Open milestone voting",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Milestone ID",
+                        "name": "milestone_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Voting opened",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/pioneer/projects/milestones/{milestone_id}/submit": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Pioneer submits milestone evidence (summary, criteria, attachments, external links)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Submit Project Milestone",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Milestone ID",
+                        "name": "milestone_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Milestone submission payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.SubmitMilestoneRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Milestone submitted",
                         "schema": {
                             "type": "object"
                         }
@@ -4307,6 +4566,41 @@
                 }
             }
         },
+        "dto.SubmitMilestoneRequest": {
+            "type": "object",
+            "required": [
+                "summary"
+            ],
+            "properties": {
+                "attachments": {
+                    "description": "evidence files uploaded to Cloudinary (use /upload first)",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "criteria": {
+                    "description": "checklist or items done (e.g. mapped from acceptance criteria)",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "links": {
+                    "description": "external links (GitHub, Figma, docs, etc.)",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "summary": {
+                    "description": "summary of what has been done in this phase",
+                    "type": "string",
+                    "maxLength": 5000,
+                    "minLength": 1
+                }
+            }
+        },
         "dto.SuspendUserInput": {
             "type": "object",
             "required": [
@@ -4509,6 +4803,21 @@
                 },
                 "student_card_url": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.VoteMilestoneRequest": {
+            "type": "object",
+            "required": [
+                "choice"
+            ],
+            "properties": {
+                "choice": {
+                    "type": "string",
+                    "enum": [
+                        "approve",
+                        "reject"
+                    ]
                 }
             }
         }

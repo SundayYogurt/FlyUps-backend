@@ -681,6 +681,54 @@ func (_m *ProjectRepository) FindMilestonesByProjectID(projectID uint) ([]domain
 	return r0, r1
 }
 
+// FindMilestonesByStatus provides a mock function with given fields: status
+func (_m *ProjectRepository) FindMilestonesByStatus(status domain.MilestoneStatus) ([]domain.Milestone, error) {
+	ret := _m.Called(status)
+	if len(ret) == 0 {
+		panic("no return value specified for FindMilestonesByStatus")
+	}
+	var r0 []domain.Milestone
+	var r1 error
+	if rf, ok := ret.Get(0).(func(domain.MilestoneStatus) ([]domain.Milestone, error)); ok {
+		return rf(status)
+	}
+	if rf, ok := ret.Get(0).(func(domain.MilestoneStatus) []domain.Milestone); ok {
+		r0 = rf(status)
+	} else if ret.Get(0) != nil {
+		r0 = ret.Get(0).([]domain.Milestone)
+	}
+	if rf, ok := ret.Get(1).(func(domain.MilestoneStatus) error); ok {
+		r1 = rf(status)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// FindMilestonesByProjectIDAndStatus provides a mock function with given fields: projectID, status
+func (_m *ProjectRepository) FindMilestonesByProjectIDAndStatus(projectID uint, status domain.MilestoneStatus) ([]domain.Milestone, error) {
+	ret := _m.Called(projectID, status)
+	if len(ret) == 0 {
+		panic("no return value specified for FindMilestonesByProjectIDAndStatus")
+	}
+	var r0 []domain.Milestone
+	var r1 error
+	if rf, ok := ret.Get(0).(func(uint, domain.MilestoneStatus) ([]domain.Milestone, error)); ok {
+		return rf(projectID, status)
+	}
+	if rf, ok := ret.Get(0).(func(uint, domain.MilestoneStatus) []domain.Milestone); ok {
+		r0 = rf(projectID, status)
+	} else if ret.Get(0) != nil {
+		r0 = ret.Get(0).([]domain.Milestone)
+	}
+	if rf, ok := ret.Get(1).(func(uint, domain.MilestoneStatus) error); ok {
+		r1 = rf(projectID, status)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
 // FindProjectByID provides a mock function with given fields: id
 func (_m *ProjectRepository) FindProjectByID(id uint) (*domain.Project, error) {
 	ret := _m.Called(id)
@@ -1315,6 +1363,93 @@ func (_m *ProjectRepository) UpdateThreadMessage(msg *domain.ProjectThreadMessag
 	}
 
 	return r0
+}
+
+// UpsertMilestoneVote provides a mock function with given fields: vote
+func (_m *ProjectRepository) UpsertMilestoneVote(vote *domain.MilestoneVote) error {
+	ret := _m.Called(vote)
+	if len(ret) == 0 {
+		panic("no return value specified for UpsertMilestoneVote")
+	}
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*domain.MilestoneVote) error); ok {
+		r0 = rf(vote)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// CountVerifiedBoostersByProjectID provides a mock function with given fields: projectID
+func (_m *ProjectRepository) CountVerifiedBoostersByProjectID(projectID uint) (int64, error) {
+	ret := _m.Called(projectID)
+	if len(ret) == 0 {
+		panic("no return value specified for CountVerifiedBoostersByProjectID")
+	}
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(uint) (int64, error)); ok {
+		return rf(projectID)
+	}
+	if rf, ok := ret.Get(0).(func(uint) int64); ok {
+		r0 = rf(projectID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if rf, ok := ret.Get(1).(func(uint) error); ok {
+		r1 = rf(projectID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// CountMilestoneVotes provides a mock function with given fields: milestoneID, choice
+func (_m *ProjectRepository) CountMilestoneVotes(milestoneID uint, choice domain.MilestoneVoteChoice) (int64, error) {
+	ret := _m.Called(milestoneID, choice)
+	if len(ret) == 0 {
+		panic("no return value specified for CountMilestoneVotes")
+	}
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(uint, domain.MilestoneVoteChoice) (int64, error)); ok {
+		return rf(milestoneID, choice)
+	}
+	if rf, ok := ret.Get(0).(func(uint, domain.MilestoneVoteChoice) int64); ok {
+		r0 = rf(milestoneID, choice)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if rf, ok := ret.Get(1).(func(uint, domain.MilestoneVoteChoice) error); ok {
+		r1 = rf(milestoneID, choice)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// HasVerifiedInvestment provides a mock function with given fields: projectID, boosterUserID
+func (_m *ProjectRepository) HasVerifiedInvestment(projectID uint, boosterUserID uint) (bool, error) {
+	ret := _m.Called(projectID, boosterUserID)
+	if len(ret) == 0 {
+		panic("no return value specified for HasVerifiedInvestment")
+	}
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(uint, uint) (bool, error)); ok {
+		return rf(projectID, boosterUserID)
+	}
+	if rf, ok := ret.Get(0).(func(uint, uint) bool); ok {
+		r0 = rf(projectID, boosterUserID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if rf, ok := ret.Get(1).(func(uint, uint) error); ok {
+		r1 = rf(projectID, boosterUserID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // NewProjectRepository creates a new instance of ProjectRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

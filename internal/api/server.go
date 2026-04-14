@@ -47,6 +47,7 @@ func StartServer(cfg config.AppConfig) {
 		&domain.StorySection{},
 		&domain.ProjectFAQ{},
 		&domain.Milestone{},
+		&domain.MilestoneVote{},
 		&domain.ProjectInvestment{},
 		&domain.ProjectUpdate{},
 		&domain.ProjectThread{},
