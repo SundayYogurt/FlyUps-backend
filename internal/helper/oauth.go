@@ -1,6 +1,9 @@
 package helper
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"flyup/config"
 
 	"golang.org/x/oauth2"
@@ -18,4 +21,10 @@ func SetupGoogleOAuth(cfg config.AppConfig) *oauth2.Config {
 		},
 		Endpoint: google.Endpoint,
 	}
+}
+
+func Sha256HmacHex(data, secret string) string {
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write([]byte(data))
+	return hex.EncodeToString(mac.Sum(nil))
 }
