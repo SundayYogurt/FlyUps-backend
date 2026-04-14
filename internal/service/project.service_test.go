@@ -6,6 +6,7 @@ import (
 	"flyup/internal/dto"
 	"flyup/internal/helper"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -282,4 +283,60 @@ func TestGetProjectPendingDetail_fail_invalidID(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
+}
+
+func TestAutoProjectLifecycleTick_FundingExpireToDraftFailed(t *testing.T) {
+	projRepo := new(ProjectRepository)
+	svc := NewProjectService(projRepo, nil, nil, nil)
+
+	state := domain.StateFunding
+	status := domain.StatusActive
+	now := time.Now().UTC()
+	expired := domain.Project{
+		ID:            99,
+		State:         domain.StateFunding,
+		Status:        domain.StatusActive,
+		Softcap:       70000,
+		CurrentFunding: 10000,
+		EndDate:       now.Add(-1 * time.Hour),
+	}
+
+	executing := domain.StateExecuting
+	projRepo.On("FindProjects", &state, &status, (*domain.ProjectVisibility)(nil)).Return([]domain.Project{expired}, nil)
+	projRepo.On("FindProjects", &executing, &status, (*domain.ProjectVisibility)(nil)).Return([]domain.Project{}, nil)
+	projRepo.On("UpdateProject", mock.AnythingOfType("*domain.Project")).Return(&expired, nil)
+
+	err := svc.AutoProjectLifecycleTick(now)
+	assert.NoError(t, err)
+	projRepo.AssertExpectations(t)
+}
+
+func TestAutoProjectLifecycleTick_ExecutionExpireToClosedFailed(t *testing.T) {
+	projRepo := new(ProjectRepository)
+	svc := NewProjectService(projRepo, nil, nil, nil)
+
+	funding := domain.StateFunding
+	executing := domain.StateExecuting
+	status := domain.StatusActive
+	now := time.Now().UTC()
+	executionEnd := now.Add(-1 * time.Hour)
+	executingProject := domain.Project{
+		ID:             88,
+		State:          domain.StateExecuting,
+		Status:         domain.StatusActive,
+		ExecutionEndAt: &executionEnd,
+	}
+	milestones := []domain.Milestone{
+		{ID: 1, ProjectID: 88, Status: domain.MilestonePaid},
+		{ID: 2, ProjectID: 88, Status: domain.MilestoneRejected},
+	}
+
+	projRepo.On("FindProjects", &funding, &status, (*domain.ProjectVisibility)(nil)).Return([]domain.Project{}, nil)
+	projRepo.On("FindProjects", &executing, &status, (*domain.ProjectVisibility)(nil)).Return([]domain.Project{executingProject}, nil)
+	projRepo.On("FindMilestonesByProjectID", uint(88)).Return(milestones, nil)
+	projRepo.On("UpdateProject", mock.AnythingOfType("*domain.Project")).Return(&executingProject, nil)
+
+	err := svc.AutoProjectLifecycleTick(now)
+	assert.NoError(t, err)
+	projRepo.AssertExpectations(t)
 }
