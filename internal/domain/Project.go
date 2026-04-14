@@ -52,6 +52,7 @@ type Project struct {
 	DurationDays    int               `json:"duration_days"`
 	DurationMonths  int               `json:"duration_months"`
 	EndDate         time.Time         `json:"end_date"`
+	ExecutionEndAt  *time.Time        `json:"execution_end_at,omitempty"`
 	ProfitSharePct  float64           `json:"profit_share_pct"`
 	MinInvestAmount float64           `json:"min_invest_amount"`
 	MaxInvestAmount float64           `json:"max_invest_amount"`

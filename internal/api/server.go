@@ -10,6 +10,7 @@ import (
 	"flyup/internal/service"
 	"flyup/pkg/notification"
 	"log"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
@@ -133,6 +134,26 @@ func StartServer(cfg config.AppConfig) {
 		Cloudinary:   cloudinarySvc,
 		NotifSvc:     notifSvc,
 	}
+
+	// Background lifecycle job:
+	// auto mark funding projects as failed when end date passed and funding < softcap.
+	projectSvc := service.NewProjectService(
+		repository.NewProjectRepository(db),
+		repository.NewUserRepository(db),
+		cloudinarySvc,
+		notifSvc,
+	)
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+		for {
+			if err := projectSvc.AutoProjectLifecycleTick(time.Now().UTC()); err != nil {
+				log.Printf("auto-expire funding job error: %v", err)
+			}
+			<-ticker.C
+		}
+	}()
+
 	setupRoutes(rh)
 
 	log.Fatal(app.Listen(":" + cfg.ServerPort))

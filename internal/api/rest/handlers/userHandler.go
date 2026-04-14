@@ -783,38 +783,37 @@ func (h *UserHandler) GoogleLogin(ctx fiber.Ctx) error {
 // @Tags Auth
 // @Router /auth/google/callback [get]
 func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
+	baseURL := strings.TrimRight(h.config.BaseURL, "/")
+	oauthFailedRedirect := baseURL + "/login?error=oauth_failed"
+
 	state := ctx.Query("state")
 	parts := strings.SplitN(state, ":", 3)
 	if len(parts) != 3 {
-		return rest.BadRequestError(ctx, "invalid oauth state")
+		return ctx.Redirect().To(oauthFailedRedirect)
 	}
 	reqRole := parts[0]
 	nonce := parts[1]
 	sig := parts[2]
 	if reqRole != "pioneer" && reqRole != "booster" {
-		return rest.BadRequestError(ctx, "invalid oauth state")
+		return ctx.Redirect().To(oauthFailedRedirect)
 	}
 	if nonce == "" || sig == "" {
-		return rest.BadRequestError(ctx, "invalid oauth state")
+		return ctx.Redirect().To(oauthFailedRedirect)
 	}
 
 	expectedSig := helper.Sha256HmacHex(reqRole+":"+nonce, h.config.AppSecret)
 	if sig != expectedSig {
-		return rest.BadRequestError(ctx, "invalid oauth state")
+		return ctx.Redirect().To(oauthFailedRedirect)
 	}
 
 	code := ctx.Query("code")
 	if code == "" {
-		return rest.BadRequestError(ctx, "missing code")
+		return ctx.Redirect().To(oauthFailedRedirect)
 	}
-
-	baseURL := strings.TrimRight(h.config.BaseURL, "/")
 
 	token, err := h.svc.GoogleSigning(code, reqRole, h.googleOAuth)
 	if err != nil {
-		// Redirect with error using ENV Base URL
-		redirectErrUrl := baseURL + "/login?error=" + err.Error()
-		return ctx.Redirect().To(redirectErrUrl)
+		return ctx.Redirect().To(oauthFailedRedirect)
 	}
 
 	ctx.Cookie(&fiber.Cookie{

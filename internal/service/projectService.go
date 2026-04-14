@@ -86,6 +86,7 @@ type ProjectService interface {
 	CancelProject(projectID uint, user domain.User) error
 	GetAllProjectsRequest() ([]domain.Project, error)
 	GetProjectDetailRequest(projectID uint) (*domain.Project, error)
+	AutoProjectLifecycleTick(now time.Time) error
 }
 
 type projectService struct {
@@ -1340,8 +1341,13 @@ func (s *projectService) CloseProject(projectID uint, user domain.User) error {
 
 	// CASE 1: เงินเต็ม → เข้าสู่ execution
 	if p.CurrentFunding >= p.FundingGoal {
+		startExecutionAt := time.Now().UTC()
 		p.State = domain.StateExecuting
 		p.Status = domain.StatusActive
+		if p.DurationMonths > 0 {
+			executionEnd := startExecutionAt.AddDate(0, p.DurationMonths, 0)
+			p.ExecutionEndAt = &executionEnd
+		}
 		_, err = s.projectRepo.UpdateProject(p)
 		if err != nil {
 			return err
@@ -1367,8 +1373,13 @@ func (s *projectService) CloseProject(projectID uint, user domain.User) error {
 
 	// CASE 3: หมดเวลา funding แล้ว → ตัดสินผล
 	if p.CurrentFunding >= p.Softcap {
+		startExecutionAt := time.Now().UTC()
 		p.State = domain.StateExecuting
 		p.Status = domain.StatusActive
+		if p.DurationMonths > 0 {
+			executionEnd := startExecutionAt.AddDate(0, p.DurationMonths, 0)
+			p.ExecutionEndAt = &executionEnd
+		}
 	} else {
 		p.State = domain.StateClosed
 		p.Status = domain.StatusFailed
@@ -1454,4 +1465,74 @@ func (s *projectService) GetProjectDetailRequest(projectID uint) (*domain.Projec
 	}
 
 	return project, nil
+}
+
+func (s *projectService) AutoProjectLifecycleTick(now time.Time) error {
+	state := domain.StateFunding
+	status := domain.StatusActive
+	projects, err := s.projectRepo.FindProjects(&state, &status, nil)
+	if err != nil {
+		return err
+	}
+
+	for i := range projects {
+		p := &projects[i]
+		if p.EndDate.IsZero() {
+			continue
+		}
+		if now.Before(p.EndDate) {
+			continue
+		}
+		if p.CurrentFunding >= p.Softcap {
+			continue
+		}
+
+		// User requirement: if funding time expired and < softcap -> draft + failed
+		p.State = domain.StateDraft
+		p.Status = domain.StatusFailed
+		if _, err := s.projectRepo.UpdateProject(p); err != nil {
+			return err
+		}
+	}
+
+	// execution timeout: when execution period ends, close project automatically.
+	executing := domain.StateExecuting
+	executingProjects, err := s.projectRepo.FindProjects(&executing, &status, nil)
+	if err != nil {
+		return err
+	}
+	for i := range executingProjects {
+		p := &executingProjects[i]
+		if p.ExecutionEndAt == nil {
+			continue
+		}
+		if now.Before(*p.ExecutionEndAt) {
+			continue
+		}
+
+		milestones, err := s.projectRepo.FindMilestonesByProjectID(p.ID)
+		if err != nil {
+			return err
+		}
+		allPaid := len(milestones) > 0
+		for _, m := range milestones {
+			if m.Status != domain.MilestonePaid {
+				allPaid = false
+				break
+			}
+		}
+
+		p.State = domain.StateClosed
+		if allPaid {
+			p.Status = domain.StatusCompleted
+		} else {
+			p.Status = domain.StatusFailed
+		}
+
+		if _, err := s.projectRepo.UpdateProject(p); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
