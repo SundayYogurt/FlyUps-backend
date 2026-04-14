@@ -234,7 +234,7 @@ func (h *UserHandler) Signing(ctx fiber.Ctx) error {
 		Value:    token,
 		HTTPOnly: true,
 		Secure:   true, // false ถ้า localhost
-		SameSite: "Lax", // เปลี่ยนจาก "None" เป็น "Lax" เพื่อรองรับ iOS
+		SameSite: "None", // required for cross-site cookie on Safari/iOS
 		Path:     "/",
 		MaxAge:   60 * 60 * 24, // 1 day
 	})
@@ -822,7 +822,7 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 		Value:    token,
 		HTTPOnly: true,
 		Secure:   true,
-		SameSite: "Lax", // เปลี่ยนจาก "None" เป็น "Lax" เพื่อรองรับ iOS
+		SameSite: "None", // required for cross-site cookie on Safari/iOS
 		Path:     "/",
 		MaxAge:   3600,
 	})
@@ -846,7 +846,7 @@ func (h *UserHandler) SignOut(ctx fiber.Ctx) error {
 		Value:    "",
 		Expires:  time.Now().Add(-time.Hour), // ทำให้หมดอายุทันที
 		MaxAge:   -1,                          // เพิ่ม MaxAge เพื่อให้แน่ใจว่าลบได้
-		SameSite: "Lax",                       // เปลี่ยนจาก "None" เป็น "Lax"
+		SameSite: "None",                      // keep same attributes when deleting
 		Path:     "/",
 		HTTPOnly: true,
 		Secure:   true,
