@@ -760,32 +760,18 @@ func (h *UserHandler) RollbackUser(ctx fiber.Ctx) error {
 // @Tags Auth
 // @Router /auth/google [get]
 func (h *UserHandler) GoogleLogin(ctx fiber.Ctx) error {
-	b, _ := helper.GenerateRandomToken(16)
-	state := helper.Sha256Hex(b)
-
 	role := ctx.Query("role", "booster") // default booster
 	if role != "pioneer" && role != "booster" {
 		role = "booster"
 	}
 
-	ctx.Cookie(&fiber.Cookie{
-		Name:     "oauthstate",
-		Value:    state,
-		HTTPOnly: true,
-		Secure:   true,
-		SameSite: "Lax", // เพิ่ม SameSite เพื่อรองรับ iOS
-		Path:     "/",   // เพิ่ม Path
-		MaxAge:   300,
-	})
-	ctx.Cookie(&fiber.Cookie{
-		Name:     "oauth_role",
-		Value:    role,
-		HTTPOnly: true,
-		Secure:   true,
-		SameSite: "Lax", // เพิ่ม SameSite เพื่อรองรับ iOS
-		Path:     "/",   // เพิ่ม Path
-		MaxAge:   300,
-	})
+	nonce, err := helper.GenerateRandomToken(16)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+	statePayload := role + ":" + nonce
+	sig := helper.Sha256HmacHex(statePayload, h.config.AppSecret)
+	state := statePayload + ":" + sig
 
 	url := h.googleOAuth.AuthCodeURL(state)
 	return ctx.Redirect().To(url)
@@ -798,9 +784,22 @@ func (h *UserHandler) GoogleLogin(ctx fiber.Ctx) error {
 // @Router /auth/google/callback [get]
 func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 	state := ctx.Query("state")
-	cookieState := ctx.Cookies("oauthstate")
+	parts := strings.SplitN(state, ":", 3)
+	if len(parts) != 3 {
+		return rest.BadRequestError(ctx, "invalid oauth state")
+	}
+	reqRole := parts[0]
+	nonce := parts[1]
+	sig := parts[2]
+	if reqRole != "pioneer" && reqRole != "booster" {
+		return rest.BadRequestError(ctx, "invalid oauth state")
+	}
+	if nonce == "" || sig == "" {
+		return rest.BadRequestError(ctx, "invalid oauth state")
+	}
 
-	if state != cookieState {
+	expectedSig := helper.Sha256HmacHex(reqRole+":"+nonce, h.config.AppSecret)
+	if sig != expectedSig {
 		return rest.BadRequestError(ctx, "invalid oauth state")
 	}
 
@@ -808,8 +807,6 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 	if code == "" {
 		return rest.BadRequestError(ctx, "missing code")
 	}
-
-	reqRole := ctx.Cookies("oauth_role", "booster")
 
 	baseURL := strings.TrimRight(h.config.BaseURL, "/")
 
@@ -828,26 +825,6 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 		SameSite: "Lax", // เปลี่ยนจาก "None" เป็น "Lax" เพื่อรองรับ iOS
 		Path:     "/",
 		MaxAge:   3600,
-	})
-
-	// ลบ oauth cookie (ต้อง set attributes ให้ตรงกับตอนสร้าง)
-	ctx.Cookie(&fiber.Cookie{
-		Name:     "oauthstate",
-		Value:    "",
-		MaxAge:   -1,
-		Path:     "/",
-		HTTPOnly: true,
-		Secure:   true,
-		SameSite: "Lax",
-	})
-	ctx.Cookie(&fiber.Cookie{
-		Name:     "oauth_role",
-		Value:    "",
-		MaxAge:   -1,
-		Path:     "/",
-		HTTPOnly: true,
-		Secure:   true,
-		SameSite: "Lax",
 	})
 
 	// Send token to frontend
