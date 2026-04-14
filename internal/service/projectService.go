@@ -37,6 +37,11 @@ type ProjectService interface {
 	UpdateMilestone(milestoneID uint, input dto.UpdateMilestoneRequest, user domain.User) error
 	DeleteMilestone(milestoneID uint, user domain.User) error
 	GetProjectMilestones(projectID uint) ([]domain.Milestone, error)
+	SubmitMilestone(milestoneID uint, input dto.SubmitMilestoneRequest, user domain.User) (*domain.Milestone, error)
+	AdminApproveMilestoneSubmission(milestoneID uint) (*domain.Milestone, error)
+	AdminRejectMilestoneSubmission(milestoneID uint, reason *string) (*domain.Milestone, error)
+	OpenMilestoneVoting(milestoneID uint, user domain.User) (*domain.Milestone, error)
+	GetSubmittedMilestonesForAdmin(projectID *uint) ([]domain.Milestone, error)
 
 	// PROJECT UPDATE
 	CreateProjectUpdate(projectID uint, req dto.CreateProjectUpdateRequest, user domain.User) error
@@ -267,39 +272,50 @@ func (s *projectService) GetMyProjects(ownerID uint) ([]domain.Project, error) {
 }
 
 func (s *projectService) GetPublicProjects() ([]domain.Project, error) {
-	state := domain.StateFunding
 	status := domain.StatusActive
 	visibility := domain.VisibilityPublic
-	projects, err := s.projectRepo.FindProjects(&state, &status, &visibility)
+	projects, err := s.projectRepo.FindProjects(nil, &status, &visibility)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return projects, nil
+	// public projects include both fundraising and post-fundraising execution phases
+	filtered := make([]domain.Project, 0, len(projects))
+	for _, p := range projects {
+		if p.State == domain.StateFunding || p.State == domain.StateExecuting {
+			filtered = append(filtered, p)
+		}
+	}
+
+	return filtered, nil
 }
 
 func (s *projectService) GetProjectDetailByID(id uint) (*domain.Project, error) {
-	state := domain.StateFunding
 	status := domain.StatusActive
 	visibility := domain.VisibilityPublic
-	project, err := s.projectRepo.FindProjectDetailByID(id, &state, &status, &visibility)
+	project, err := s.projectRepo.FindProjectDetailByID(id, nil, &status, &visibility)
 	if err != nil {
+		return nil, errors.New("project not found")
+	}
+	if project.State != domain.StateFunding && project.State != domain.StateExecuting {
 		return nil, errors.New("project not found")
 	}
 	return project, nil
 }
 
 func (s *projectService) GetPublicProjectByID(id uint) (*domain.Project, error) {
-	state := domain.StateFunding
 	status := domain.StatusActive
 	visibility := domain.VisibilityPublic
-	project, err := s.projectRepo.FindProjectDetailByID(id, &state, &status, &visibility)
+	project, err := s.projectRepo.FindProjectDetailByID(id, nil, &status, &visibility)
 	if err != nil {
 		return nil, err
 	}
 
 	if project.Visibility != domain.VisibilityPublic {
+		return nil, errors.New("not public")
+	}
+	if project.State != domain.StateFunding && project.State != domain.StateExecuting {
 		return nil, errors.New("not public")
 	}
 
@@ -542,7 +558,6 @@ func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMiles
 			domain.MilestoneWaiting:   true,
 			domain.MilestoneActive:    true,
 			domain.MilestoneSubmitted: true,
-			domain.MilestoneApproved:  true,
 			domain.MilestoneRejected:  true,
 			domain.MilestonePaid:      true,
 		}
@@ -555,6 +570,95 @@ func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMiles
 	}
 
 	return s.projectRepo.UpdateMilestone(m)
+}
+
+func (s *projectService) AdminApproveMilestoneSubmission(milestoneID uint) (*domain.Milestone, error) {
+	m, err := s.projectRepo.FindMilestoneByID(milestoneID)
+	if err != nil {
+		return nil, errors.New("milestone not found")
+	}
+	if m.Status != domain.MilestoneSubmitted {
+		return nil, errors.New("milestone is not submitted")
+	}
+
+	// step 1: admin approves submission -> approved (vote can be opened by pioneer)
+	m.Status = domain.MilestoneApproved
+	m.VotingOpen = false
+	m.VotingOpenedAt = nil
+	m.VotingClosedAt = nil
+	if err := s.projectRepo.UpdateMilestone(m); err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
+
+func (s *projectService) AdminRejectMilestoneSubmission(milestoneID uint, reason *string) (*domain.Milestone, error) {
+	m, err := s.projectRepo.FindMilestoneByID(milestoneID)
+	if err != nil {
+		return nil, errors.New("milestone not found")
+	}
+	if m.Status != domain.MilestoneSubmitted {
+		return nil, errors.New("milestone is not submitted")
+	}
+
+	// store reason in submission summary tail if provided (minimal change without new column)
+	if reason != nil {
+		r := strings.TrimSpace(*reason)
+		if r != "" {
+			if m.SubmissionSummary == nil {
+				m.SubmissionSummary = &r
+			} else {
+				merged := strings.TrimSpace(*m.SubmissionSummary) + "\n\nReject reason: " + r
+				m.SubmissionSummary = &merged
+			}
+		}
+	}
+
+	m.Status = domain.MilestoneRejected
+	m.VotingOpen = false
+	now := time.Now().UTC()
+	m.VotingClosedAt = &now
+	if err := s.projectRepo.UpdateMilestone(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (s *projectService) OpenMilestoneVoting(milestoneID uint, user domain.User) (*domain.Milestone, error) {
+	m, err := s.projectRepo.FindMilestoneByID(milestoneID)
+	if err != nil {
+		return nil, errors.New("milestone not found")
+	}
+	project, err := s.projectRepo.FindProjectByID(m.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+	if project.OwnerUserID != user.ID {
+		return nil, errors.New("permission denied")
+	}
+	if m.Status != domain.MilestoneApproved {
+		return nil, errors.New("milestone is not approved for voting")
+	}
+	if m.VotingOpen {
+		return nil, errors.New("voting is already open")
+	}
+
+	now := time.Now().UTC()
+	m.VotingOpen = true
+	m.VotingOpenedAt = &now
+	m.VotingClosedAt = nil
+	if err := s.projectRepo.UpdateMilestone(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (s *projectService) GetSubmittedMilestonesForAdmin(projectID *uint) ([]domain.Milestone, error) {
+	if projectID != nil {
+		return s.projectRepo.FindMilestonesByProjectIDAndStatus(*projectID, domain.MilestoneSubmitted)
+	}
+	return s.projectRepo.FindMilestonesByStatus(domain.MilestoneSubmitted)
 }
 
 func (s *projectService) DeleteMilestone(milestoneID uint, user domain.User) error {
@@ -581,6 +685,93 @@ func (s *projectService) GetProjectMilestones(projectID uint) ([]domain.Mileston
 		return nil, errors.New("failed to retrieve milestones")
 	}
 	return milestones, nil
+}
+
+func (s *projectService) SubmitMilestone(milestoneID uint, input dto.SubmitMilestoneRequest, user domain.User) (*domain.Milestone, error) {
+	m, err := s.projectRepo.FindMilestoneByID(milestoneID)
+	if err != nil {
+		return nil, errors.New("milestone not found")
+	}
+
+	project, err := s.projectRepo.FindProjectByID(m.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+	if project.OwnerUserID != user.ID {
+		return nil, errors.New("permission denied")
+	}
+
+	// only allow submit when active/waiting (and avoid re-submit loops)
+	switch m.Status {
+	case domain.MilestoneWaiting, domain.MilestoneActive, domain.MilestoneRejected:
+		// ok
+	default:
+		return nil, errors.New("milestone cannot be submitted in current status")
+	}
+
+	summary := strings.TrimSpace(input.Summary)
+	if summary == "" {
+		return nil, errors.New("summary is required")
+	}
+
+	// validate attachments: must be cloudinary URLs (same rule as existing milestone media)
+	attachments := make([]string, 0, len(input.Attachments))
+	for _, rawURL := range input.Attachments {
+		raw := strings.TrimSpace(rawURL)
+		if raw == "" {
+			continue
+		}
+		u, err := url.Parse(raw)
+		if err != nil {
+			return nil, errors.New("invalid attachment url")
+		}
+		if !strings.Contains(u.Host, "res.cloudinary.com") {
+			return nil, errors.New("invalid attachment source")
+		}
+		attachments = append(attachments, raw)
+	}
+
+	// validate external links: require http/https
+	links := make([]string, 0, len(input.Links))
+	for _, rawURL := range input.Links {
+		raw := strings.TrimSpace(rawURL)
+		if raw == "" {
+			continue
+		}
+		u, err := url.Parse(raw)
+		if err != nil {
+			return nil, errors.New("invalid link url")
+		}
+		if u.Scheme != "http" && u.Scheme != "https" {
+			return nil, errors.New("invalid link scheme")
+		}
+		if strings.TrimSpace(u.Host) == "" {
+			return nil, errors.New("invalid link host")
+		}
+		links = append(links, raw)
+	}
+
+	criteria := make([]string, 0, len(input.Criteria))
+	for _, c := range input.Criteria {
+		v := strings.TrimSpace(c)
+		if v == "" {
+			continue
+		}
+		criteria = append(criteria, v)
+	}
+
+	now := time.Now().UTC()
+	m.SubmissionSummary = &summary
+	m.SubmissionCriteria = criteria
+	m.SubmissionAttachments = attachments
+	m.SubmissionLinks = links
+	m.SubmittedAt = &now
+	m.Status = domain.MilestoneSubmitted
+
+	if err := s.projectRepo.UpdateMilestone(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // PROJECT UPDATE
@@ -1064,6 +1255,17 @@ func (s *projectService) ApproveProject(projectID uint) error {
 		return err
 	}
 
+	// เมื่อแอดมิน approve โปรเจกต์: เปลี่ยน milestone จาก draft -> waiting
+	milestones, err := s.projectRepo.FindMilestonesByProjectID(p.ID)
+	if err == nil {
+		for i := range milestones {
+			if milestones[i].Status == domain.MilestoneDraft {
+				milestones[i].Status = domain.MilestoneWaiting
+				_ = s.projectRepo.UpdateMilestone(&milestones[i])
+			}
+		}
+	}
+
 	// notify pioneer ว่าโปรเจกต์ได้รับการอนุมัติ
 	if s.notifSvc != nil {
 		relatedID := p.ID
@@ -1110,37 +1312,88 @@ func (s *projectService) CloseProject(projectID uint, user domain.User) error {
 		return errors.New("permission denied")
 	}
 
-	if p.State != domain.StateFunding {
-		return errors.New("project must be in funding state")
+	if p.State != domain.StateFunding && p.State != domain.StateExecuting {
+		return errors.New("project must be in funding or executing state")
 	}
 
 	now := time.Now()
 
-	// CASE 1: เงินเต็ม → ปิดได้ทันที
-	if p.CurrentFunding >= p.FundingGoal {
+	// CASE 0: ถ้าอยู่ executing แล้วให้ปิดได้เมื่อ milestone จบแล้วทั้งหมด
+	if p.State == domain.StateExecuting {
+		milestones, err := s.projectRepo.FindMilestonesByProjectID(p.ID)
+		if err != nil {
+			return err
+		}
+		if len(milestones) == 0 {
+			return errors.New("cannot close project: milestones are missing")
+		}
+		for _, m := range milestones {
+			if m.Status != domain.MilestonePaid {
+				return errors.New("cannot close project: all milestones must be paid")
+			}
+		}
 		p.State = domain.StateClosed
 		p.Status = domain.StatusCompleted
-
 		_, err = s.projectRepo.UpdateProject(p)
 		return err
 	}
 
-	// CASE 2: ยังไม่หมดเวลา → ห้ามปิด
+	// CASE 1: เงินเต็ม → เข้าสู่ execution
+	if p.CurrentFunding >= p.FundingGoal {
+		p.State = domain.StateExecuting
+		p.Status = domain.StatusActive
+		_, err = s.projectRepo.UpdateProject(p)
+		if err != nil {
+			return err
+		}
+		// ระดมทุนสำเร็จ: เปลี่ยน milestone จาก waiting -> active (เริ่มที่ phase 1)
+		milestones, err := s.projectRepo.FindMilestonesByProjectID(p.ID)
+		if err == nil {
+			for i := range milestones {
+				if milestones[i].Status == domain.MilestoneWaiting && milestones[i].PhaseNo == 1 {
+					milestones[i].Status = domain.MilestoneActive
+					_ = s.projectRepo.UpdateMilestone(&milestones[i])
+					break
+				}
+			}
+		}
+		return nil
+	}
+
+	// CASE 2: ยังไม่หมดเวลา funding → ห้ามปิด
 	if now.Before(p.EndDate) {
 		return errors.New("cannot close project before end date unless funding goal is reached")
 	}
 
-	// CASE 3: หมดเวลาแล้ว → ตัดสินผล
-	p.State = domain.StateClosed
-
+	// CASE 3: หมดเวลา funding แล้ว → ตัดสินผล
 	if p.CurrentFunding >= p.Softcap {
-		p.Status = domain.StatusCompleted
+		p.State = domain.StateExecuting
+		p.Status = domain.StatusActive
 	} else {
+		p.State = domain.StateClosed
 		p.Status = domain.StatusFailed
 	}
 
 	_, err = s.projectRepo.UpdateProject(p)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// ระดมทุนสำเร็จ (ถึง softcap): เปลี่ยน milestone จาก waiting -> active (เริ่มที่ phase 1)
+	if p.State == domain.StateExecuting {
+		milestones, err := s.projectRepo.FindMilestonesByProjectID(p.ID)
+		if err == nil {
+			for i := range milestones {
+				if milestones[i].Status == domain.MilestoneWaiting && milestones[i].PhaseNo == 1 {
+					milestones[i].Status = domain.MilestoneActive
+					_ = s.projectRepo.UpdateMilestone(&milestones[i])
+					break
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func (s *projectService) CancelProject(projectID uint, user domain.User) error {

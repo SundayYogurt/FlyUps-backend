@@ -201,6 +201,31 @@ definitions:
       total_paid:
         type: number
     type: object
+  dto.SubmitMilestoneRequest:
+    properties:
+      attachments:
+        description: evidence files uploaded to Cloudinary (use /upload first)
+        items:
+          type: string
+        type: array
+      criteria:
+        description: checklist or items done (e.g. mapped from acceptance criteria)
+        items:
+          type: string
+        type: array
+      links:
+        description: external links (GitHub, Figma, docs, etc.)
+        items:
+          type: string
+        type: array
+      summary:
+        description: summary of what has been done in this phase
+        maxLength: 5000
+        minLength: 1
+        type: string
+    required:
+    - summary
+    type: object
   dto.SuspendUserInput:
     properties:
       reason:
@@ -339,6 +364,16 @@ definitions:
         type: string
     required:
     - student_card_url
+    type: object
+  dto.VoteMilestoneRequest:
+    properties:
+      choice:
+        enum:
+        - approve
+        - reject
+        type: string
+    required:
+    - choice
     type: object
 host: api.flyupapi.dev
 info:
@@ -827,6 +862,81 @@ paths:
       summary: Update Project Status
       tags:
       - Projects
+  /admin/projects/milestones/{milestone_id}/approve:
+    patch:
+      consumes:
+      - application/json
+      description: Admin approves milestone submission and marks it as paid (no approved
+        state)
+      parameters:
+      - description: Milestone ID
+        in: path
+        name: milestone_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Milestone marked as paid
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Admin approves milestone submission
+      tags:
+      - Admin
+  /admin/projects/milestones/{milestone_id}/reject:
+    patch:
+      consumes:
+      - application/json
+      description: Admin rejects milestone submission (keeps rejected state for resubmission)
+      parameters:
+      - description: Milestone ID
+        in: path
+        name: milestone_id
+        required: true
+        type: integer
+      - description: Optional reason
+        in: body
+        name: request
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Milestone rejected
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Admin rejects milestone submission
+      tags:
+      - Admin
+  /admin/projects/milestones/submitted:
+    get:
+      consumes:
+      - application/json
+      description: Admin gets milestones waiting review (status=submitted). Optional
+        filter by project_id query.
+      parameters:
+      - description: Project ID filter
+        in: query
+        name: project_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Submitted milestones
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Admin list submitted milestones
+      tags:
+      - Admin
   /admin/projects/pending-review:
     get:
       description: Admin gets all projects that are pending review/approval
@@ -1370,6 +1480,43 @@ paths:
       security:
       - BearerAuth: []
       summary: Refund an investment
+      tags:
+      - Investments
+  /investments/milestones/{milestone_id}/vote:
+    post:
+      consumes:
+      - application/json
+      description: Verified investor votes approve/reject on a submitted milestone
+      parameters:
+      - description: Milestone ID
+        in: path
+        name: milestone_id
+        required: true
+        type: integer
+      - description: Vote payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.VoteMilestoneRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Vote saved
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Vote on milestone submission
       tags:
       - Investments
   /investments/my-projects:
@@ -2164,6 +2311,59 @@ paths:
       security:
       - BearerAuth: []
       summary: Update Project Milestone
+      tags:
+      - Projects
+  /pioneer/projects/milestones/{milestone_id}/open-vote:
+    patch:
+      consumes:
+      - application/json
+      description: Pioneer opens booster voting after admin approves milestone submission
+      parameters:
+      - description: Milestone ID
+        in: path
+        name: milestone_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Voting opened
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Open milestone voting
+      tags:
+      - Projects
+  /pioneer/projects/milestones/{milestone_id}/submit:
+    patch:
+      consumes:
+      - application/json
+      description: Pioneer submits milestone evidence (summary, criteria, attachments,
+        external links)
+      parameters:
+      - description: Milestone ID
+        in: path
+        name: milestone_id
+        required: true
+        type: integer
+      - description: Milestone submission payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SubmitMilestoneRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Milestone submitted
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Submit Project Milestone
       tags:
       - Projects
   /pioneer/projects/stories/{story_id}:

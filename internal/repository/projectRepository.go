@@ -5,6 +5,7 @@ import (
 	"flyup/internal/domain"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type ProjectRepository interface {
@@ -43,9 +44,17 @@ type ProjectRepository interface {
 	// milestone
 	FindMilestoneByID(id uint) (*domain.Milestone, error)
 	FindMilestonesByProjectID(projectID uint) ([]domain.Milestone, error)
+	FindMilestonesByStatus(status domain.MilestoneStatus) ([]domain.Milestone, error)
+	FindMilestonesByProjectIDAndStatus(projectID uint, status domain.MilestoneStatus) ([]domain.Milestone, error)
 	CreateMilestone(m *domain.Milestone) error
 	UpdateMilestone(m *domain.Milestone) error
 	DeleteMilestone(id uint) error
+
+	// milestone votes (booster)
+	UpsertMilestoneVote(vote *domain.MilestoneVote) error
+	CountVerifiedBoostersByProjectID(projectID uint) (int64, error)
+	CountMilestoneVotes(milestoneID uint, choice domain.MilestoneVoteChoice) (int64, error)
+	HasVerifiedInvestment(projectID uint, boosterUserID uint) (bool, error)
 
 	// story
 	FindStoriesByProjectID(projectID uint) ([]domain.StorySection, error)
@@ -305,6 +314,24 @@ func (p *projectRepository) FindMilestonesByProjectID(projectID uint) ([]domain.
 	return list, err
 }
 
+func (p *projectRepository) FindMilestonesByStatus(status domain.MilestoneStatus) ([]domain.Milestone, error) {
+	var list []domain.Milestone
+	err := p.db.
+		Where("status = ?", status).
+		Order("updated_at DESC").
+		Find(&list).Error
+	return list, err
+}
+
+func (p *projectRepository) FindMilestonesByProjectIDAndStatus(projectID uint, status domain.MilestoneStatus) ([]domain.Milestone, error) {
+	var list []domain.Milestone
+	err := p.db.
+		Where("project_id = ? AND status = ?", projectID, status).
+		Order("updated_at DESC").
+		Find(&list).Error
+	return list, err
+}
+
 func (p *projectRepository) CreateMilestone(m *domain.Milestone) error {
 	return p.db.Create(m).Error
 }
@@ -315,6 +342,41 @@ func (p *projectRepository) UpdateMilestone(m *domain.Milestone) error {
 
 func (p *projectRepository) DeleteMilestone(id uint) error {
 	return p.db.Delete(&domain.Milestone{}, id).Error
+}
+
+func (p *projectRepository) UpsertMilestoneVote(vote *domain.MilestoneVote) error {
+	// Postgres upsert by unique (milestone_id, booster_user_id)
+	return p.db.
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "milestone_id"}, {Name: "booster_user_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"choice", "updated_at"}),
+		}).
+		Create(vote).Error
+}
+
+func (p *projectRepository) CountVerifiedBoostersByProjectID(projectID uint) (int64, error) {
+	var count int64
+	err := p.db.Model(&domain.Investment{}).
+		Where("project_id = ? AND status = ?", projectID, string(domain.InvestmentVerified)).
+		Distinct("booster_user_id").
+		Count(&count).Error
+	return count, err
+}
+
+func (p *projectRepository) CountMilestoneVotes(milestoneID uint, choice domain.MilestoneVoteChoice) (int64, error) {
+	var count int64
+	err := p.db.Model(&domain.MilestoneVote{}).
+		Where("milestone_id = ? AND choice = ?", milestoneID, choice).
+		Count(&count).Error
+	return count, err
+}
+
+func (p *projectRepository) HasVerifiedInvestment(projectID uint, boosterUserID uint) (bool, error) {
+	var count int64
+	err := p.db.Model(&domain.Investment{}).
+		Where("project_id = ? AND booster_user_id = ? AND status = ?", projectID, boosterUserID, string(domain.InvestmentVerified)).
+		Count(&count).Error
+	return count > 0, err
 }
 
 func (p *projectRepository) CreateProject(project *domain.Project) (*domain.Project, error) {

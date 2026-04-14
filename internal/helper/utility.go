@@ -167,6 +167,11 @@ var stateTransitions = map[domain.ProjectState][]domain.ProjectState{
 		domain.StateCancelled,
 	},
 	domain.StateFunding: {
+		domain.StateExecuting,
+		domain.StateClosed,
+		domain.StateCancelled,
+	},
+	domain.StateExecuting: {
 		domain.StateClosed,
 		domain.StateCancelled,
 	},
@@ -194,6 +199,9 @@ func IsValidStatusForState(state domain.ProjectState, status domain.ProjectStatu
 		return status == domain.StatusActive
 
 	case domain.StateFunding:
+		return status == domain.StatusActive
+
+	case domain.StateExecuting:
 		return status == domain.StatusActive
 
 	case domain.StateClosed:

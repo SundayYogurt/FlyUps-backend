@@ -87,6 +87,8 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	priv.Post("/:id/milestones", handler.AddProjectMilestone)
 	priv.Get("/:id/milestones", handler.GetProjectMilestones)
 	priv.Patch("/milestones/:milestone_id", handler.UpdateProjectMilestone)
+	priv.Patch("/milestones/:milestone_id/submit", handler.SubmitProjectMilestone)
+	priv.Patch("/milestones/:milestone_id/open-vote", handler.OpenMilestoneVoting)
 	priv.Delete("/milestones/:milestone_id", handler.DeleteProjectMilestone)
 
 	// Stories
@@ -107,6 +109,11 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	adminProj.Patch("/:id/status", handler.UpdateProjectStatus)
 	adminProj.Get("/pending-review", handler.ProjectsPendingList)
 	adminProj.Get("/:id/detail/pending-review", handler.ProjectDetailReview)
+
+	// Admin Milestone Submission Review
+	adminProj.Get("/milestones/submitted", handler.AdminListSubmittedMilestones)
+	adminProj.Patch("/milestones/:milestone_id/approve", handler.AdminApproveMilestoneSubmission)
+	adminProj.Patch("/milestones/:milestone_id/reject", handler.AdminRejectMilestoneSubmission)
 }
 
 // CancelProject godoc
@@ -913,6 +920,151 @@ func (h *ProjectHandler) UpdateProjectMilestone(ctx fiber.Ctx) error {
 		return rest.InternalError(ctx, err)
 	}
 	return rest.SuccessResponse(ctx, "milestone updated successfully", nil)
+}
+
+// SubmitProjectMilestone godoc
+// @Summary Submit Project Milestone
+// @Description Pioneer submits milestone evidence (summary, criteria, attachments, external links)
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param milestone_id path int true "Milestone ID"
+// @Param request body dto.SubmitMilestoneRequest true "Milestone submission payload"
+// @Success 200 {object} object "Milestone submitted"
+// @Router /pioneer/projects/milestones/{milestone_id}/submit [patch]
+func (h *ProjectHandler) SubmitProjectMilestone(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	milestoneID, err := strconv.Atoi(ctx.Params("milestone_id"))
+	if err != nil || milestoneID <= 0 {
+		return rest.BadRequestError(ctx, "invalid milestone id")
+	}
+
+	var body dto.SubmitMilestoneRequest
+	if err := ctx.Bind().Body(&body); err != nil {
+		return rest.BadRequestError(ctx, "invalid request body")
+	}
+	if err := h.validator.Struct(body); err != nil {
+		return rest.BadRequestError(ctx, "invalid request: "+err.Error())
+	}
+
+	m, err := h.svc.SubmitMilestone(uint(milestoneID), body, user)
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
+	}
+
+	return rest.SuccessResponse(ctx, "milestone submitted successfully", m)
+}
+
+// AdminListSubmittedMilestones godoc
+// @Summary Admin list submitted milestones
+// @Description Admin gets milestones waiting review (status=submitted). Optional filter by project_id query.
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param project_id query int false "Project ID filter"
+// @Success 200 {object} object "Submitted milestones"
+// @Router /admin/projects/milestones/submitted [get]
+func (h *ProjectHandler) AdminListSubmittedMilestones(ctx fiber.Ctx) error {
+	var projectIDPtr *uint
+	if q := ctx.Query("project_id"); q != "" {
+		v, err := strconv.Atoi(q)
+		if err != nil || v <= 0 {
+			return rest.BadRequestError(ctx, "invalid project_id")
+		}
+		uv := uint(v)
+		projectIDPtr = &uv
+	}
+
+	items, err := h.svc.GetSubmittedMilestonesForAdmin(projectIDPtr)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+	return rest.SuccessResponse(ctx, "success", items)
+}
+
+// AdminApproveMilestoneSubmission godoc
+// @Summary Admin approves milestone submission
+// @Description Admin approves milestone submission and marks it as paid (no approved state)
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param milestone_id path int true "Milestone ID"
+// @Success 200 {object} object "Milestone marked as paid"
+// @Router /admin/projects/milestones/{milestone_id}/approve [patch]
+func (h *ProjectHandler) AdminApproveMilestoneSubmission(ctx fiber.Ctx) error {
+	milestoneID, err := strconv.Atoi(ctx.Params("milestone_id"))
+	if err != nil || milestoneID <= 0 {
+		return rest.BadRequestError(ctx, "invalid milestone id")
+	}
+
+	m, err := h.svc.AdminApproveMilestoneSubmission(uint(milestoneID))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
+	}
+	return rest.SuccessResponse(ctx, "milestone approved (ready for voting)", m)
+}
+
+// AdminRejectMilestoneSubmission godoc
+// @Summary Admin rejects milestone submission
+// @Description Admin rejects milestone submission (keeps rejected state for resubmission)
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param milestone_id path int true "Milestone ID"
+// @Param request body object false "Optional reason"
+// @Success 200 {object} object "Milestone rejected"
+// @Router /admin/projects/milestones/{milestone_id}/reject [patch]
+func (h *ProjectHandler) AdminRejectMilestoneSubmission(ctx fiber.Ctx) error {
+	milestoneID, err := strconv.Atoi(ctx.Params("milestone_id"))
+	if err != nil || milestoneID <= 0 {
+		return rest.BadRequestError(ctx, "invalid milestone id")
+	}
+
+	var body struct {
+		Reason *string `json:"reason,omitempty"`
+	}
+	_ = ctx.Bind().Body(&body) // optional
+
+	m, err := h.svc.AdminRejectMilestoneSubmission(uint(milestoneID), body.Reason)
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
+	}
+	return rest.SuccessResponse(ctx, "milestone rejected", m)
+}
+
+// OpenMilestoneVoting godoc
+// @Summary Open milestone voting
+// @Description Pioneer opens booster voting after admin approves milestone submission
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param milestone_id path int true "Milestone ID"
+// @Success 200 {object} object "Voting opened"
+// @Router /pioneer/projects/milestones/{milestone_id}/open-vote [patch]
+func (h *ProjectHandler) OpenMilestoneVoting(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+	milestoneID, err := strconv.Atoi(ctx.Params("milestone_id"))
+	if err != nil || milestoneID <= 0 {
+		return rest.BadRequestError(ctx, "invalid milestone id")
+	}
+
+	m, err := h.svc.OpenMilestoneVoting(uint(milestoneID), user)
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
+	}
+	return rest.SuccessResponse(ctx, "voting opened", m)
 }
 
 // GetProjectStories godoc

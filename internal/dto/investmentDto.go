@@ -88,3 +88,7 @@ type InvestedProjectItem struct {
 	InvestmentCount int        `json:"investment_count"`
 	FirstInvestedAt *time.Time `json:"first_invested_at"`
 }
+
+type VoteMilestoneRequest struct {
+	Choice string `json:"choice" validate:"required,oneof=approve reject"`
+}

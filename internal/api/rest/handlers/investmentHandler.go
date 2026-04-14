@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"flyup/internal/api/rest"
+	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/helper"
 	"flyup/internal/repository"
@@ -45,12 +46,53 @@ func SetupInvestmentRoutes(rh *rest.RestHandler) {
 	priv.Get("/my-projects", h.ListMyInvestedProjects)
 	priv.Get("/:id", h.GetInvestment)
 	priv.Post("/:id/refund", h.RefundInvestment)
+	priv.Post("/milestones/:milestone_id/vote", h.VoteMilestone)
 
 	admin := rh.App.Group("/admin/investments", rh.Middlewares.AuthorizeAdmin)
 	admin.Get("/refund-requests", h.ListRefundRequests)
 	admin.Patch("/:id/approve-refund", h.ApproveRefund)
 }
 
+// VoteMilestone godoc
+// @Summary Vote on milestone submission
+// @Description Verified investor votes approve/reject on a submitted milestone
+// @Tags Investments
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param milestone_id path int true "Milestone ID"
+// @Param request body dto.VoteMilestoneRequest true "Vote payload"
+// @Success 200 {object} object "Vote saved"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /investments/milestones/{milestone_id}/vote [post]
+func (h *InvestmentHandler) VoteMilestone(ctx fiber.Ctx) error {
+	currentUser := h.auth.GetCurrentUser(ctx)
+	if currentUser.ID == 0 {
+		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
+	}
+
+	milestoneID, err := strconv.Atoi(ctx.Params("milestone_id"))
+	if err != nil || milestoneID <= 0 {
+		return rest.BadRequestError(ctx, "invalid milestone id")
+	}
+
+	var req dto.VoteMilestoneRequest
+	if err := ctx.Bind().Body(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid request body")
+	}
+	if err := h.validator.Struct(req); err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	choice := domain.MilestoneVoteChoice(req.Choice)
+	v, err := h.svc.VoteMilestone(currentUser.ID, uint(milestoneID), choice)
+	if err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "vote saved", v)
+}
 // GetInvestment godoc
 // @Summary      Get investment detail
 // @Description  Get a specific investment and its transaction by investment ID (booster only)
