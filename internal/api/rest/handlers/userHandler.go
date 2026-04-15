@@ -72,6 +72,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	privateRoutes.Patch("/update-bank/:id", handler.UpdateBankAccount)
 	privateRoutes.Post("/signout", handler.SignOut)
 	privateRoutes.Put("/change-password", handler.ChangePassword)
+	privateRoutes.Put("/add-password", handler.AddPassword)
 
 	//admin route
 	adminRoutes := app.Group("/admin", rh.Middlewares.AuthorizeAdmin)
@@ -1230,4 +1231,26 @@ func (h *UserHandler) GetCardIDRequests(ctx fiber.Ctx) error {
 		"message": "get users cardID verify request success",
 		"data":    reqs,
 	})
+}
+
+func (h *UserHandler) AddPassword(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.BadRequestError(ctx, "unauthorized")
+	}
+	var req dto.AddPasswordRequest
+
+	if err := ctx.Bind().Body(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid body")
+	}
+
+	err := h.svc.AddPasswordForGoogle(user.ID, req.NewPassword)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return ctx.JSON(fiber.Map{
+		"message": "add password success",
+	})
+
 }

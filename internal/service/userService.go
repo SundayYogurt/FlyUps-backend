@@ -31,6 +31,7 @@ type UserService interface {
 	ForgotPassword(email string) error
 	SetPassword(token string, newPassword string) error
 	ChangePassword(userID uint, password string, newPassword string) error
+	AddPasswordForGoogle(userID uint, newPassword string) error
 	GetProfile(userID uint) (*domain.User, error)
 	UpdateProfile(userID uint, input dto.ProfileInput) error
 	VerifyStudent(userID uint, input dto.VerifyStudentInput) error
@@ -64,6 +65,79 @@ type userService struct {
 	Auth     helper.AuthService
 	Config   config.AppConfig
 	notifSvc NotificationService
+}
+
+func (s *userService) AddPasswordForGoogle(userID uint, newPassword string) error {
+	newPassword = strings.TrimSpace(newPassword)
+
+	if userID == 0 {
+		return errors.New("invalid user id")
+	}
+
+	user, err := s.Repo.FindUserById(userID)
+	if err != nil {
+		return err
+	}
+
+	// normal user
+	if user.GoogleSub == nil && user.PasswordHash != "" {
+		return errors.New("user not have permission for add google password")
+	}
+
+	//google user
+	if user.GoogleSub != nil && user.PasswordHash != "" {
+		return errors.New("user already have password for google password")
+	}
+
+	if newPassword == "" {
+		return errors.New("invalid newPassword")
+	}
+
+	if userID != user.ID {
+		return errors.New("user id not match cannot change password")
+	}
+
+	if len(newPassword) < 8 {
+		return errors.New("password must be at least 8 characters")
+	}
+
+	//check ตัวใหญ่ (A-Z)
+	upper := regexp.MustCompile(`[A-Z]`)
+	if !upper.MatchString(newPassword) {
+		return errors.New("password must contain at least one uppercase letter")
+	}
+
+	//check ตัวใหญ่ (A-Z)
+	lower := regexp.MustCompile(`[a-z]`)
+	if !lower.MatchString(newPassword) {
+		return errors.New("password must contain at least one lowercase letter")
+	}
+
+	//check ตัวเลข
+	digit := regexp.MustCompile(`[0-9]`)
+	if !digit.MatchString(newPassword) {
+		return errors.New("password must contain at least one number")
+	}
+
+	//check อักขระพิเศษ
+	special := regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]`)
+	if !special.MatchString(newPassword) {
+		return errors.New("password must contain at least one special character")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return errors.New("fail to hash password")
+	}
+
+	user.PasswordHash = string(hashedPassword)
+
+	updates := map[string]interface{}{
+		"password_hash": string(hashedPassword),
+	}
+
+	return s.Repo.UpdateUser(user.ID, updates)
+
 }
 
 func NewUserService(
