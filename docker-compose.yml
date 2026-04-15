@@ -15,6 +15,8 @@ services:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: root
       POSTGRES_DB: flyup
+    ports:
+      - "5434:5432"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U root -d flyup" ]
       interval: 5s
