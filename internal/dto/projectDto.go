@@ -69,6 +69,7 @@ type UpdateMilestoneRequest struct {
 	Title              *string                 `json:"title"`
 	Description        *string                 `json:"description"`
 	Duration           *int                    `json:"duration,omitempty"`
+	DueDate            *time.Time              `json:"due_date,omitempty"`
 	AcceptanceCriteria *string                 `json:"acceptance_criteria"`
 	PhaseNo            *int                    `json:"phase_no"`
 	Status             *domain.MilestoneStatus `json:"status,omitempty"`
@@ -81,6 +82,7 @@ type CreateMilestoneRequest struct {
 	Title              string                  `json:"title"`
 	Description        *string                 `json:"description,omitempty"`
 	Duration           *int                    `json:"duration,omitempty"`
+	DueDate            *time.Time              `json:"due_date,omitempty"`
 	AcceptanceCriteria *string                 `json:"acceptance_criteria,omitempty"`
 	Status             *domain.MilestoneStatus `json:"status,omitempty"`
 	PhaseNo            int                     `json:"phase_no"`

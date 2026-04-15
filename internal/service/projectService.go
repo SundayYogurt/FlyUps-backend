@@ -194,12 +194,18 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 			return nil, errors.New("softcap must be at least 70% of funding goal")
 		}
 
+		if *input.Softcap > 100 {
+			return nil, errors.New("softcap must not exceed 100% of the target fundraising.")
+		}
 		project.Softcap = *input.Softcap
 	}
 	if input.DurationDays != nil {
 		project.DurationDays = *input.DurationDays
 	}
 	if input.DurationMonths != nil {
+		if *input.DurationMonths > 48 {
+			return nil, errors.New("duration months must be less than 48 months")
+		}
 		project.DurationMonths = *input.DurationMonths
 	}
 	if input.DurationDays != nil {
@@ -464,6 +470,7 @@ func (s *projectService) CreateMilestone(projectID uint, input dto.CreateMilesto
 		SortOrder:      phaseNo,
 		PercentRelease: percent,
 		Status:         domain.MilestoneDraft,
+		DueDate:        input.DueDate,
 	}
 
 	return milestone, s.projectRepo.CreateMilestone(milestone)
@@ -508,6 +515,10 @@ func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMiles
 
 	if input.Duration != nil {
 		m.Duration = input.Duration
+	}
+
+	if input.DueDate != nil {
+		m.DueDate = input.DueDate
 	}
 
 	if input.AcceptanceCriteria != nil {
@@ -559,7 +570,9 @@ func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMiles
 			domain.MilestoneWaiting:   true,
 			domain.MilestoneActive:    true,
 			domain.MilestoneSubmitted: true,
+			domain.MilestoneApproved:  true,
 			domain.MilestoneRejected:  true,
+			domain.MilestoneFailed:    true,
 			domain.MilestonePaid:      true,
 		}
 
@@ -702,12 +715,34 @@ func (s *projectService) SubmitMilestone(milestoneID uint, input dto.SubmitMiles
 		return nil, errors.New("permission denied")
 	}
 
-	// only allow submit when active/waiting (and avoid re-submit loops)
+	// only allow submit when active (and allow resubmission when rejected)
 	switch m.Status {
-	case domain.MilestoneWaiting, domain.MilestoneActive, domain.MilestoneRejected:
+	case domain.MilestoneActive, domain.MilestoneRejected:
 		// ok
 	default:
 		return nil, errors.New("milestone cannot be submitted in current status")
+	}
+
+	// sequential guard: phase > 1 requires previous phase to be paid
+	if m.PhaseNo > 1 {
+		list, err := s.projectRepo.FindMilestonesByProjectID(m.ProjectID)
+		if err != nil {
+			return nil, err
+		}
+		prevPhase := m.PhaseNo - 1
+		foundPrev := false
+		for i := range list {
+			if list[i].PhaseNo == prevPhase {
+				foundPrev = true
+				if list[i].Status != domain.MilestonePaid {
+					return nil, errors.New("previous milestone must be paid before submitting this phase")
+				}
+				break
+			}
+		}
+		if !foundPrev {
+			return nil, errors.New("previous milestone not found")
+		}
 	}
 
 	summary := strings.TrimSpace(input.Summary)
@@ -1503,16 +1538,49 @@ func (s *projectService) AutoProjectLifecycleTick(now time.Time) error {
 	}
 	for i := range executingProjects {
 		p := &executingProjects[i]
+
+		// milestone due date timeout:
+		// if an active milestone is overdue and not submitted -> mark milestone failed and suspend project.
+		milestones, err := s.projectRepo.FindMilestonesByProjectID(p.ID)
+		if err != nil {
+			return err
+		}
+		overdue := false
+		for j := range milestones {
+			m := &milestones[j]
+			if m.Status != domain.MilestoneActive {
+				continue
+			}
+			if m.DueDate == nil {
+				continue
+			}
+			if now.Before((*m.DueDate).UTC()) {
+				continue
+			}
+
+			// overdue while still active => fail
+			m.Status = domain.MilestoneFailed
+			m.VotingOpen = false
+			m.VotingOpenedAt = nil
+			m.VotingClosedAt = nil
+			_ = s.projectRepo.UpdateMilestone(m)
+			overdue = true
+			break
+		}
+		if overdue {
+			p.State = domain.StateClosed
+			p.Status = domain.StatusFailed
+			if _, err := s.projectRepo.UpdateProject(p); err != nil {
+				return err
+			}
+			continue
+		}
+
 		if p.ExecutionEndAt == nil {
 			continue
 		}
 		if now.Before(*p.ExecutionEndAt) {
 			continue
-		}
-
-		milestones, err := s.projectRepo.FindMilestonesByProjectID(p.ID)
-		if err != nil {
-			return err
 		}
 		allPaid := len(milestones) > 0
 		for _, m := range milestones {
