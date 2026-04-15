@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    environment {
+        PROJECT_NAME = "flyup_backend"
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -15,47 +19,55 @@ pipeline {
                 }
             }
             steps {
-                // บังคับชื่อโปรเจกต์ (-p) ให้เป็น flyup_backend ทุกครั้ง
-                // เพื่อให้ docker compose down สามารถหาและปิดของเก่าได้ถูกต้องแม้ชื่อโฟลเดอร์ของ Jenkins รันจะเปลี่ยนไป
                 sh '''
-                echo "Deploying the application..."
-                docker compose -p flyup_backend down
-                docker compose -p flyup_backend up -d --build
+                echo "🚀 Deploying..."
+
+                # 🔥 kill container ที่แอบใช้ port 3000 (กันชน)
+                docker ps -q --filter "publish=3000" | xargs -r docker rm -f
+
+                # 🔥 ปิดของเก่า (ไม่ลบ DB)
+                docker compose -p $PROJECT_NAME down --remove-orphans
+
+                # 🔥 build + run ใหม่
+                docker compose -p $PROJECT_NAME up -d --build
+
+                echo "✅ Deploy Done"
                 '''
             }
-            post {
-                success {
-                    script {
-                        echo "Deployment Successful!"
-                        def payload = [
-                            job: env.JOB_NAME,
-                            status: "SUCCESS",
-                            url: env.BUILD_URL,
-                            build: env.BUILD_NUMBER
-                        ]
-                        httpRequest acceptType: 'APPLICATION_JSON',
-                                    contentType: 'APPLICATION_JSON',
-                                    httpMode: 'POST',
-                                    requestBody: groovy.json.JsonOutput.toJson(payload),
-                                    url: 'https://n8n.flyupapi.dev/webhook/jenkins-alert'
-                    }
-                }
-                failure {
-                    script {
-                        echo "Deployment Failed!"
-                        def payload = [
-                            job: env.JOB_NAME,
-                            status: "FAILURE",
-                            url: env.BUILD_URL,
-                            build: env.BUILD_NUMBER
-                        ]
-                        httpRequest acceptType: 'APPLICATION_JSON',
-                                    contentType: 'APPLICATION_JSON',
-                                    httpMode: 'POST',
-                                    requestBody: groovy.json.JsonOutput.toJson(payload),
-                                    url: 'https://n8n.flyupapi.dev/webhook/jenkins-alert'
-                    }
-                }
+        }
+    }
+
+    post {
+        success {
+            script {
+                echo "Deployment Successful!"
+                def payload = [
+                    job: env.JOB_NAME,
+                    status: "SUCCESS",
+                    url: env.BUILD_URL,
+                    build: env.BUILD_NUMBER
+                ]
+                httpRequest acceptType: 'APPLICATION_JSON',
+                            contentType: 'APPLICATION_JSON',
+                            httpMode: 'POST',
+                            requestBody: groovy.json.JsonOutput.toJson(payload),
+                            url: 'https://n8n.flyupapi.dev/webhook/jenkins-alert'
+            }
+        }
+        failure {
+            script {
+                echo "Deployment Failed!"
+                def payload = [
+                    job: env.JOB_NAME,
+                    status: "FAILURE",
+                    url: env.BUILD_URL,
+                    build: env.BUILD_NUMBER
+                ]
+                httpRequest acceptType: 'APPLICATION_JSON',
+                            contentType: 'APPLICATION_JSON',
+                            httpMode: 'POST',
+                            requestBody: groovy.json.JsonOutput.toJson(payload),
+                            url: 'https://n8n.flyupapi.dev/webhook/jenkins-alert'
             }
         }
     }
