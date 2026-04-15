@@ -152,6 +152,7 @@ func TestSubmitMilestone_SetsSubmittedAndData(t *testing.T) {
 	m := &domain.Milestone{
 		ID:        milestoneID,
 		ProjectID: projectID,
+		PhaseNo:   1,
 		Status:    domain.MilestoneActive,
 	}
 	p := &domain.Project{ID: projectID, OwnerUserID: user.ID}
@@ -173,5 +174,64 @@ func TestSubmitMilestone_SetsSubmittedAndData(t *testing.T) {
 	assert.Equal(t, domain.MilestoneSubmitted, res.Status)
 	assert.NotNil(t, res.SubmittedAt)
 	assert.WithinDuration(t, time.Now().UTC(), *res.SubmittedAt, 5*time.Second)
+}
+
+func TestSubmitMilestone_Phase2_RequiresPrevPaid(t *testing.T) {
+	projRepo := new(ProjectRepository)
+	projectSvc := NewProjectService(projRepo, nil, nil, nil)
+
+	user := domain.User{ID: 1}
+	projectID := uint(700)
+	milestoneID := uint(701)
+	m := &domain.Milestone{
+		ID:        milestoneID,
+		ProjectID: projectID,
+		PhaseNo:   2,
+		Status:    domain.MilestoneActive,
+	}
+	p := &domain.Project{ID: projectID, OwnerUserID: user.ID}
+
+	projRepo.On("FindMilestoneByID", milestoneID).Return(m, nil)
+	projRepo.On("FindProjectByID", projectID).Return(p, nil)
+	projRepo.On("FindMilestonesByProjectID", projectID).Return([]domain.Milestone{
+		{ID: 11, ProjectID: projectID, PhaseNo: 1, Status: domain.MilestonePaid},
+		{ID: 12, ProjectID: projectID, PhaseNo: 2, Status: domain.MilestoneActive},
+	}, nil)
+	projRepo.On("UpdateMilestone", mock.AnythingOfType("*domain.Milestone")).Return(nil)
+
+	req := dto.SubmitMilestoneRequest{Summary: "phase 2 work"}
+	res, err := projectSvc.SubmitMilestone(milestoneID, req, user)
+	assert.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, domain.MilestoneSubmitted, res.Status)
+}
+
+func TestSubmitMilestone_Phase2_FailsWhenPrevNotPaid(t *testing.T) {
+	projRepo := new(ProjectRepository)
+	projectSvc := NewProjectService(projRepo, nil, nil, nil)
+
+	user := domain.User{ID: 1}
+	projectID := uint(710)
+	milestoneID := uint(711)
+	m := &domain.Milestone{
+		ID:        milestoneID,
+		ProjectID: projectID,
+		PhaseNo:   2,
+		Status:    domain.MilestoneActive,
+	}
+	p := &domain.Project{ID: projectID, OwnerUserID: user.ID}
+
+	projRepo.On("FindMilestoneByID", milestoneID).Return(m, nil)
+	projRepo.On("FindProjectByID", projectID).Return(p, nil)
+	projRepo.On("FindMilestonesByProjectID", projectID).Return([]domain.Milestone{
+		{ID: 21, ProjectID: projectID, PhaseNo: 1, Status: domain.MilestoneRejected},
+		{ID: 22, ProjectID: projectID, PhaseNo: 2, Status: domain.MilestoneActive},
+	}, nil)
+
+	req := dto.SubmitMilestoneRequest{Summary: "phase 2 work"}
+	res, err := projectSvc.SubmitMilestone(milestoneID, req, user)
+	assert.Error(t, err)
+	assert.Nil(t, res)
+	assert.Equal(t, "previous milestone must be paid before submitting this phase", err.Error())
 }
 

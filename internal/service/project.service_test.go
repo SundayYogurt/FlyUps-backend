@@ -340,3 +340,33 @@ func TestAutoProjectLifecycleTick_ExecutionExpireToClosedFailed(t *testing.T) {
 	assert.NoError(t, err)
 	projRepo.AssertExpectations(t)
 }
+
+func TestAutoProjectLifecycleTick_MilestoneOverdue_SuspendProjectFailed(t *testing.T) {
+	projRepo := new(ProjectRepository)
+	svc := NewProjectService(projRepo, nil, nil, nil)
+
+	funding := domain.StateFunding
+	executing := domain.StateExecuting
+	status := domain.StatusActive
+	now := time.Now().UTC()
+	due := now.Add(-1 * time.Hour)
+
+	executingProject := domain.Project{
+		ID:     77,
+		State:  domain.StateExecuting,
+		Status: domain.StatusActive,
+	}
+	milestones := []domain.Milestone{
+		{ID: 1, ProjectID: 77, PhaseNo: 1, Status: domain.MilestoneActive, DueDate: &due},
+	}
+
+	projRepo.On("FindProjects", &funding, &status, (*domain.ProjectVisibility)(nil)).Return([]domain.Project{}, nil)
+	projRepo.On("FindProjects", &executing, &status, (*domain.ProjectVisibility)(nil)).Return([]domain.Project{executingProject}, nil)
+	projRepo.On("FindMilestonesByProjectID", uint(77)).Return(milestones, nil)
+	projRepo.On("UpdateMilestone", mock.AnythingOfType("*domain.Milestone")).Return(nil)
+	projRepo.On("UpdateProject", mock.AnythingOfType("*domain.Project")).Return(&executingProject, nil)
+
+	err := svc.AutoProjectLifecycleTick(now)
+	assert.NoError(t, err)
+	projRepo.AssertExpectations(t)
+}

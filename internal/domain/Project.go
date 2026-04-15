@@ -111,6 +111,7 @@ const (
 	MilestoneSubmitted MilestoneStatus = "submitted"
 	MilestoneApproved  MilestoneStatus = "approved"
 	MilestoneRejected  MilestoneStatus = "rejected"
+	MilestoneFailed    MilestoneStatus = "failed"
 	MilestonePaid      MilestoneStatus = "paid"
 )
 
@@ -128,6 +129,7 @@ type Milestone struct {
 	Title              string          `json:"title"`
 	Description        *string         `json:"description"`
 	Duration           *int            `json:"duration,omitempty"`
+	DueDate            *time.Time      `json:"due_date,omitempty"`
 	AcceptanceCriteria *string         `json:"acceptance_criteria"`
 	Type               []MediaType     `json:"type" gorm:"type:json;serializer:json"`
 	URLs               []string        `json:"urls" gorm:"type:json;serializer:json"`

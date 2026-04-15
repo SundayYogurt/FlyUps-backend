@@ -4299,6 +4299,7 @@
                 "submitted",
                 "approved",
                 "rejected",
+                "failed",
                 "paid"
             ],
             "x-enum-varnames": [
@@ -4308,6 +4309,7 @@
                 "MilestoneSubmitted",
                 "MilestoneApproved",
                 "MilestoneRejected",
+                "MilestoneFailed",
                 "MilestonePaid"
             ]
         },
@@ -4389,6 +4391,9 @@
                 },
                 "duration": {
                     "type": "integer"
+                },
+                "due_date": {
+                    "type": "string"
                 },
                 "phase_no": {
                     "type": "integer"
@@ -4634,6 +4639,9 @@
                 },
                 "duration": {
                     "type": "integer"
+                },
+                "due_date": {
+                    "type": "string"
                 },
                 "phase_no": {
                     "type": "integer"
