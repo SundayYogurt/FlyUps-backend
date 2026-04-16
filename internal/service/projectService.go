@@ -194,8 +194,8 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 			return nil, errors.New("softcap must be at least 70% of funding goal")
 		}
 
-		if *input.Softcap > 100 {
-			return nil, errors.New("softcap must not exceed 100% of the target fundraising.")
+		if *input.Softcap > project.FundingGoal {
+			return nil, errors.New("softcap must not exceed 100% of the target fundraising")
 		}
 		project.Softcap = *input.Softcap
 	}
