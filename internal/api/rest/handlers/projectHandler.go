@@ -114,6 +114,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	adminProj.Get("/milestones/submitted", handler.AdminListSubmittedMilestones)
 	adminProj.Patch("/milestones/:milestone_id/approve", handler.AdminApproveMilestoneSubmission)
 	adminProj.Patch("/milestones/:milestone_id/reject", handler.AdminRejectMilestoneSubmission)
+	adminProj.Get("/milestones/:milestone_id", handler.AdminGetMilestoneDetail)
 }
 
 // CancelProject godoc
@@ -968,7 +969,7 @@ func (h *ProjectHandler) SubmitProjectMilestone(ctx fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param project_id query int false "Project ID filter"
-// @Success 200 {object} object "Submitted milestones"
+// @Success 200 {array} dto.AdminMilestoneListResponse "Submitted milestones"
 // @Router /admin/projects/milestones/submitted [get]
 func (h *ProjectHandler) AdminListSubmittedMilestones(ctx fiber.Ctx) error {
 	var projectIDPtr *uint
@@ -986,6 +987,29 @@ func (h *ProjectHandler) AdminListSubmittedMilestones(ctx fiber.Ctx) error {
 		return rest.InternalError(ctx, err)
 	}
 	return rest.SuccessResponse(ctx, "success", items)
+}
+
+// AdminGetMilestoneDetail godoc
+// @Summary Admin get milestone detail
+// @Description Admin gets detailed view of a milestone, including project owner info and mapped evidences.
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param milestone_id path int true "Milestone ID"
+// @Success 200 {object} dto.AdminMilestoneDetailResponse "Milestone details"
+// @Router /admin/projects/milestones/{milestone_id} [get]
+func (h *ProjectHandler) AdminGetMilestoneDetail(ctx fiber.Ctx) error {
+	milestoneID, err := strconv.Atoi(ctx.Params("milestone_id"))
+	if err != nil || milestoneID <= 0 {
+		return rest.BadRequestError(ctx, "invalid milestone id")
+	}
+
+	detail, err := h.svc.GetAdminMilestoneDetail(uint(milestoneID))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusNotFound, err)
+	}
+	return rest.SuccessResponse(ctx, "success", detail)
 }
 
 // AdminApproveMilestoneSubmission godoc

@@ -94,21 +94,36 @@ func NewProjectRepository(db *gorm.DB) ProjectRepository {
 }
 
 func (p *projectRepository) FindProjectsPendingDetail(projectID uint, state string) (*domain.Project, error) {
-	var projects *domain.Project
-	err := p.db.Preload("Owner").Preload("Media").
+	var project domain.Project
+
+	err := p.db.
+		Preload("Owner").
+		Preload("Owner.StudentProfile.University").
+		Preload("Owner.IdCardVerification").
+		Preload("Owner.StudentCardVerification").
+		Preload("Media").
 		Preload("Milestones").
 		Preload("Stories").
 		Preload("FAQs").
-		Where("id = ? AND state = ?", projectID, state).Order("created_at DESC").First(&projects).Error
+		Where("id = ? AND state = ?", projectID, state).
+		First(&project).Error
+
 	if err != nil {
 		return nil, err
 	}
-	return projects, nil
+
+	return &project, nil
 }
 
 func (p *projectRepository) FindProjectsState(state string) ([]domain.Project, error) {
 	var projects []domain.Project
-	err := p.db.Preload("Owner").Where("state = ?", state).Order("created_at DESC").Find(&projects).Error
+	err := p.db.
+		Preload("Owner.StudentProfile.University").
+		Preload("Owner.IdCardVerification").
+		Preload("Owner.StudentCardVerification").
+		Where("state = ?", state).
+		Order("created_at DESC").
+		Find(&projects).Error
 	if err != nil {
 		return nil, err
 	}
@@ -489,26 +504,26 @@ func (p *projectRepository) DeleteProject(id uint) error {
 	// ลบ related records ก่อน (เพื่อหลีกเลี่ยง foreign key constraint)
 	// ลบ project_media
 	p.db.Unscoped().Where("project_id = ?", id).Delete(&domain.ProjectMedia{})
-	
+
 	// ลบ milestones
 	p.db.Unscoped().Where("project_id = ?", id).Delete(&domain.Milestone{})
-	
+
 	// ลบ stories
 	p.db.Unscoped().Where("project_id = ?", id).Delete(&domain.StorySection{})
-	
+
 	// ลบ FAQs
 	p.db.Unscoped().Where("project_id = ?", id).Delete(&domain.ProjectFAQ{})
-	
+
 	// ลบ project updates
 	p.db.Unscoped().Where("project_id = ?", id).Delete(&domain.ProjectUpdate{})
-	
+
 	// ลบ threads และ messages
 	p.db.Unscoped().Where("project_id = ?", id).Delete(&domain.ProjectThreadMessage{})
 	p.db.Unscoped().Where("project_id = ?", id).Delete(&domain.ProjectThread{})
-	
+
 	// ลบ investments (ถ้ามี)
 	p.db.Unscoped().Where("project_id = ?", id).Delete(&domain.ProjectInvestment{})
-	
+
 	// สุดท้ายลบ project
 	return p.db.Unscoped().Delete(&domain.Project{}, id).Error
 }
