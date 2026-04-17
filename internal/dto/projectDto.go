@@ -119,3 +119,31 @@ type ProjectMediaItem struct {
 	Type []domain.MediaType   `json:"type" validate:"required" example:"video"`
 }
 
+type EvidenceFile struct {
+	ID       string `json:"id"`
+	URL      string `json:"url"`
+	FileName string `json:"file_name"`
+}
+
+type EvidenceLink struct {
+	Name string `json:"name"`
+	URL  string `json:"url"`
+}
+
+type AdminMilestoneListResponse struct {
+	domain.Milestone
+	ProjectTitle string               `json:"project_title"`
+	Owner        *ProjectOwnerProfile `json:"owner"`
+}
+
+type AdminMilestoneDetailResponse struct {
+	domain.Milestone
+	ProjectTitle    string               `json:"project_title"`
+	Owner           *ProjectOwnerProfile `json:"owner"`
+	EvidenceFiles   []EvidenceFile       `json:"evidence_files"`
+	EvidenceLinks   []EvidenceLink       `json:"evidence_links"`
+	CheckedCriteria []bool               `json:"checked_criteria"`
+	FundingGoal     float64              `json:"funding_goal"`
+	EndDate         *time.Time           `json:"end_date"`
+	ProgressPct     int                  `json:"progress_pct"`
+}

@@ -41,8 +41,8 @@ type ProjectService interface {
 	AdminApproveMilestoneSubmission(milestoneID uint) (*domain.Milestone, error)
 	AdminRejectMilestoneSubmission(milestoneID uint, reason *string) (*domain.Milestone, error)
 	OpenMilestoneVoting(milestoneID uint, user domain.User) (*domain.Milestone, error)
-	GetSubmittedMilestonesForAdmin(projectID *uint) ([]domain.Milestone, error)
-
+	GetSubmittedMilestonesForAdmin(projectID *uint) ([]dto.AdminMilestoneListResponse, error)
+	GetAdminMilestoneDetail(milestoneID uint) (*dto.AdminMilestoneDetailResponse, error)
 	// PROJECT UPDATE
 	CreateProjectUpdate(projectID uint, req dto.CreateProjectUpdateRequest, user domain.User) error
 	GetProjectUpdates(projectID uint) ([]domain.ProjectUpdate, error)
@@ -668,11 +668,138 @@ func (s *projectService) OpenMilestoneVoting(milestoneID uint, user domain.User)
 	return m, nil
 }
 
-func (s *projectService) GetSubmittedMilestonesForAdmin(projectID *uint) ([]domain.Milestone, error) {
+func (s *projectService) GetSubmittedMilestonesForAdmin(projectID *uint) ([]dto.AdminMilestoneListResponse, error) {
+	var milestones []domain.Milestone
+	var err error
 	if projectID != nil {
-		return s.projectRepo.FindMilestonesByProjectIDAndStatus(*projectID, domain.MilestoneSubmitted)
+		milestones, err = s.projectRepo.FindMilestonesByProjectIDAndStatus(*projectID, domain.MilestoneSubmitted)
+	} else {
+		milestones, err = s.projectRepo.FindMilestonesByStatus(domain.MilestoneSubmitted)
 	}
-	return s.projectRepo.FindMilestonesByStatus(domain.MilestoneSubmitted)
+	if err != nil {
+		return nil, err
+	}
+
+	var response []dto.AdminMilestoneListResponse
+	for _, m := range milestones {
+		p, err := s.projectRepo.FindProjectByID(m.ProjectID)
+		if err != nil {
+			continue // skip if project deleted
+		}
+		var ownerProfile *dto.ProjectOwnerProfile
+		ownerUser, err := s.userRepo.FindUserById(p.OwnerUserID)
+		if err == nil {
+			ownerProfile = &dto.ProjectOwnerProfile{
+				FirstName: ownerUser.FirstName,
+				LastName:  ownerUser.LastName,
+			}
+			if ownerUser.StudentProfile != nil {
+				if ownerUser.StudentProfile.University != nil && ownerUser.StudentProfile.University.NameTH != nil {
+					ownerProfile.University = *ownerUser.StudentProfile.University.NameTH
+				}
+				ownerProfile.Faculty = ownerUser.StudentProfile.Faculty
+				ownerProfile.Major = ownerUser.StudentProfile.Major
+			}
+		}
+
+		response = append(response, dto.AdminMilestoneListResponse{
+			Milestone:    m,
+			ProjectTitle: p.Title,
+			Owner:        ownerProfile,
+		})
+	}
+	return response, nil
+}
+
+func (s *projectService) GetAdminMilestoneDetail(milestoneID uint) (*dto.AdminMilestoneDetailResponse, error) {
+	m, err := s.projectRepo.FindMilestoneByID(milestoneID)
+	if err != nil {
+		return nil, errors.New("milestone not found")
+	}
+
+	p, err := s.projectRepo.FindProjectByID(m.ProjectID)
+	if err != nil {
+		return nil, errors.New("project not found")
+	}
+
+	var ownerProfile *dto.ProjectOwnerProfile
+	ownerUser, err := s.userRepo.FindUserById(p.OwnerUserID)
+	if err == nil {
+		ownerProfile = &dto.ProjectOwnerProfile{
+			FirstName: ownerUser.FirstName,
+			LastName:  ownerUser.LastName,
+		}
+		if ownerUser.StudentProfile != nil {
+			if ownerUser.StudentProfile.University != nil && ownerUser.StudentProfile.University.NameTH != nil {
+				ownerProfile.University = *ownerUser.StudentProfile.University.NameTH
+			}
+			ownerProfile.Faculty = ownerUser.StudentProfile.Faculty
+			ownerProfile.Major = ownerUser.StudentProfile.Major
+		}
+	}
+
+	// Calculate Funding Goal
+	fundingGoal := float64(0)
+	if m.PercentRelease > 0 {
+		fundingGoal = (p.FundingGoal * float64(m.PercentRelease)) / 100.0
+	}
+
+	// Map EvidenceFiles
+	var evidenceFiles []dto.EvidenceFile
+	for i, attachment := range m.SubmissionAttachments {
+		evidenceFiles = append(evidenceFiles, dto.EvidenceFile{
+			ID:       fmt.Sprintf("file-%d", i),
+			URL:      attachment,
+			FileName: fmt.Sprintf("Attachment %d", i+1),
+		})
+	}
+
+	// Map EvidenceLinks
+	var evidenceLinks []dto.EvidenceLink
+	for i, link := range m.SubmissionLinks {
+		evidenceLinks = append(evidenceLinks, dto.EvidenceLink{
+			Name: fmt.Sprintf("Link %d", i+1),
+			URL:  link,
+		})
+	}
+
+	// Checked Criteria
+	var checkedCriteria []bool
+	if m.AcceptanceCriteria != nil && *m.AcceptanceCriteria != "" {
+		lines := strings.Split(*m.AcceptanceCriteria, "\n")
+		// Clean lines
+		var criteriaList []string
+		for _, l := range lines {
+			t := strings.TrimSpace(l)
+			// Remove hyphen or numbering if you want, or just check literally:
+			if t != "" {
+				criteriaList = append(criteriaList, t)
+			}
+		}
+
+		for _, req := range criteriaList {
+			matched := false
+			for _, sub := range m.SubmissionCriteria {
+				if strings.Contains(strings.ToLower(sub), strings.ToLower(req)) || req == sub {
+					matched = true
+					break
+				}
+			}
+			checkedCriteria = append(checkedCriteria, matched)
+		}
+	}
+
+	return &dto.AdminMilestoneDetailResponse{
+		Milestone:       *m,
+		ProjectTitle:    p.Title,
+		Owner:           ownerProfile,
+		EvidenceFiles:   evidenceFiles,
+		EvidenceLinks:   evidenceLinks,
+		CheckedCriteria: checkedCriteria,
+		FundingGoal:     fundingGoal,
+		EndDate:         m.DueDate,
+		ProgressPct:     m.PercentRelease,
+	}, nil
 }
 
 func (s *projectService) DeleteMilestone(milestoneID uint, user domain.User) error {
