@@ -480,6 +480,168 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/disbursements": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all disbursement records (pending + confirmed) including pioneer bank account",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Disbursements"
+                ],
+                "summary": "List all disbursements (admin only)",
+                "responses": {
+                    "200": {
+                        "description": "list of disbursements",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/disbursements/pending": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get disbursements awaiting admin confirmation",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Disbursements"
+                ],
+                "summary": "List pending disbursements (admin only)",
+                "responses": {
+                    "200": {
+                        "description": "list of pending disbursements",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/disbursements/{id}/confirm": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin confirms that funds have been transferred to the pioneer",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Disbursements"
+                ],
+                "summary": "Confirm disbursement transfer (admin only)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Disbursement ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Confirmation payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ConfirmDisbursementRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "disbursement confirmed",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "disbursement not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/admin/id-card-verifications": {
             "get": {
                 "security": [
@@ -637,7 +799,47 @@ const docTemplate = `{
                     "200": {
                         "description": "Submitted milestones",
                         "schema": {
-                            "type": "object"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.AdminMilestoneListResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/projects/milestones/{milestone_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin gets detailed view of a milestone, including project owner info and mapped evidences.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Admin get milestone detail",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Milestone ID",
+                        "name": "milestone_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Milestone details",
+                        "schema": {
+                            "$ref": "#/definitions/dto.AdminMilestoneDetailResponse"
                         }
                     }
                 }
@@ -1831,7 +2033,10 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Refund a verified investment while project is in funding state. Platform fee and VAT are non-refundable.",
+                "description": "Refund a verified investment while project is in funding state. Platform fee and VAT are non-refundable. Requires a note for admin approval.",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -1846,6 +2051,15 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Refund request with note",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.RefundInvestmentRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -1856,7 +2070,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "invalid id or business rule violation",
+                        "description": "invalid id, missing note, or business rule violation",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -4301,6 +4515,7 @@ const docTemplate = `{
                 "submitted",
                 "approved",
                 "rejected",
+                "failed",
                 "paid"
             ],
             "x-enum-varnames": [
@@ -4310,6 +4525,7 @@ const docTemplate = `{
                 "MilestoneSubmitted",
                 "MilestoneApproved",
                 "MilestoneRejected",
+                "MilestoneFailed",
                 "MilestonePaid"
             ]
         },
@@ -4325,6 +4541,215 @@ const docTemplate = `{
                 "VisibilityPublic",
                 "VisibilityUnlisted"
             ]
+        },
+        "dto.AdminMilestoneDetailResponse": {
+            "type": "object",
+            "properties": {
+                "acceptance_criteria": {
+                    "type": "string"
+                },
+                "checked_criteria": {
+                    "type": "array",
+                    "items": {
+                        "type": "boolean"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "due_date": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "integer"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "evidence_files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.EvidenceFile"
+                    }
+                },
+                "evidence_links": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.EvidenceLink"
+                    }
+                },
+                "funding_goal": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "owner": {
+                    "$ref": "#/definitions/dto.ProjectOwnerProfile"
+                },
+                "percent_release": {
+                    "type": "integer"
+                },
+                "phase_no": {
+                    "type": "integer"
+                },
+                "progress_pct": {
+                    "type": "integer"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "project_title": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/domain.MilestoneStatus"
+                },
+                "submission_attachments": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "submission_criteria": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "submission_links": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "submission_summary": {
+                    "description": "Submission (what was done in this phase + evidence)",
+                    "type": "string"
+                },
+                "submitted_at": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.MediaType"
+                    }
+                },
+                "urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "voting_closed_at": {
+                    "type": "string"
+                },
+                "voting_open": {
+                    "description": "Booster voting gate (opened by pioneer after admin approves submission)",
+                    "type": "boolean"
+                },
+                "voting_opened_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.AdminMilestoneListResponse": {
+            "type": "object",
+            "properties": {
+                "acceptance_criteria": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "due_date": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "owner": {
+                    "$ref": "#/definitions/dto.ProjectOwnerProfile"
+                },
+                "percent_release": {
+                    "type": "integer"
+                },
+                "phase_no": {
+                    "type": "integer"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "project_title": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/domain.MilestoneStatus"
+                },
+                "submission_attachments": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "submission_criteria": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "submission_links": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "submission_summary": {
+                    "description": "Submission (what was done in this phase + evidence)",
+                    "type": "string"
+                },
+                "submitted_at": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.MediaType"
+                    }
+                },
+                "urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "voting_closed_at": {
+                    "type": "string"
+                },
+                "voting_open": {
+                    "description": "Booster voting gate (opened by pioneer after admin approves submission)",
+                    "type": "boolean"
+                },
+                "voting_opened_at": {
+                    "type": "string"
+                }
+            }
         },
         "dto.BankRequest": {
             "type": "object",
@@ -4354,6 +4779,20 @@ const docTemplate = `{
                 "old_password": {
                     "type": "string",
                     "minLength": 8
+                }
+            }
+        },
+        "dto.ConfirmDisbursementRequest": {
+            "type": "object",
+            "required": [
+                "transfer_ref"
+            ],
+            "properties": {
+                "note": {
+                    "type": "string"
+                },
+                "transfer_ref": {
+                    "type": "string"
                 }
             }
         },
@@ -4387,6 +4826,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "description": {
+                    "type": "string"
+                },
+                "due_date": {
                     "type": "string"
                 },
                 "duration": {
@@ -4445,6 +4887,31 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "province": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.EvidenceFile": {
+            "type": "object",
+            "properties": {
+                "file_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.EvidenceLink": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "url": {
                     "type": "string"
                 }
             }
@@ -4548,6 +5015,43 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ProjectOwnerProfile": {
+            "type": "object",
+            "properties": {
+                "bio": {
+                    "type": "string"
+                },
+                "faculty": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "major": {
+                    "type": "string"
+                },
+                "project_count": {
+                    "type": "integer"
+                },
+                "university": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.RefundInvestmentRequest": {
+            "type": "object",
+            "required": [
+                "note"
+            ],
+            "properties": {
+                "note": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.RefundResponse": {
             "type": "object",
             "properties": {
@@ -4632,6 +5136,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "description": {
+                    "type": "string"
+                },
+                "due_date": {
                     "type": "string"
                 },
                 "duration": {

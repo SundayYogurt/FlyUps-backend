@@ -26,7 +26,7 @@ type InvestmentService interface {
 	CreateInvestment(boosterUserID uint, boosterEmail string, req dto.CreateInvestmentRequest) (*dto.InvestmentResponse, error)
 	ListUserInvestments(boosterUserID uint) ([]domain.Investment, error)
 	HandleStripeWebhook(payload []byte, sigHeader string) error
-	RefundInvestment(boosterUserID uint, investmentID uint) (*dto.RefundResponse, error)
+	RefundInvestment(boosterUserID uint, investmentID uint, note string) (*dto.RefundResponse, error)
 	ApproveRefund(investmentID uint) error
 	ListRefundRequests() ([]dto.RefundRequestItem, error)
 	GetProjectInvestors(projectID uint) ([]dto.ProjectInvestorItem, error)
@@ -35,17 +35,18 @@ type InvestmentService interface {
 }
 
 type investmentService struct {
-	projectRepo     repository.ProjectRepository
-	investmentRepo  repository.InvestmentRepository
-	transactionRepo repository.TransactionRepository
-	userRepo        repository.UserRepository
-	stripeSecretKey string
-	webhookSecret   string
-	notifSvc        NotificationService
+	projectRepo      repository.ProjectRepository
+	investmentRepo   repository.InvestmentRepository
+	transactionRepo  repository.TransactionRepository
+	userRepo         repository.UserRepository
+	disbursementRepo repository.DisbursementRepository
+	stripeSecretKey  string
+	webhookSecret    string
+	notifSvc         NotificationService
 }
 
-func NewInvestmentService(projectRepo repository.ProjectRepository, investmentRepo repository.InvestmentRepository, transactionRepo repository.TransactionRepository, userRepo repository.UserRepository, stripeSecretKey string, webhookSecret string, notifSvc NotificationService) InvestmentService {
-	return &investmentService{projectRepo, investmentRepo, transactionRepo, userRepo, stripeSecretKey, webhookSecret, notifSvc}
+func NewInvestmentService(projectRepo repository.ProjectRepository, investmentRepo repository.InvestmentRepository, transactionRepo repository.TransactionRepository, userRepo repository.UserRepository, disbursementRepo repository.DisbursementRepository, stripeSecretKey string, webhookSecret string, notifSvc NotificationService) InvestmentService {
+	return &investmentService{projectRepo, investmentRepo, transactionRepo, userRepo, disbursementRepo, stripeSecretKey, webhookSecret, notifSvc}
 }
 
 func (s *investmentService) GetInvestment(boosterUserID uint, investmentID uint) (*domain.Investment, *domain.Transaction, error) {
@@ -63,7 +64,10 @@ func (s *investmentService) GetInvestment(boosterUserID uint, investmentID uint)
 	}
 
 	txn, err := s.transactionRepo.FindByInvestmentID(investmentID)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return investment, nil, nil
+		}
 		return nil, nil, errors.New("internal server error")
 	}
 
@@ -160,7 +164,7 @@ func (s *investmentService) ListUserInvestments(boosterUserID uint) ([]domain.In
 	return s.investmentRepo.ListByBoosterUserID(boosterUserID)
 }
 
-func (s *investmentService) RefundInvestment(boosterUserID uint, investmentID uint) (*dto.RefundResponse, error) {
+func (s *investmentService) RefundInvestment(boosterUserID uint, investmentID uint, note string) (*dto.RefundResponse, error) {
 	investment, err := s.investmentRepo.FindByID(investmentID)
 	if err != nil {
 		return nil, errors.New("investment not found")
@@ -188,6 +192,7 @@ func (s *investmentService) RefundInvestment(boosterUserID uint, investmentID ui
 	now := time.Now()
 	investment.Status = domain.InvestmentRefundPending
 	investment.RefundAmount = refundAmount
+	investment.RefundNote = note
 	investment.RefundedAt = &now
 
 	if err := s.investmentRepo.UpdateRefunded(investment); err != nil {
@@ -350,6 +355,7 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 			m.VotingOpen = false
 			m.VotingClosedAt = &now
 			_ = s.projectRepo.UpdateMilestone(m)
+			s.createDisbursementForMilestone(m)
 		}
 
 		rejectCount, err3 := s.projectRepo.CountMilestoneVotes(milestoneID, domain.MilestoneVoteReject)
@@ -366,6 +372,36 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 }
 
 // // private methods
+
+// createDisbursementForMilestone creates a pending disbursement record when
+// a milestone passes booster voting. Idempotent — safe to call if one already exists.
+func (s *investmentService) createDisbursementForMilestone(m *domain.Milestone) {
+	if existing, err := s.disbursementRepo.FindByMilestoneID(m.ID); err == nil && existing != nil {
+		return
+	}
+
+	project, err := s.projectRepo.FindProjectByID(m.ProjectID)
+	if err != nil {
+		log.Printf("[createDisbursement] project lookup failed: %v", err)
+		return
+	}
+
+	amount := project.CurrentFunding * float64(m.PercentRelease) / 100.0
+
+	d := &domain.Disbursement{
+		MilestoneID:    m.ID,
+		ProjectID:      project.ID,
+		PioneerUserID:  project.OwnerUserID,
+		Amount:         amount,
+		PhaseNo:        m.PhaseNo,
+		PercentRelease: m.PercentRelease,
+		Status:         domain.DisbursementPending,
+	}
+
+	if err := s.disbursementRepo.Create(d); err != nil {
+		log.Printf("[createDisbursement] create error: %v", err)
+	}
+}
 
 // // เรียก Stripe API เพื่อสร้าง QR Code PromptPay
 func (s *investmentService) createStripePromptPay(amount float64, refNum string, projectTitle string, email string) (qrURL, intentID, clientSecret string, expiresAt time.Time, err error) {
