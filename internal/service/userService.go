@@ -1224,7 +1224,27 @@ func (s *userService) GoogleSigning(code string, role string, oauthConfig *oauth
 		return "", errors.New("failed to parse user info: " + err.Error())
 	}
 
-	// 3. Check if user exists by email
+	// 3. Validate Pioneer Email Domain BEFORE checking if user exists
+	if role == "pioneer" {
+		parts := strings.Split(googleUser.Email, "@")
+		if len(parts) < 2 {
+			return "", errors.New("invalid email format")
+		}
+		domainName := parts[1]
+
+		findDomain, err := s.URepo.GetUniversityByDomain(domainName)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return "", errors.New("sorry, this email domain is not registered as a university")
+			}
+			return "", errors.New("internal server error, try again later")
+		}
+		if !findDomain.IsActive {
+			return "", errors.New("this university is not active")
+		}
+	}
+
+	// 4. Check if user exists by email
 	user, err := s.Repo.FindUser(googleUser.Email)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -1234,25 +1254,6 @@ func (s *userService) GoogleSigning(code string, role string, oauthConfig *oauth
 		// User not found, automatically register them!
 		if role != "pioneer" && role != "booster" {
 			role = "booster" // Fallback Default
-		}
-
-		if role == "pioneer" {
-			parts := strings.Split(googleUser.Email, "@")
-			if len(parts) < 2 {
-				return "", errors.New("invalid email format")
-			}
-			domainName := parts[1]
-
-			findDomain, err := s.URepo.GetUniversityByDomain(domainName)
-			if err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					return "", errors.New("sorry, this email domain is not registered as a university")
-				}
-				return "", errors.New("internal server error, try again later")
-			}
-			if !findDomain.IsActive {
-				return "", errors.New("this university is not active")
-			}
 		}
 
 		googleSub := googleUser.ID
