@@ -290,7 +290,7 @@ func (s *projectService) GetPublicProjects() ([]domain.Project, error) {
 	// public projects include both fundraising and post-fundraising execution phases
 	filtered := make([]domain.Project, 0, len(projects))
 	for _, p := range projects {
-		if p.State == domain.StateFunding || p.State == domain.StateExecuting {
+		if p.State == domain.StateFunding {
 			filtered = append(filtered, p)
 		}
 	}
