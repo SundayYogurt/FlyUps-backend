@@ -1639,13 +1639,43 @@ func (s *projectService) AutoProjectLifecycleTick(now time.Time) error {
 
 	for i := range projects {
 		p := &projects[i]
+
+		// 1. Success condition: Reached Hardcap OR (time expired AND reached Softcap)
+		isHardcapReached := p.CurrentFunding >= p.FundingGoal
+		isExpiredAndSoftcap := !p.EndDate.IsZero() && !now.Before(p.EndDate) && p.CurrentFunding >= p.Softcap
+
+		if isHardcapReached || isExpiredAndSoftcap {
+			startExecutionAt := time.Now().UTC()
+			p.State = domain.StateExecuting
+			p.Status = domain.StatusActive
+			if p.DurationMonths > 0 {
+				executionEnd := startExecutionAt.AddDate(0, p.DurationMonths, 0)
+				p.ExecutionEndAt = &executionEnd
+			}
+
+			if _, err := s.projectRepo.UpdateProject(p); err != nil {
+				return err
+			}
+
+			// เริ่ม Milestone 1 (เปลี่ยนจาก waiting -> active)
+			milestones, err := s.projectRepo.FindMilestonesByProjectID(p.ID)
+			if err == nil {
+				for j := range milestones {
+					if milestones[j].Status == domain.MilestoneWaiting && milestones[j].PhaseNo == 1 {
+						milestones[j].Status = domain.MilestoneActive
+						_ = s.projectRepo.UpdateMilestone(&milestones[j])
+						break
+					}
+				}
+			}
+			continue
+		}
+
+		// 2. Failure condition: Time expired and < Softcap
 		if p.EndDate.IsZero() {
 			continue
 		}
 		if now.Before(p.EndDate) {
-			continue
-		}
-		if p.CurrentFunding >= p.Softcap {
 			continue
 		}
 
