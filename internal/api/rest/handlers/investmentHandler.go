@@ -26,6 +26,7 @@ func SetupInvestmentRoutes(rh *rest.RestHandler) {
 		repository.NewInvestmentRepository(rh.DB),
 		repository.NewTransactionRepository(rh.DB),
 		repository.NewUserRepository(rh.DB),
+		repository.NewDisbursementRepository(rh.DB),
 		rh.Config.StripeSecretKey,
 		rh.Config.StripeWebhookSecret,
 		rh.NotifSvc,
@@ -238,15 +239,17 @@ func (h *InvestmentHandler) ApproveRefund(ctx fiber.Ctx) error {
 
 // RefundInvestment godoc
 // @Summary      Refund an investment
-// @Description  Refund a verified investment while project is in funding state. Platform fee and VAT are non-refundable.
+// @Description  Refund a verified investment while project is in funding state. Platform fee and VAT are non-refundable. Requires a note for admin approval.
 // @Tags         Investments
+// @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        id   path      int  true  "Investment ID"
-// @Success      200  {object}  dto.RefundResponse         "refund processed"
-// @Failure      400  {object}  map[string]string          "invalid id or business rule violation"
-// @Failure      401  {object}  map[string]string          "unauthorized"
-// @Failure      404  {object}  map[string]string          "investment not found"
+// @Param        id    path      int                          true  "Investment ID"
+// @Param        body  body      dto.RefundInvestmentRequest  true  "Refund request with note"
+// @Success      200   {object}  dto.RefundResponse           "refund processed"
+// @Failure      400   {object}  map[string]string            "invalid id, missing note, or business rule violation"
+// @Failure      401   {object}  map[string]string            "unauthorized"
+// @Failure      404   {object}  map[string]string            "investment not found"
 // @Router       /investments/{id}/refund [post]
 func (h *InvestmentHandler) RefundInvestment(ctx fiber.Ctx) error {
 	currentUser := h.auth.GetCurrentUser(ctx)
@@ -259,7 +262,15 @@ func (h *InvestmentHandler) RefundInvestment(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid investment id")
 	}
 
-	result, err := h.svc.RefundInvestment(currentUser.ID, uint(id))
+	var req dto.RefundInvestmentRequest
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid request body")
+	}
+	if req.Note == "" {
+		return rest.BadRequestError(ctx, "note is required")
+	}
+
+	result, err := h.svc.RefundInvestment(currentUser.ID, uint(id), req.Note)
 	if err != nil {
 		if err.Error() == "investment not found" {
 			return ctx.Status(http.StatusNotFound).JSON(fiber.Map{"message": err.Error()})

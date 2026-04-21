@@ -58,6 +58,7 @@ func StartServer(cfg config.AppConfig) {
 		// investment & payment
 		&domain.Investment{},
 		&domain.Transaction{},
+		&domain.Disbursement{},
 
 		// notification
 		&domain.Notification{},
@@ -164,6 +165,7 @@ func setupRoutes(rh *rest.RestHandler) {
 	handlers.SetupUserRoutes(rh)
 	handlers.SetupProjectRoutes(rh)
 	handlers.SetupInvestmentRoutes(rh)
+	handlers.SetupDisbursementRoutes(rh)
 	handlers.SetupUploadRoutes(rh)
 	handlers.SetupNotificationRoutes(rh)
 }
