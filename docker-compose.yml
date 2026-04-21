@@ -27,6 +27,9 @@ services:
 
   n8n:
     image: n8nio/n8n
+    environment:
+      - N8N_SECURE_COOKIE=false
+      - WEBHOOK_URL=https://n8n.flyupapi.dev/
     ports:
       - "5678:5678"
     volumes:
