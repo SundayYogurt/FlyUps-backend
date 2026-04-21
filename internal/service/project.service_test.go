@@ -293,12 +293,13 @@ func TestAutoProjectLifecycleTick_FundingExpireToDraftFailed(t *testing.T) {
 	status := domain.StatusActive
 	now := time.Now().UTC()
 	expired := domain.Project{
-		ID:            99,
-		State:         domain.StateFunding,
-		Status:        domain.StatusActive,
-		Softcap:       70000,
+		ID:             99,
+		State:          domain.StateFunding,
+		Status:         domain.StatusActive,
+		FundingGoal:    100000,
+		Softcap:        70000,
 		CurrentFunding: 10000,
-		EndDate:       now.Add(-1 * time.Hour),
+		EndDate:        now.Add(-1 * time.Hour),
 	}
 
 	executing := domain.StateExecuting
