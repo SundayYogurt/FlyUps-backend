@@ -12,134 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// ─── Mock: ProjectRepository ────────────────────────────────────────────────
-
-type mockProjectRepo struct{ mock.Mock }
-
-func (m *mockProjectRepo) FindProjectByID(id uint) (*domain.Project, error) {
-	args := m.Called(id)
-	return args.Get(0).(*domain.Project), args.Error(1)
-}
-func (m *mockProjectRepo) CreateProject(p *domain.Project) (*domain.Project, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) FindProjectDetailByID(id uint, state *domain.ProjectState, status *domain.ProjectStatus, visibility *domain.ProjectVisibility) (*domain.Project, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) FindProjectByIDAndOwner(id, ownerID uint) (*domain.Project, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) FindProjectsByOwnerID(ownerID uint) ([]domain.Project, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) FindProjects(state *domain.ProjectState, status *domain.ProjectStatus, visibility *domain.ProjectVisibility) ([]domain.Project, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) FindProjectsByCategory(categoryID uint) ([]domain.Project, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) UpdateProject(p *domain.Project) (*domain.Project, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) DeleteProject(id uint) error { panic("not implemented") }
-func (m *mockProjectRepo) CreateProjectUpdate(u *domain.ProjectUpdate) error {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) FindUpdatesByProjectID(projectID uint) ([]domain.ProjectUpdate, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) FindProjectUpdateByID(updateID uint) (*domain.ProjectUpdate, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) UpdateProjectUpdate(u *domain.ProjectUpdate) error {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) DeleteProjectUpdate(updateID uint) error { panic("not implemented") }
-func (m *mockProjectRepo) GetApprovedIdCard(userID uint) (*domain.IdCardVerification, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) GetApprovedStudentCard(userID uint) (*domain.StudentCardVerification, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) FindMediaByProjectID(projectID uint) ([]domain.ProjectMedia, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) FindMediaByID(id uint) (*domain.ProjectMedia, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) CreateProjectMedia(media *domain.ProjectMedia) error {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) UpdateProjectMedia(media *domain.ProjectMedia) error {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) DeleteProjectMedia(mediaID uint) error { panic("not implemented") }
-func (m *mockProjectRepo) FindCategoryByID(id uint) (*domain.ProjectCategory, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) FindAllCategories() ([]domain.ProjectCategory, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) CreateCategory(c *domain.ProjectCategory) (*domain.ProjectCategory, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) UpdateCategory(c *domain.ProjectCategory) (*domain.ProjectCategory, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) DeleteCategory(id uint) error          { panic("not implemented") }
-func (m *mockProjectRepo) CountProjectsByCategoryID(id uint) (int64, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) FindMilestoneByID(id uint) (*domain.Milestone, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) FindMilestonesByProjectID(projectID uint) ([]domain.Milestone, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) CreateMilestone(mi *domain.Milestone) error { panic("not implemented") }
-func (m *mockProjectRepo) UpdateMilestone(mi *domain.Milestone) error { panic("not implemented") }
-func (m *mockProjectRepo) DeleteMilestone(id uint) error              { panic("not implemented") }
-func (m *mockProjectRepo) FindStoriesByProjectID(projectID uint) ([]domain.StorySection, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) FindStorySectionByID(sectionID uint) (*domain.StorySection, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) CreateStorySection(s *domain.StorySection) error { panic("not implemented") }
-func (m *mockProjectRepo) UpdateStorySection(s *domain.StorySection) error { panic("not implemented") }
-func (m *mockProjectRepo) DeleteStorySection(id uint) error                { panic("not implemented") }
-func (m *mockProjectRepo) FindThreadsByProjectID(projectID uint) ([]domain.ProjectThread, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) FindThreadByID(threadID uint) (*domain.ProjectThread, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) CreateThread(t *domain.ProjectThread) error { panic("not implemented") }
-func (m *mockProjectRepo) UpdateThread(t *domain.ProjectThread) error { panic("not implemented") }
-func (m *mockProjectRepo) DeleteThread(id uint) error                 { panic("not implemented") }
-func (m *mockProjectRepo) FindMessagesByThreadID(threadID uint) ([]domain.ProjectThreadMessage, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) FindThreadMessageByID(msgID uint) (*domain.ProjectThreadMessage, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) CreateThreadMessage(msg *domain.ProjectThreadMessage) error {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) UpdateThreadMessage(msg *domain.ProjectThreadMessage) error {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) DeleteThreadMessage(id uint) error { panic("not implemented") }
-func (m *mockProjectRepo) FindFAQsByProjectID(projectID uint) ([]domain.ProjectFAQ, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) FindFAQByID(faqID uint) (*domain.ProjectFAQ, error) {
-	panic("not implemented")
-}
-func (m *mockProjectRepo) CreateFAQ(faq *domain.ProjectFAQ) error { panic("not implemented") }
-func (m *mockProjectRepo) UpdateFAQ(faq *domain.ProjectFAQ) error { panic("not implemented") }
-func (m *mockProjectRepo) DeleteFAQ(id uint) error                { panic("not implemented") }
-
 // ─── Mock: InvestmentRepository ─────────────────────────────────────────────
 
 type mockInvestmentRepo struct{ mock.Mock }
@@ -193,111 +65,6 @@ func (m *mockInvestmentRepo) ListInvestedProjectsByUserID(boosterUserID uint) ([
 	return args.Get(0).([]dto.InvestedProjectItem), args.Error(1)
 }
 
-// ─── Extend mockUserRepository with missing UserRepository methods ────────────
-// (mockUserRepository is declared in user.service_test.go in the same package)
-
-func (m *mockUserRepository) UpdateUserProfile(userID uint, firstName, lastName, phone string, address *string) error {
-	args := m.Called(userID, firstName, lastName, phone, address)
-	return args.Error(0)
-}
-func (m *mockUserRepository) UpsertStudentProfileByUserID(profile *domain.StudentProfile) error {
-	args := m.Called(profile)
-	return args.Error(0)
-}
-func (m *mockUserRepository) CreateVerificationRequests(idCard *domain.IdCardVerification, studentCard *domain.StudentCardVerification, consent []*domain.UserConsent) error {
-	args := m.Called(idCard, studentCard, consent)
-	return args.Error(0)
-}
-func (m *mockUserRepository) HasPendingVerification(userID uint, verifyType string) (bool, error) {
-	args := m.Called(userID, verifyType)
-	return args.Bool(0), args.Error(1)
-}
-func (m *mockUserRepository) CreateBankAccount(bank *domain.BankAccount) error {
-	args := m.Called(bank)
-	return args.Error(0)
-}
-func (m *mockUserRepository) UpdateBankAccount(bank *domain.BankAccount) error {
-	args := m.Called(bank)
-	return args.Error(0)
-}
-func (m *mockUserRepository) FindBankByUserId(userID uint) ([]domain.BankAccount, error) {
-	args := m.Called(userID)
-	return args.Get(0).([]domain.BankAccount), args.Error(1)
-}
-func (m *mockUserRepository) FindBankById(id uint) (*domain.BankAccount, error) {
-	args := m.Called(id)
-	return args.Get(0).(*domain.BankAccount), args.Error(1)
-}
-func (m *mockUserRepository) FindBankByAccountNumber(accountNumber string) (*domain.BankAccount, error) {
-	args := m.Called(accountNumber)
-	return args.Get(0).(*domain.BankAccount), args.Error(1)
-}
-
-// ─── Mock: UserRepository (investment tests only) ────────────────────────────
-
-type mockUserRepoInvest struct{ mock.Mock }
-
-func (m *mockUserRepoInvest) CreateUser(user *domain.User, consent *domain.UserConsent) (*domain.User, error) {
-	args := m.Called(user, consent)
-	return args.Get(0).(*domain.User), args.Error(1)
-}
-func (m *mockUserRepoInvest) FindUser(email string) (*domain.User, error) {
-	args := m.Called(email)
-	return args.Get(0).(*domain.User), args.Error(1)
-}
-func (m *mockUserRepoInvest) FindUserByVerificationToken(token string) (*domain.User, error) {
-	args := m.Called(token)
-	return args.Get(0).(*domain.User), args.Error(1)
-}
-func (m *mockUserRepoInvest) FindUserByResetToken(token string) (*domain.User, error) {
-	args := m.Called(token)
-	return args.Get(0).(*domain.User), args.Error(1)
-}
-func (m *mockUserRepoInvest) FindUserById(id uint) (*domain.User, error) {
-	args := m.Called(id)
-	return args.Get(0).(*domain.User), args.Error(1)
-}
-func (m *mockUserRepoInvest) UpdateUser(user *domain.User) error {
-	args := m.Called(user)
-	return args.Error(0)
-}
-func (m *mockUserRepoInvest) UpdateUserProfile(userID uint, firstName, lastName, phone string, address *string) error {
-	args := m.Called(userID, firstName, lastName, phone, address)
-	return args.Error(0)
-}
-func (m *mockUserRepoInvest) UpsertStudentProfileByUserID(profile *domain.StudentProfile) error {
-	args := m.Called(profile)
-	return args.Error(0)
-}
-func (m *mockUserRepoInvest) CreateVerificationRequests(idCard *domain.IdCardVerification, studentCard *domain.StudentCardVerification, consent []*domain.UserConsent) error {
-	args := m.Called(idCard, studentCard, consent)
-	return args.Error(0)
-}
-func (m *mockUserRepoInvest) HasPendingVerification(userID uint, verifyType string) (bool, error) {
-	args := m.Called(userID, verifyType)
-	return args.Bool(0), args.Error(1)
-}
-func (m *mockUserRepoInvest) CreateBankAccount(bank *domain.BankAccount) error {
-	args := m.Called(bank)
-	return args.Error(0)
-}
-func (m *mockUserRepoInvest) UpdateBankAccount(bank *domain.BankAccount) error {
-	args := m.Called(bank)
-	return args.Error(0)
-}
-func (m *mockUserRepoInvest) FindBankByUserId(userID uint) ([]domain.BankAccount, error) {
-	args := m.Called(userID)
-	return args.Get(0).([]domain.BankAccount), args.Error(1)
-}
-func (m *mockUserRepoInvest) FindBankById(id uint) (*domain.BankAccount, error) {
-	args := m.Called(id)
-	return args.Get(0).(*domain.BankAccount), args.Error(1)
-}
-func (m *mockUserRepoInvest) FindBankByAccountNumber(accountNumber string) (*domain.BankAccount, error) {
-	args := m.Called(accountNumber)
-	return args.Get(0).(*domain.BankAccount), args.Error(1)
-}
-
 // ─── Mock: TransactionRepository ────────────────────────────────────────────
 
 type mockTransactionRepo struct{ mock.Mock }
@@ -326,21 +93,21 @@ func (m *mockTransactionRepo) UpdateStripeFeesAndNet(id uint, stripeFee, stripeF
 // ─── Helper to build service ─────────────────────────────────────────────────
 
 func newTestInvestmentService(
-	projectRepo *mockProjectRepo,
+	projectRepo *ProjectRepository,
 	investRepo *mockInvestmentRepo,
 	txnRepo *mockTransactionRepo,
-	userRepo *mockUserRepoInvest,
+	userRepo *mockUserRepository,
 ) InvestmentService {
-	return NewInvestmentService(projectRepo, investRepo, txnRepo, userRepo, "sk_test_dummy", "whsec_dummy")
+	return NewInvestmentService(projectRepo, investRepo, txnRepo, userRepo, nil, "sk_test_dummy", "whsec_dummy", nil)
 }
 
 // ─── GetInvestment ────────────────────────────────────────────────────────────
 
 func TestGetInvestment_Success(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -360,10 +127,10 @@ func TestGetInvestment_Success(t *testing.T) {
 }
 
 func TestGetInvestment_NotFound(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -375,10 +142,10 @@ func TestGetInvestment_NotFound(t *testing.T) {
 }
 
 func TestGetInvestment_DBError(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -390,10 +157,10 @@ func TestGetInvestment_DBError(t *testing.T) {
 }
 
 func TestGetInvestment_WrongOwner(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -406,10 +173,10 @@ func TestGetInvestment_WrongOwner(t *testing.T) {
 }
 
 func TestGetInvestment_NoTransaction(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -427,10 +194,10 @@ func TestGetInvestment_NoTransaction(t *testing.T) {
 // ─── ListUserInvestments ──────────────────────────────────────────────────────
 
 func TestListUserInvestments_Success(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -444,10 +211,10 @@ func TestListUserInvestments_Success(t *testing.T) {
 }
 
 func TestListUserInvestments_Error(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -461,10 +228,10 @@ func TestListUserInvestments_Error(t *testing.T) {
 // ─── CreateInvestment (pre-Stripe paths) ─────────────────────────────────────
 
 func TestCreateInvestment_ProjectNotFound(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -476,10 +243,10 @@ func TestCreateInvestment_ProjectNotFound(t *testing.T) {
 }
 
 func TestCreateInvestment_ProjectNotInFunding(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -492,10 +259,10 @@ func TestCreateInvestment_ProjectNotInFunding(t *testing.T) {
 }
 
 func TestCreateInvestment_AmountBelowMin(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -516,10 +283,10 @@ func TestCreateInvestment_AmountBelowMin(t *testing.T) {
 }
 
 func TestCreateInvestment_AmountAboveMax(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -539,10 +306,10 @@ func TestCreateInvestment_AmountAboveMax(t *testing.T) {
 }
 
 func TestCreateInvestment_ExceedsFundingGoal(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -567,10 +334,10 @@ func TestCreateInvestment_ExceedsFundingGoal(t *testing.T) {
 // ─── RefundInvestment ─────────────────────────────────────────────────────────
 
 func TestRefundInvestment_Success(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -590,7 +357,7 @@ func TestRefundInvestment_Success(t *testing.T) {
 	investRepo.On("UpdateRefunded", mock.AnythingOfType("*domain.Investment")).Return(nil)
 	investRepo.On("IncrementProjectFunding", uint(5), -float64(1000)).Return(nil)
 
-	resp, err := svc.RefundInvestment(10, 1)
+	resp, err := svc.RefundInvestment(10, 1, "ต้องการยกเลิกการลงทุน")
 
 	assert.NoError(t, err)
 	assert.Equal(t, uint(1), resp.InvestmentID)
@@ -599,57 +366,57 @@ func TestRefundInvestment_Success(t *testing.T) {
 }
 
 func TestRefundInvestment_InvestmentNotFound(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
 	investRepo.On("FindByID", uint(99)).Return(&domain.Investment{}, errors.New("not found"))
 
-	_, err := svc.RefundInvestment(10, 99)
+	_, err := svc.RefundInvestment(10, 99, "test note")
 
 	assert.EqualError(t, err, "investment not found")
 }
 
 func TestRefundInvestment_WrongOwner(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
 	inv := &domain.Investment{ID: 1, BoosterUserID: 99}
 	investRepo.On("FindByID", uint(1)).Return(inv, nil)
 
-	_, err := svc.RefundInvestment(10, 1)
+	_, err := svc.RefundInvestment(10, 1, "test note")
 
 	assert.EqualError(t, err, "investment not found")
 }
 
 func TestRefundInvestment_NotVerified(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
 	inv := &domain.Investment{ID: 1, BoosterUserID: 10, Status: domain.InvestmentPending}
 	investRepo.On("FindByID", uint(1)).Return(inv, nil)
 
-	_, err := svc.RefundInvestment(10, 1)
+	_, err := svc.RefundInvestment(10, 1, "test note")
 
 	assert.EqualError(t, err, "only verified investments can be refunded")
 }
 
 func TestRefundInvestment_ProjectNotInFunding(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -659,7 +426,7 @@ func TestRefundInvestment_ProjectNotInFunding(t *testing.T) {
 	investRepo.On("FindByID", uint(1)).Return(inv, nil)
 	projectRepo.On("FindProjectByID", uint(5)).Return(project, nil)
 
-	_, err := svc.RefundInvestment(10, 1)
+	_, err := svc.RefundInvestment(10, 1, "test note")
 
 	assert.EqualError(t, err, "refund is only allowed while project project is in funding state")
 }
@@ -667,10 +434,10 @@ func TestRefundInvestment_ProjectNotInFunding(t *testing.T) {
 // ─── ApproveRefund ────────────────────────────────────────────────────────────
 
 func TestApproveRefund_Success(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -686,10 +453,10 @@ func TestApproveRefund_Success(t *testing.T) {
 }
 
 func TestApproveRefund_InvestmentNotFound(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -701,10 +468,10 @@ func TestApproveRefund_InvestmentNotFound(t *testing.T) {
 }
 
 func TestApproveRefund_NotRefundPending(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -717,10 +484,10 @@ func TestApproveRefund_NotRefundPending(t *testing.T) {
 }
 
 func TestApproveRefund_DBUpdateError(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -736,10 +503,10 @@ func TestApproveRefund_DBUpdateError(t *testing.T) {
 // ─── ListRefundRequests ───────────────────────────────────────────────────────
 
 func TestListRefundRequests_Success(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -771,10 +538,10 @@ func TestListRefundRequests_Success(t *testing.T) {
 }
 
 func TestListRefundRequests_DBError(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -788,10 +555,10 @@ func TestListRefundRequests_DBError(t *testing.T) {
 // ─── GetProjectInvestors ──────────────────────────────────────────────────────
 
 func TestGetProjectInvestors_Success(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -809,10 +576,10 @@ func TestGetProjectInvestors_Success(t *testing.T) {
 }
 
 func TestGetProjectInvestors_ProjectNotFound(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
@@ -826,10 +593,10 @@ func TestGetProjectInvestors_ProjectNotFound(t *testing.T) {
 // ─── ListInvestedProjects ─────────────────────────────────────────────────────
 
 func TestListInvestedProjects_Success(t *testing.T) {
-	projectRepo := new(mockProjectRepo)
+	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepoInvest)
+	userRepo := new(mockUserRepository)
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 

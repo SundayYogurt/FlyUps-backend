@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"gorm.io/gorm"
 )
 
 func TestAdminApproveMilestoneSubmission_SetApproved(t *testing.T) {
@@ -113,7 +114,8 @@ func TestCloseProject_ExecutingToClosed_WhenAllPaid(t *testing.T) {
 
 func TestVoteMilestone_AutoPaidOnMajorityApprove(t *testing.T) {
 	projRepo := new(ProjectRepository)
-	svc := NewInvestmentService(projRepo, nil, nil, nil, "", "", nil)
+	disbRepo := new(mockDisbursementRepo)
+	svc := NewInvestmentService(projRepo, nil, nil, nil, disbRepo, "", "", nil)
 
 	milestoneID := uint(301)
 	projectID := uint(401)
@@ -124,6 +126,7 @@ func TestVoteMilestone_AutoPaidOnMajorityApprove(t *testing.T) {
 		Status:     domain.MilestoneApproved,
 		VotingOpen: true,
 	}
+	project := &domain.Project{ID: projectID, OwnerUserID: 1, CurrentFunding: 10000}
 
 	projRepo.On("FindMilestoneByID", milestoneID).Return(m, nil)
 	projRepo.On("HasVerifiedInvestment", projectID, boosterID).Return(true, nil)
@@ -133,6 +136,10 @@ func TestVoteMilestone_AutoPaidOnMajorityApprove(t *testing.T) {
 	projRepo.On("UpdateMilestone", mock.AnythingOfType("*domain.Milestone")).Return(nil).Once()
 	// reject count still queried
 	projRepo.On("CountMilestoneVotes", milestoneID, domain.MilestoneVoteReject).Return(int64(1), nil)
+	// disbursement creation path invoked after majority approve
+	disbRepo.On("FindByMilestoneID", milestoneID).Return(nil, gorm.ErrRecordNotFound)
+	projRepo.On("FindProjectByID", projectID).Return(project, nil)
+	disbRepo.On("Create", mock.AnythingOfType("*domain.Disbursement")).Return(nil)
 
 	vote, err := svc.VoteMilestone(boosterID, milestoneID, domain.MilestoneVoteApprove)
 	assert.NoError(t, err)

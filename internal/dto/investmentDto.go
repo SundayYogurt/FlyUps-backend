@@ -7,6 +7,10 @@ type CreateInvestmentRequest struct {
 	Amount    float64 `json:"amount" validate:"required,gt=0"`
 }
 
+type RefundInvestmentRequest struct {
+	Note string `json:"note" validate:"required"`
+}
+
 type InvestmentTermsResponse struct {
 	ProjectID       uint    `json:"project_id"`
 	Title           string  `json:"title"`

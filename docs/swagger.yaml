@@ -40,6 +40,146 @@ definitions:
     - VisibilityPrivate
     - VisibilityPublic
     - VisibilityUnlisted
+  dto.AdminMilestoneDetailResponse:
+    properties:
+      acceptance_criteria:
+        type: string
+      checked_criteria:
+        items:
+          type: boolean
+        type: array
+      description:
+        type: string
+      due_date:
+        type: string
+      duration:
+        type: integer
+      end_date:
+        type: string
+      evidence_files:
+        items:
+          $ref: '#/definitions/dto.EvidenceFile'
+        type: array
+      evidence_links:
+        items:
+          $ref: '#/definitions/dto.EvidenceLink'
+        type: array
+      funding_goal:
+        type: number
+      id:
+        type: integer
+      owner:
+        $ref: '#/definitions/dto.ProjectOwnerProfile'
+      percent_release:
+        type: integer
+      phase_no:
+        type: integer
+      progress_pct:
+        type: integer
+      project_id:
+        type: integer
+      project_title:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/domain.MilestoneStatus'
+      submission_attachments:
+        items:
+          type: string
+        type: array
+      submission_criteria:
+        items:
+          type: string
+        type: array
+      submission_links:
+        items:
+          type: string
+        type: array
+      submission_summary:
+        description: Submission (what was done in this phase + evidence)
+        type: string
+      submitted_at:
+        type: string
+      title:
+        type: string
+      type:
+        items:
+          $ref: '#/definitions/domain.MediaType'
+        type: array
+      urls:
+        items:
+          type: string
+        type: array
+      voting_closed_at:
+        type: string
+      voting_open:
+        description: Booster voting gate (opened by pioneer after admin approves submission)
+        type: boolean
+      voting_opened_at:
+        type: string
+    type: object
+  dto.AdminMilestoneListResponse:
+    properties:
+      acceptance_criteria:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+      duration:
+        type: integer
+      id:
+        type: integer
+      owner:
+        $ref: '#/definitions/dto.ProjectOwnerProfile'
+      percent_release:
+        type: integer
+      phase_no:
+        type: integer
+      project_id:
+        type: integer
+      project_title:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/domain.MilestoneStatus'
+      submission_attachments:
+        items:
+          type: string
+        type: array
+      submission_criteria:
+        items:
+          type: string
+        type: array
+      submission_links:
+        items:
+          type: string
+        type: array
+      submission_summary:
+        description: Submission (what was done in this phase + evidence)
+        type: string
+      submitted_at:
+        type: string
+      title:
+        type: string
+      type:
+        items:
+          $ref: '#/definitions/domain.MediaType'
+        type: array
+      urls:
+        items:
+          type: string
+        type: array
+      voting_closed_at:
+        type: string
+      voting_open:
+        description: Booster voting gate (opened by pioneer after admin approves submission)
+        type: boolean
+      voting_opened_at:
+        type: string
+    type: object
   dto.BankRequest:
     properties:
       account_name:
@@ -60,6 +200,15 @@ definitions:
     required:
     - new_password
     - old_password
+    type: object
+  dto.ConfirmDisbursementRequest:
+    properties:
+      note:
+        type: string
+      transfer_ref:
+        type: string
+    required:
+    - transfer_ref
     type: object
   dto.CreateDomainRequest:
     properties:
@@ -82,10 +231,10 @@ definitions:
         type: string
       description:
         type: string
-      duration:
-        type: integer
       due_date:
         type: string
+      duration:
+        type: integer
       phase_no:
         type: integer
       sort_order:
@@ -121,6 +270,22 @@ definitions:
       name_th:
         type: string
       province:
+        type: string
+    type: object
+  dto.EvidenceFile:
+    properties:
+      file_name:
+        type: string
+      id:
+        type: string
+      url:
+        type: string
+    type: object
+  dto.EvidenceLink:
+    properties:
+      name:
+        type: string
+      url:
         type: string
     type: object
   dto.ForgotPasswordRequest:
@@ -192,6 +357,30 @@ definitions:
     - type
     - url
     type: object
+  dto.ProjectOwnerProfile:
+    properties:
+      bio:
+        type: string
+      faculty:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      major:
+        type: string
+      project_count:
+        type: integer
+      university:
+        type: string
+    type: object
+  dto.RefundInvestmentRequest:
+    properties:
+      note:
+        type: string
+    required:
+    - note
+    type: object
   dto.RefundResponse:
     properties:
       fees_deducted:
@@ -250,10 +439,10 @@ definitions:
         type: string
       description:
         type: string
-      duration:
-        type: integer
       due_date:
         type: string
+      duration:
+        type: integer
       phase_no:
         type: integer
       sort_order:
@@ -682,6 +871,111 @@ paths:
       summary: Delete university
       tags:
       - Admin
+  /admin/disbursements:
+    get:
+      description: Get all disbursement records (pending + confirmed) including pioneer
+        bank account
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: list of disbursements
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all disbursements (admin only)
+      tags:
+      - Disbursements
+  /admin/disbursements/{id}/confirm:
+    patch:
+      consumes:
+      - application/json
+      description: Admin confirms that funds have been transferred to the pioneer
+      parameters:
+      - description: Disbursement ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Confirmation payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ConfirmDisbursementRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: disbursement confirmed
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: disbursement not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Confirm disbursement transfer (admin only)
+      tags:
+      - Disbursements
+  /admin/disbursements/pending:
+    get:
+      description: Get disbursements awaiting admin confirmation
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: list of pending disbursements
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List pending disbursements (admin only)
+      tags:
+      - Disbursements
   /admin/id-card-verifications:
     get:
       description: Admin gets all pending national ID card verification requests
@@ -868,6 +1162,30 @@ paths:
       summary: Update Project Status
       tags:
       - Projects
+  /admin/projects/milestones/{milestone_id}:
+    get:
+      consumes:
+      - application/json
+      description: Admin gets detailed view of a milestone, including project owner
+        info and mapped evidences.
+      parameters:
+      - description: Milestone ID
+        in: path
+        name: milestone_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Milestone details
+          schema:
+            $ref: '#/definitions/dto.AdminMilestoneDetailResponse'
+      security:
+      - BearerAuth: []
+      summary: Admin get milestone detail
+      tags:
+      - Admin
   /admin/projects/milestones/{milestone_id}/approve:
     patch:
       consumes:
@@ -937,7 +1255,9 @@ paths:
         "200":
           description: Submitted milestones
           schema:
-            type: object
+            items:
+              $ref: '#/definitions/dto.AdminMilestoneListResponse'
+            type: array
       security:
       - BearerAuth: []
       summary: Admin list submitted milestones
@@ -1450,14 +1770,22 @@ paths:
       - Investments
   /investments/{id}/refund:
     post:
+      consumes:
+      - application/json
       description: Refund a verified investment while project is in funding state.
-        Platform fee and VAT are non-refundable.
+        Platform fee and VAT are non-refundable. Requires a note for admin approval.
       parameters:
       - description: Investment ID
         in: path
         name: id
         required: true
         type: integer
+      - description: Refund request with note
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RefundInvestmentRequest'
       produces:
       - application/json
       responses:
@@ -1466,7 +1794,7 @@ paths:
           schema:
             $ref: '#/definitions/dto.RefundResponse'
         "400":
-          description: invalid id or business rule violation
+          description: invalid id, missing note, or business rule violation
           schema:
             additionalProperties:
               type: string
