@@ -31,6 +31,9 @@ pipeline {
                 # 🔥 build + run ใหม่
                 docker compose -p $PROJECT_NAME up -d --build
 
+                echo "⏳ Waiting for services to boot up..."
+                sleep 15
+
                 echo "✅ Deploy Done"
                 '''
             }
