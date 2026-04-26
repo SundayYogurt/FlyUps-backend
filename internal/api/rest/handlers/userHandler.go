@@ -889,7 +889,27 @@ func (h *UserHandler) SelectRole(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, err.Error())
 	}
 
-	return rest.SuccessResponse(ctx, "role updated successfully", nil)
+	// ออก JWT ใหม่ที่ฝัง role ใหม่ — middleware อ่าน role จาก token
+	// ถ้าไม่ออกใหม่ client จะถือ token role="pending" แล้วโดน 403
+	token, err := h.auth.GenerateToken(user.ID, user.Email, body.Role)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	ctx.Cookie(&fiber.Cookie{
+		Name:     "auth_token",
+		Value:    token,
+		HTTPOnly: true,
+		Secure:   true,
+		SameSite: "None",
+		Path:     "/",
+		MaxAge:   60 * 60 * 24,
+	})
+
+	return ctx.Status(http.StatusOK).JSON(fiber.Map{
+		"message": "role updated successfully",
+		"token":   token,
+	})
 }
 
 // UpdateUniversity godoc
@@ -1328,7 +1348,7 @@ func (h *UserHandler) ListUsers(ctx fiber.Ctx) error {
 	if err != nil || page < 1 {
 		page = 1
 	}
-	
+
 	pageSize, err := strconv.Atoi(ctx.Query("page_size", "10"))
 	if err != nil || pageSize < 1 || pageSize > 100 {
 		pageSize = 10
