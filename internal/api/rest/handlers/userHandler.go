@@ -1234,6 +1234,19 @@ func (h *UserHandler) GetCardIDRequests(ctx fiber.Ctx) error {
 	})
 }
 
+// AddPassword godoc
+// @Summary Add password for Google user
+// @Description Allows a user who signed up via Google to set a local password
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.AddPasswordRequest true "New password"
+// @Success 200 {object} object "add password success"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /user/add-password [put]
 func (h *UserHandler) AddPassword(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -1256,6 +1269,21 @@ func (h *UserHandler) AddPassword(ctx fiber.Ctx) error {
 
 }
 
+// ListUsers godoc
+// @Summary List all users
+// @Description Admin gets a paginated list of users with optional filters
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number" default(1)
+// @Param page_size query int false "Page size" default(10)
+// @Param role query string false "User role (booster/pioneer)"
+// @Param status query string false "User status (active/suspended)"
+// @Param search query string false "Search by email, first name, or last name"
+// @Success 200 {object} object "success"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /admin/list-users [get]
 func (h *UserHandler) ListUsers(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
