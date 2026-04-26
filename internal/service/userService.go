@@ -168,6 +168,25 @@ func (s *userService) SelectRole(userID uint, newRole string) error {
 		return errors.New("user role is already selected")
 	}
 
+	if newRole == "pioneer" {
+		parts := strings.Split(user.Email, "@")
+		if len(parts) < 2 {
+			return errors.New("invalid email format")
+		}
+		domainName := parts[1]
+
+		findDomain, err := s.URepo.GetUniversityByDomain(domainName)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("sorry, this email domain is not registered as a university")
+			}
+			return errors.New("internal server error, try again later")
+		}
+		if !findDomain.IsActive {
+			return errors.New("this university is not active")
+		}
+	}
+
 	updates := map[string]interface{}{
 		"role": newRole,
 	}
@@ -1287,8 +1306,8 @@ func (s *userService) GoogleSigning(code string, role string, oauthConfig *oauth
 		}
 
 		// User not found, automatically register them!
-		if role != "pioneer" && role != "booster" && role != "pending" {
-			role = "pending" // Fallback Default
+		if role != "pioneer" && role != "booster" {
+			role = "booster" // Fallback Default
 		}
 
 		googleSub := googleUser.ID
