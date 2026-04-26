@@ -62,6 +62,9 @@ func StartServer(cfg config.AppConfig) {
 
 		// notification
 		&domain.Notification{},
+
+		// complaints
+		&domain.Complaint{},
 	)
 
 	if err != nil {
@@ -168,6 +171,7 @@ func setupRoutes(rh *rest.RestHandler) {
 	handlers.SetupDisbursementRoutes(rh)
 	handlers.SetupUploadRoutes(rh)
 	handlers.SetupNotificationRoutes(rh)
+	handlers.SetupComplaintRoutes(rh)
 }
 
 func HealthCheck(ctx fiber.Ctx) error {
