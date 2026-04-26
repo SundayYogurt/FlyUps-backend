@@ -25,6 +25,9 @@ type ProjectService interface {
 	GetOwnerProjectByID(id uint, ownerID uint) (*domain.Project, error)
 	GetProjectsByCategory(categoryID uint) ([]domain.Project, error)
 	UpdateProjectStatus(projectID uint, newState domain.ProjectState, newStatus domain.ProjectStatus) error
+	GetProjectRecommendations() ([]domain.Project, error)
+	GetNewProjects() ([]domain.Project, error)
+	GetProjectEndingSoon() ([]domain.Project, error)
 
 	// MEDIA
 	AttachProjectMedia(ctx context.Context, projectID uint, url string, mediaTypes []domain.MediaType, user domain.User) error
@@ -274,6 +277,30 @@ func (s *projectService) GetMyProjects(ownerID uint) ([]domain.Project, error) {
 	projects, err := s.projectRepo.FindProjectsByOwnerID(ownerID)
 	if err != nil {
 		return nil, errors.New("failed to retrieve projects")
+	}
+	return projects, nil
+}
+
+func (s *projectService) GetProjectRecommendations() ([]domain.Project, error) {
+	project, err := s.projectRepo.FindProjectRecommendations()
+	if err != nil {
+		return nil, errors.New("failed to retrieve recommendations")
+	}
+	return project, nil
+}
+
+func (s *projectService) GetProjectEndingSoon() ([]domain.Project, error) {
+	projects, err := s.projectRepo.FindProjectEndingSoon()
+	if err != nil {
+		return nil, errors.New("failed to retrieve recommendations")
+	}
+	return projects, nil
+}
+
+func (s *projectService) GetNewProjects() ([]domain.Project, error) {
+	projects, err := s.projectRepo.FindNewProjects()
+	if err != nil {
+		return nil, errors.New("failed to retrieve new projects")
 	}
 	return projects, nil
 }

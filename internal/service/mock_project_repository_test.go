@@ -13,6 +13,11 @@ type ProjectRepository struct {
 	mock.Mock
 }
 
+func (_m *ProjectRepository) FindProjectRecommendations()  ([]domain.Project, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (_m *ProjectRepository) FindProjectsPendingDetail(projectID uint, state string)  (*domain.Project, error) {
 	args := _m.Called(projectID, state)
 
