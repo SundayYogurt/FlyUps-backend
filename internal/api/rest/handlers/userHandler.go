@@ -763,9 +763,9 @@ func (h *UserHandler) RollbackUser(ctx fiber.Ctx) error {
 // @Tags Auth
 // @Router /auth/google [get]
 func (h *UserHandler) GoogleLogin(ctx fiber.Ctx) error {
-	role := ctx.Query("role", "booster") // default booster
-	if role != "pioneer" && role != "booster" {
-		role = "booster"
+	role := ctx.Query("role", "pending") // default pending
+	if role != "pioneer" && role != "booster" && role != "pending" {
+		role = "pending"
 	}
 
 	nonce, err := helper.GenerateRandomToken(16)
@@ -797,7 +797,7 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 	reqRole := parts[0]
 	nonce := parts[1]
 	sig := parts[2]
-	if reqRole != "pioneer" && reqRole != "booster" {
+	if reqRole != "pioneer" && reqRole != "booster" && reqRole != "pending" {
 		return ctx.Redirect().To(oauthFailedRedirect)
 	}
 	if nonce == "" || sig == "" {
