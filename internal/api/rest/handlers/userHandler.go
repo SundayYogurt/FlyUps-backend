@@ -93,6 +93,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	adminRoutes.Delete("/delete-university-domain/:id", handler.DeleteUniversityDomain)
 	adminRoutes.Get("/student-verifications", handler.GetStudentsCardRequest)
 	adminRoutes.Get("/id-card-verifications", handler.GetCardIDRequests)
+	adminRoutes.Get("/list-users", handler.ListUsers)
 }
 
 // SignUp godoc
@@ -873,7 +874,7 @@ func (h *UserHandler) SignOut(ctx fiber.Ctx) error {
 func (h *UserHandler) UpdateUniversity(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
-		return rest.BadRequestError(ctx, "unauthorized")
+		return rest.UnauthorizedError(ctx, "unauthorized")
 	}
 
 	uid := ctx.Params("id")
@@ -913,7 +914,7 @@ func (h *UserHandler) UpdateUniversity(ctx fiber.Ctx) error {
 func (h *UserHandler) CreateUniversity(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
-		return rest.BadRequestError(ctx, "unauthorized")
+		return rest.UnauthorizedError(ctx, "unauthorized")
 	}
 
 	var req dto.CreateUniversityRequest
@@ -947,7 +948,7 @@ func (h *UserHandler) CreateUniversity(ctx fiber.Ctx) error {
 func (h *UserHandler) GetUniversity(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
-		return rest.BadRequestError(ctx, "unauthorized")
+		return rest.UnauthorizedError(ctx, "unauthorized")
 	}
 
 	uid := ctx.Params("id")
@@ -979,7 +980,7 @@ func (h *UserHandler) GetUniversity(ctx fiber.Ctx) error {
 func (h *UserHandler) GetUniversities(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
-		return rest.BadRequestError(ctx, "unauthorized")
+		return rest.UnauthorizedError(ctx, "unauthorized")
 	}
 
 	uni, err := h.svc.GetAllUniversities()
@@ -1007,7 +1008,7 @@ func (h *UserHandler) GetUniversities(ctx fiber.Ctx) error {
 func (h *UserHandler) DeleteUniversity(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
-		return rest.BadRequestError(ctx, "unauthorized")
+		return rest.UnauthorizedError(ctx, "unauthorized")
 	}
 
 	uid := ctx.Params("id")
@@ -1042,7 +1043,7 @@ func (h *UserHandler) DeleteUniversity(ctx fiber.Ctx) error {
 func (h *UserHandler) CreateUniversityDomain(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
-		return rest.BadRequestError(ctx, "unauthorized")
+		return rest.UnauthorizedError(ctx, "unauthorized")
 	}
 
 	uid := ctx.Params("id")
@@ -1084,7 +1085,7 @@ func (h *UserHandler) CreateUniversityDomain(ctx fiber.Ctx) error {
 func (h *UserHandler) UpdateUniversityDomain(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
-		return rest.BadRequestError(ctx, "unauthorized")
+		return rest.UnauthorizedError(ctx, "unauthorized")
 	}
 
 	uid := ctx.Params("id")
@@ -1124,7 +1125,7 @@ func (h *UserHandler) UpdateUniversityDomain(ctx fiber.Ctx) error {
 func (h *UserHandler) DeleteUniversityDomain(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
-		return rest.BadRequestError(ctx, "unauthorized")
+		return rest.UnauthorizedError(ctx, "unauthorized")
 	}
 
 	uid := ctx.Params("id")
@@ -1159,7 +1160,7 @@ func (h *UserHandler) DeleteUniversityDomain(ctx fiber.Ctx) error {
 func (h *UserHandler) ChangePassword(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
-		return rest.BadRequestError(ctx, "unauthorized")
+		return rest.UnauthorizedError(ctx, "unauthorized")
 	}
 
 	var req dto.ChangePasswordRequest
@@ -1192,7 +1193,7 @@ func (h *UserHandler) ChangePassword(ctx fiber.Ctx) error {
 func (h *UserHandler) GetStudentsCardRequest(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
-		return rest.BadRequestError(ctx, "unauthorized")
+		return rest.UnauthorizedError(ctx, "unauthorized")
 	}
 
 	reqs, err := h.svc.GetAllStudentVerifyRequest()
@@ -1219,7 +1220,7 @@ func (h *UserHandler) GetStudentsCardRequest(ctx fiber.Ctx) error {
 func (h *UserHandler) GetCardIDRequests(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
-		return rest.BadRequestError(ctx, "unauthorized")
+		return rest.UnauthorizedError(ctx, "unauthorized")
 	}
 
 	reqs, err := h.svc.GetAllCardIDVerifyRequest()
@@ -1236,7 +1237,7 @@ func (h *UserHandler) GetCardIDRequests(ctx fiber.Ctx) error {
 func (h *UserHandler) AddPassword(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
-		return rest.BadRequestError(ctx, "unauthorized")
+		return rest.UnauthorizedError(ctx, "unauthorized")
 	}
 	var req dto.AddPasswordRequest
 
@@ -1252,5 +1253,20 @@ func (h *UserHandler) AddPassword(ctx fiber.Ctx) error {
 	return ctx.JSON(fiber.Map{
 		"message": "add password success",
 	})
+
+}
+
+func (h *UserHandler) ListUsers(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.UnauthorizedError(ctx, "unauthorized")
+	}
+
+	users, err := h.svc.ListUser()
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "success", users)
 
 }
