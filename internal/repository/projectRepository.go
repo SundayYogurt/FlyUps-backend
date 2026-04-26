@@ -3,6 +3,7 @@ package repository
 import (
 	"errors"
 	"flyup/internal/domain"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -27,6 +28,9 @@ type ProjectRepository interface {
 	GetApprovedStudentCard(userID uint) (*domain.StudentCardVerification, error)
 	FindProjectsState(state string) ([]domain.Project, error)
 	FindProjectsPendingDetail(projectID uint, state string) (*domain.Project, error)
+	FindProjectRecommendations() ([]domain.Project, error)
+	FindNewProjects() ([]domain.Project, error)
+	FindProjectEndingSoon() ([]domain.Project, error)
 
 	FindMediaByProjectID(projectID uint) ([]domain.ProjectMedia, error)
 	FindMediaByID(id uint) (*domain.ProjectMedia, error)
@@ -87,6 +91,51 @@ type ProjectRepository interface {
 
 type projectRepository struct {
 	db *gorm.DB
+}
+
+func (p *projectRepository) FindProjectRecommendations() ([]domain.Project, error) {
+	var projects []domain.Project
+	err := p.db.
+		Where("state = ? AND visibility = ?", domain.StateFunding, domain.VisibilityPublic).
+		Order(`
+		current_funding / 
+		GREATEST(EXTRACT(EPOCH FROM (NOW() - created_at)), 3600) DESC
+	`).
+		Limit(4).
+		Find(&projects).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return projects, nil
+}
+
+func (p *projectRepository) FindNewProjects() ([]domain.Project, error) {
+	var projects []domain.Project
+	// เรียงตามวันที่เปิดให้ระดมทุน (funding_at) ล่าสุด
+	err := p.db.Where("state = ? AND visibility = ?", domain.StateFunding, domain.VisibilityPublic).
+		Order("funding_at DESC").
+		Limit(6).
+		Find(&projects).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return projects, nil
+}
+
+func (p *projectRepository) FindProjectEndingSoon() ([]domain.Project, error) {
+	var projects []domain.Project
+	// ดึงโปรเจกต์ที่ยังไม่หมดเวลา แต่ใกล้จะถึงวัน EndDate ที่สุด
+	err := p.db.Where("state = ? AND visibility = ? AND end_date > ?", domain.StateFunding, domain.VisibilityPublic, time.Now()).
+		Order("end_date ASC").
+		Limit(6).
+		Find(&projects).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return projects, nil
 }
 
 func NewProjectRepository(db *gorm.DB) ProjectRepository {

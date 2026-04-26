@@ -43,78 +43,105 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	// Public Project
 	pub := app.Group("/projects")
 	pub.Get("/", handler.GetPublicProjects)
-	pub.Get("/:id", handler.GetPublicProjectByID)
-	pub.Get("/category/:category_id", handler.GetProjectsByCategory)
-	pub.Get("/:id/updates", handler.GetProjectUpdates)
-	pub.Get("/:id/faqs", handler.GetProjectFAQs)
-	pub.Get("/:id/threads", handler.GetProjectThreads)
-	pub.Get("/threads/:thread_id/messages", handler.GetProjectThreadMessages)
+	pub.Get("/recommend", handler.GetRecommendationProjects)
+	pub.Get("/new", handler.GetNewProjects)
+	pub.Get("/ending", handler.GetEndingSoonProjects)
+	pub.Get("/:id<int>", handler.GetPublicProjectByID)
+	pub.Get("/category/:category_id<int>", handler.GetProjectsByCategory)
+	pub.Get("/:id<int>/updates", handler.GetProjectUpdates)
+	pub.Get("/:id<int>/faqs", handler.GetProjectFAQs)
+	pub.Get("/:id<int>/threads", handler.GetProjectThreads)
+	pub.Get("/threads/:thread_id<int>/messages", handler.GetProjectThreadMessages)
 
 	// Categories
 	app.Get("/categories", handler.GetAllCategories)
-	app.Get("/categories/:id", handler.GetCategoryByID)
+	app.Get("/categories/:id<int>", handler.GetCategoryByID)
 
 	// Pioneer (Private) Projects
 	priv := app.Group("/pioneer/projects", rh.Middlewares.AuthorizePioneer)
 	priv.Post("/", handler.CreateProject)
 	priv.Get("/", handler.GetMyProjects)
-	priv.Get("/:id", handler.GetMyProjectByID)
-	priv.Patch("/:id", handler.UpdateProject)
-	priv.Delete("/:id", handler.DeleteProject)
-	priv.Patch("/:id/submit", handler.SubmitForReview)
-	priv.Patch("/:id/close", handler.CloseProject)
-	priv.Post("/:id/updates", handler.CreateProjectUpdate)
-	priv.Patch("/updates/:update_id", handler.UpdateProjectUpdate)
-	priv.Delete("/updates/:update_id", handler.DeleteProjectUpdate)
-	priv.Post("/:id/faqs", handler.CreateProjectFAQ)
-	priv.Patch("/faqs/:faq_id", handler.UpdateProjectFAQ)
-	priv.Delete("/faqs/:faq_id", handler.DeleteProjectFAQ)
-	priv.Post("/:id/threads", handler.CreateProjectThread)
-	priv.Patch("/threads/:thread_id", handler.UpdateProjectThread)
-	priv.Delete("/threads/:thread_id", handler.DeleteProjectThread)
-	priv.Post("/threads/:thread_id/messages", handler.CreateProjectThreadMessage)
-	priv.Patch("/messages/:message_id", handler.UpdateProjectThreadMessage)
-	priv.Delete("/messages/:message_id", handler.DeleteProjectThreadMessage)
-	priv.Patch("/:id/cancel", handler.CancelProject)
+	priv.Get("/:id<int>", handler.GetMyProjectByID)
+	priv.Patch("/:id<int>", handler.UpdateProject)
+	priv.Delete("/:id<int>", handler.DeleteProject)
+	priv.Patch("/:id<int>/submit", handler.SubmitForReview)
+	priv.Patch("/:id<int>/close", handler.CloseProject)
+	priv.Post("/:id<int>/updates", handler.CreateProjectUpdate)
+	priv.Patch("/updates/:update_id<int>", handler.UpdateProjectUpdate)
+	priv.Delete("/updates/:update_id<int>", handler.DeleteProjectUpdate)
+	priv.Post("/:id<int>/faqs", handler.CreateProjectFAQ)
+	priv.Patch("/faqs/:faq_id<int>", handler.UpdateProjectFAQ)
+	priv.Delete("/faqs/:faq_id<int>", handler.DeleteProjectFAQ)
+	priv.Post("/:id<int>/threads", handler.CreateProjectThread)
+	priv.Patch("/threads/:thread_id<int>", handler.UpdateProjectThread)
+	priv.Delete("/threads/:thread_id<int>", handler.DeleteProjectThread)
+	priv.Post("/threads/:thread_id<int>/messages", handler.CreateProjectThreadMessage)
+	priv.Patch("/messages/:message_id<int>", handler.UpdateProjectThreadMessage)
+	priv.Delete("/messages/:message_id<int>", handler.DeleteProjectThreadMessage)
+	priv.Patch("/:id<int>/cancel", handler.CancelProject)
 
 	// Media
-	priv.Post("/:id/media", handler.AttachProjectMedia)
-	priv.Get("/:id/media", handler.GetProjectMedia)
-	priv.Patch("/media/:media_id", handler.UpdateProjectMedia)
-	priv.Delete("/media/:media_id", handler.DeleteProjectMedia)
+	priv.Post("/:id<int>/media", handler.AttachProjectMedia)
+	priv.Get("/:id<int>/media", handler.GetProjectMedia)
+	priv.Patch("/media/:media_id<int>", handler.UpdateProjectMedia)
+	priv.Delete("/media/:media_id<int>", handler.DeleteProjectMedia)
 
 	// Milestones
-	priv.Post("/:id/milestones", handler.AddProjectMilestone)
-	priv.Get("/:id/milestones", handler.GetProjectMilestones)
-	priv.Patch("/milestones/:milestone_id", handler.UpdateProjectMilestone)
-	priv.Patch("/milestones/:milestone_id/submit", handler.SubmitProjectMilestone)
-	priv.Patch("/milestones/:milestone_id/open-vote", handler.OpenMilestoneVoting)
-	priv.Delete("/milestones/:milestone_id", handler.DeleteProjectMilestone)
+	priv.Post("/:id<int>/milestones", handler.AddProjectMilestone)
+	priv.Get("/:id<int>/milestones", handler.GetProjectMilestones)
+	priv.Patch("/milestones/:milestone_id<int>", handler.UpdateProjectMilestone)
+	priv.Patch("/milestones/:milestone_id<int>/submit", handler.SubmitProjectMilestone)
+	priv.Patch("/milestones/:milestone_id<int>/open-vote", handler.OpenMilestoneVoting)
+	priv.Delete("/milestones/:milestone_id<int>", handler.DeleteProjectMilestone)
 
 	// Stories
-	priv.Post("/:id/stories", handler.AddProjectStory)
-	priv.Get("/:id/stories", handler.GetProjectStories)
-	priv.Patch("/stories/:story_id", handler.UpdateProjectStory)
-	priv.Delete("/stories/:story_id", handler.DeleteProjectStory)
+	priv.Post("/:id<int>/stories", handler.AddProjectStory)
+	priv.Get("/:id<int>/stories", handler.GetProjectStories)
+	priv.Patch("/stories/:story_id<int>", handler.UpdateProjectStory)
+	priv.Delete("/stories/:story_id<int>", handler.DeleteProjectStory)
 
 	// Admin Category
 	adminCat := app.Group("/admin/categories", rh.Middlewares.AuthorizeAdmin)
 	adminCat.Post("/", handler.CreateCategory)
-	adminCat.Put("/:id", handler.UpdateCategory)
-	adminCat.Delete("/:id", handler.DeleteCategory)
+	adminCat.Put("/:id<int>", handler.UpdateCategory)
+	adminCat.Delete("/:id<int>", handler.DeleteCategory)
 
 	adminProj := app.Group("/admin/projects", rh.Middlewares.AuthorizeAdmin)
-	adminProj.Patch("/:id/approve", handler.ApproveProject)
-	adminProj.Patch("/:id/reject", handler.RejectProject)
-	adminProj.Patch("/:id/status", handler.UpdateProjectStatus)
+	adminProj.Patch("/:id<int>/approve", handler.ApproveProject)
+	adminProj.Patch("/:id<int>/reject", handler.RejectProject)
+	adminProj.Patch("/:id<int>/status", handler.UpdateProjectStatus)
 	adminProj.Get("/pending-review", handler.ProjectsPendingList)
-	adminProj.Get("/:id/detail/pending-review", handler.ProjectDetailReview)
+	adminProj.Get("/:id<int>/detail/pending-review", handler.ProjectDetailReview)
 
 	// Admin Milestone Submission Review
 	adminProj.Get("/milestones/submitted", handler.AdminListSubmittedMilestones)
-	adminProj.Patch("/milestones/:milestone_id/approve", handler.AdminApproveMilestoneSubmission)
-	adminProj.Patch("/milestones/:milestone_id/reject", handler.AdminRejectMilestoneSubmission)
-	adminProj.Get("/milestones/:milestone_id", handler.AdminGetMilestoneDetail)
+	adminProj.Patch("/milestones/:milestone_id<int>/approve", handler.AdminApproveMilestoneSubmission)
+	adminProj.Patch("/milestones/:milestone_id<int>/reject", handler.AdminRejectMilestoneSubmission)
+	adminProj.Get("/milestones/:milestone_id<int>", handler.AdminGetMilestoneDetail)
+}
+
+func (h *ProjectHandler) GetRecommendationProjects(ctx fiber.Ctx) error {
+	projects, err := h.svc.GetProjectRecommendations()
+	if err != nil {
+		return err
+	}
+	return rest.SuccessResponse(ctx, "success", projects)
+}
+
+func (h *ProjectHandler) GetNewProjects(ctx fiber.Ctx) error {
+	projects, err := h.svc.GetNewProjects()
+	if err != nil {
+		return err
+	}
+	return rest.SuccessResponse(ctx, "success", projects)
+}
+
+func (h *ProjectHandler) GetEndingSoonProjects(ctx fiber.Ctx) error {
+	projects, err := h.svc.GetProjectEndingSoon()
+	if err != nil {
+		return err
+	}
+	return rest.SuccessResponse(ctx, "success", projects)
 }
 
 // CancelProject godoc
