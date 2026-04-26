@@ -36,22 +36,41 @@ type UserRepository interface {
 	FindAllByRole(role string) ([]domain.User, error)
 	FindStudentRequest(status string) ([]domain.StudentCardVerification, error)
 	FindUserIDCardRequest(status string) ([]domain.IdCardVerification, error)
-	FindAllUsers() ([]domain.User, error)
+	FindAllUsers(page, limit int, role, status, search string) ([]domain.User, int64, error)
 }
 
 type userRepository struct {
 	db *gorm.DB
 }
 
-func (r *userRepository) FindAllUsers() ([]domain.User, error) {
+func (r *userRepository) FindAllUsers(page, limit int, role, status, search string) ([]domain.User, int64, error) {
 	var users []domain.User
+	var total int64
 
-	err := r.db.Find(&users).Error
-	if err != nil {
-		return nil, err
+	query := r.db.Model(&domain.User{})
+
+	if role != "" {
+		query = query.Where("role = ?", role)
+	}
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+	if search != "" {
+		query = query.Where("email LIKE ? OR first_name LIKE ? OR last_name LIKE ?", "%"+search+"%", "%"+search+"%", "%"+search+"%")
 	}
 
-	return users, nil
+	err := query.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * limit
+	err = query.Offset(offset).Limit(limit).Find(&users).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
 }
 
 func (r *userRepository) FindUserIDCardRequest(status string) ([]domain.IdCardVerification, error) {
