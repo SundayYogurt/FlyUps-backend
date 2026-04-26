@@ -1231,6 +1231,8 @@ func (s *userService) GetProfile(userID uint) (*domain.User, error) {
 		return nil, err
 	}
 
+	user.HasPassword = user.PasswordHash != ""
+
 	// ดึง university จาก university_domains ตาม email domain ของ user
 	parts := strings.Split(user.Email, "@")
 	if len(parts) == 2 && s.URepo != nil {
