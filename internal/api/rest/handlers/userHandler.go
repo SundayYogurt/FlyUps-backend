@@ -528,7 +528,7 @@ func (h *UserHandler) UpdateBankAccount(ctx fiber.Ctx) error {
 // @Tags Admin
 // @Produce json
 // @Security BearerAuth
-// @Param id path int true "User ID"
+// @Param id path int true "User ID"f
 // @Success 200 {object} object "List of bank accounts"
 // @Failure 400 {object} object "Invalid request"
 // @Router /admin/user-banks/{id} [get]
