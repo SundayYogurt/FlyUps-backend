@@ -47,7 +47,7 @@ type UserService interface {
 	RejectStudentCard(userID uint, adminID uint) error
 	SuspendUser(adminID uint, userID uint, reason string) error
 	RollbackActiveUser(userID uint) error
-	ListUser() ([]domain.User, error)
+	ListUser(page, limit int, role, status, search string) ([]domain.User, int64, error)
 	CreateUniversity(req dto.CreateUniversityRequest) (*domain.University, error)
 	GetAllUniversities() ([]domain.University, error)
 	GetUniversityByID(id uint) (*domain.University, error)
@@ -68,12 +68,12 @@ type userService struct {
 	notifSvc NotificationService
 }
 
-func (s *userService) ListUser() ([]domain.User, error) {
-	users, err := s.Repo.FindAllUsers()
+func (s *userService) ListUser(page, limit int, role, status, search string) ([]domain.User, int64, error) {
+	users, total, err := s.Repo.FindAllUsers(page, limit, role, status, search)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return users, nil
+	return users, total, nil
 }
 
 func (s *userService) AddPasswordForGoogle(userID uint, newPassword string) error {

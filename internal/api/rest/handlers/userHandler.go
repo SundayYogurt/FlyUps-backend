@@ -1262,11 +1262,32 @@ func (h *UserHandler) ListUsers(ctx fiber.Ctx) error {
 		return rest.UnauthorizedError(ctx, "unauthorized")
 	}
 
-	users, err := h.svc.ListUser()
+	page, err := strconv.Atoi(ctx.Query("page", "1"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+	
+	pageSize, err := strconv.Atoi(ctx.Query("page_size", "10"))
+	if err != nil || pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	role := ctx.Query("role", "")
+	status := ctx.Query("status", "")
+	search := ctx.Query("search", "")
+
+	users, total, err := h.svc.ListUser(page, pageSize, role, status, search)
 	if err != nil {
 		return rest.InternalError(ctx, err)
 	}
 
-	return rest.SuccessResponse(ctx, "success", users)
-
+	return ctx.JSON(fiber.Map{
+		"message": "success",
+		"data":    users,
+		"meta": fiber.Map{
+			"total":     total,
+			"page":      page,
+			"page_size": pageSize,
+		},
+	})
 }
