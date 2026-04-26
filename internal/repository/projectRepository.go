@@ -98,6 +98,7 @@ func (p *projectRepository) FindProjectsPendingDetail(projectID uint, state stri
 
 	err := p.db.
 		Preload("Owner").
+		Preload("Category").
 		Preload("Owner.StudentProfile.University").
 		Preload("Owner.IdCardVerification").
 		Preload("Owner.StudentCardVerification").
