@@ -1307,7 +1307,7 @@ func (s *userService) GoogleSigning(code string, role string, oauthConfig *oauth
 
 		// User not found, automatically register them!
 		if role != "pioneer" && role != "booster" {
-			role = "booster" // Fallback Default
+			role = "pending" // Fallback Default
 		}
 
 		googleSub := googleUser.ID
