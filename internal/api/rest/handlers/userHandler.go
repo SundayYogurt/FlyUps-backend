@@ -73,6 +73,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	privateRoutes.Post("/signout", handler.SignOut)
 	privateRoutes.Put("/change-password", handler.ChangePassword)
 	privateRoutes.Put("/add-password", handler.AddPassword)
+	privateRoutes.Patch("/role", handler.SelectRole)
 
 	//admin route
 	adminRoutes := app.Group("/admin", rh.Middlewares.AuthorizeAdmin)
@@ -856,6 +857,39 @@ func (h *UserHandler) SignOut(ctx fiber.Ctx) error {
 	return ctx.JSON(fiber.Map{
 		"message": "logout success",
 	})
+}
+
+// SelectRole godoc
+// @Summary Select user role
+// @Description Select role for users with 'pending' role (after Google Signup)
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body object true "Role selection, e.g., {\"role\": \"booster\"}"
+// @Success 200 {object} object "Role updated successfully"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /user/role [patch]
+func (h *UserHandler) SelectRole(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	var body struct {
+		Role string `json:"role"`
+	}
+
+	if err := ctx.Bind().Body(&body); err != nil {
+		return rest.BadRequestError(ctx, "invalid request body")
+	}
+
+	if err := h.svc.SelectRole(user.ID, body.Role); err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "role updated successfully", nil)
 }
 
 // UpdateUniversity godoc

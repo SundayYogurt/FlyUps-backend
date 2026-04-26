@@ -58,6 +58,7 @@ type UserService interface {
 	GetUniversityByEmail(email string) (*domain.UniversityDomain, error)
 	DeleteDomain(id uint) error
 	UpdateDomain(id uint, req dto.UpdateDomainRequest) (*domain.UniversityDomain, error)
+	SelectRole(userID uint, newRole string) error
 }
 
 type userService struct {
@@ -147,6 +148,31 @@ func (s *userService) AddPasswordForGoogle(userID uint, newPassword string) erro
 
 	return s.Repo.UpdateUser(user.ID, updates)
 
+}
+
+func (s *userService) SelectRole(userID uint, newRole string) error {
+	if userID == 0 {
+		return errors.New("invalid user id")
+	}
+
+	if newRole != "booster" && newRole != "pioneer" {
+		return errors.New("role must be either booster or pioneer")
+	}
+
+	user, err := s.Repo.FindUserById(userID)
+	if err != nil {
+		return err
+	}
+
+	if user.Role != "pending" {
+		return errors.New("user role is already selected")
+	}
+
+	updates := map[string]interface{}{
+		"role": newRole,
+	}
+
+	return s.Repo.UpdateUser(userID, updates)
 }
 
 func NewUserService(
