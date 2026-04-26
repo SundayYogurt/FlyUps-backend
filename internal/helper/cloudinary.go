@@ -49,11 +49,12 @@ func (c *CloudinaryService) UploadVideo(ctx context.Context, file multipart.File
 	return res.SecureURL, nil
 }
 
-func (c *CloudinaryService) UploadRawFile(ctx context.Context, file multipart.File) (string, error) {
+func (c *CloudinaryService) UploadRawFile(ctx context.Context, file multipart.File, ext string) (string, error) {
 
 	res, err := c.cld.Upload.Upload(ctx, file, uploader.UploadParams{
 		Folder:       "flyup/projects/documents",
 		ResourceType: "raw",
+		Format:       ext,
 	})
 
 	if err != nil {

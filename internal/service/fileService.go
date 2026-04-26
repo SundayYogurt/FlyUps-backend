@@ -48,6 +48,7 @@ func (s *uploadService) UploadFile(ctx context.Context, file multipart.File, fil
 
 	contentType := http.DetectContentType(buffer[:n])
 	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	cleanExt := strings.TrimPrefix(ext, ".")
 	isExcelExt := ext == ".xlsx" || ext == ".xls"
 
 	isExcelMime :=
@@ -55,6 +56,9 @@ func (s *uploadService) UploadFile(ctx context.Context, file multipart.File, fil
 			contentType == "application/vnd.ms-excel" ||
 			contentType == "application/zip"
 	
+	isPdfExt := ext == ".pdf"
+	isPdfMime := contentType == "application/pdf"
+
 	switch {
 	case strings.HasPrefix(contentType, "image/"):
 		url, err = s.cld.UploadImage(ctx, file)
@@ -64,8 +68,8 @@ func (s *uploadService) UploadFile(ctx context.Context, file multipart.File, fil
 		url, err = s.cld.UploadVideo(ctx, file)
 		mediaType = domain.MediaTypeVideo
 
-	case isExcelExt && isExcelMime:
-		url, err = s.cld.UploadRawFile(ctx, file)
+	case (isExcelExt && isExcelMime) || (isPdfExt && isPdfMime):
+		url, err = s.cld.UploadRawFile(ctx, file, cleanExt)
 		mediaType = domain.MediaTypeRaw
 
 	default:
