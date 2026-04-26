@@ -36,10 +36,22 @@ type UserRepository interface {
 	FindAllByRole(role string) ([]domain.User, error)
 	FindStudentRequest(status string) ([]domain.StudentCardVerification, error)
 	FindUserIDCardRequest(status string) ([]domain.IdCardVerification, error)
+	FindAllUsers() ([]domain.User, error)
 }
 
 type userRepository struct {
 	db *gorm.DB
+}
+
+func (r *userRepository) FindAllUsers() ([]domain.User, error) {
+	var users []domain.User
+
+	err := r.db.Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
 }
 
 func (r *userRepository) FindUserIDCardRequest(status string) ([]domain.IdCardVerification, error) {
