@@ -75,12 +75,24 @@ func (s *investmentService) GetInvestment(boosterUserID uint, investmentID uint)
 }
 
 func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail string, req dto.CreateInvestmentRequest) (*dto.InvestmentResponse, error) {
+	user, err := s.userRepo.FindUserById(boosterUserID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+	if user.Role == "admin" {
+		return nil, errors.New("admin cannot invest")
+	}
+
 	project, err := s.projectRepo.FindProjectByID(req.ProjectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("project not found")
 		}
 		return nil, errors.New("internal server error")
+	}
+
+	if project.OwnerUserID == boosterUserID {
+		return nil, errors.New("cannot invest in your own project")
 	}
 
 	if project.State != domain.StateFunding {
