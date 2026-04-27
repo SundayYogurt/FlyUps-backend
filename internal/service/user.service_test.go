@@ -24,9 +24,12 @@ type mockUserRepository struct {
 	mock.Mock
 }
 
-func (m *mockUserRepository) FindAllUsers() ([]domain.User, error) {
-	//TODO implement me
-	panic("implement me")
+func (m *mockUserRepository) FindAllUsers(page, limit int, role, status, search string) ([]domain.User, int64, error) {
+	args := m.Called(page, limit, role, status, search)
+	if args.Get(0) == nil {
+		return nil, 0, args.Error(2)
+	}
+	return args.Get(0).([]domain.User), args.Get(1).(int64), args.Error(2)
 }
 
 func (m *mockUserRepository) FindUserByEmail(email string) (*domain.User, error) {

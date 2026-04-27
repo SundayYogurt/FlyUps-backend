@@ -18,6 +18,22 @@ func (_m *ProjectRepository) FindProjectRecommendations()  ([]domain.Project, er
 	panic("implement me")
 }
 
+func (_m *ProjectRepository) FindNewProjects() ([]domain.Project, error) {
+	args := _m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Project), args.Error(1)
+}
+
+func (_m *ProjectRepository) FindProjectEndingSoon() ([]domain.Project, error) {
+	args := _m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Project), args.Error(1)
+}
+
 func (_m *ProjectRepository) FindProjectsPendingDetail(projectID uint, state string)  (*domain.Project, error) {
 	args := _m.Called(projectID, state)
 

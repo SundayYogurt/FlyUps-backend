@@ -235,11 +235,45 @@ func TestCreateInvestment_ProjectNotFound(t *testing.T) {
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10, Role: "booster"}, nil)
 	projectRepo.On("FindProjectByID", uint(1)).Return(&domain.Project{}, gorm.ErrRecordNotFound)
 
 	_, err := svc.CreateInvestment(10, "user@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 1000})
 
 	assert.EqualError(t, err, "project not found")
+}
+
+func TestCreateInvestment_AdminCannotInvest(t *testing.T) {
+	projectRepo := new(ProjectRepository)
+	investRepo := new(mockInvestmentRepo)
+	txnRepo := new(mockTransactionRepo)
+	userRepo := new(mockUserRepository)
+
+	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
+
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10, Role: "admin"}, nil)
+
+	_, err := svc.CreateInvestment(10, "admin@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 1000})
+
+	assert.EqualError(t, err, "admin cannot invest")
+	projectRepo.AssertNotCalled(t, "FindProjectByID", mock.Anything)
+}
+
+func TestCreateInvestment_OwnerCannotInvestSelf(t *testing.T) {
+	projectRepo := new(ProjectRepository)
+	investRepo := new(mockInvestmentRepo)
+	txnRepo := new(mockTransactionRepo)
+	userRepo := new(mockUserRepository)
+
+	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
+
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10, Role: "pioneer"}, nil)
+	project := &domain.Project{ID: 1, OwnerUserID: 10, State: domain.StateFunding}
+	projectRepo.On("FindProjectByID", uint(1)).Return(project, nil)
+
+	_, err := svc.CreateInvestment(10, "owner@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 1000})
+
+	assert.EqualError(t, err, "cannot invest in your own project")
 }
 
 func TestCreateInvestment_ProjectNotInFunding(t *testing.T) {
@@ -250,6 +284,7 @@ func TestCreateInvestment_ProjectNotInFunding(t *testing.T) {
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10, Role: "booster"}, nil)
 	project := &domain.Project{ID: 1, State: domain.StateDraft}
 	projectRepo.On("FindProjectByID", uint(1)).Return(project, nil)
 
@@ -266,6 +301,7 @@ func TestCreateInvestment_AmountBelowMin(t *testing.T) {
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10, Role: "booster"}, nil)
 	project := &domain.Project{
 		ID:              1,
 		State:           domain.StateFunding,
@@ -290,6 +326,7 @@ func TestCreateInvestment_AmountAboveMax(t *testing.T) {
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10, Role: "booster"}, nil)
 	project := &domain.Project{
 		ID:              1,
 		State:           domain.StateFunding,
@@ -313,6 +350,7 @@ func TestCreateInvestment_ExceedsFundingGoal(t *testing.T) {
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10, Role: "booster"}, nil)
 	project := &domain.Project{
 		ID:              1,
 		State:           domain.StateFunding,
