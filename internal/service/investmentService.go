@@ -21,6 +21,11 @@ import (
 	"gorm.io/gorm"
 )
 
+// MaxInvestmentPerTransaction คือเพดานต่อรายการ (THB)
+// — ต่ำกว่า limit ของ Stripe API (~999,999.99 THB) เพื่อเผื่อ fees/rounding
+// — เลขกลมตามมาตรฐาน fintech ไทย; ผู้ใช้ที่ลงทุนสูงกว่านี้ต้องแบ่งหลายรายการ
+const MaxInvestmentPerTransaction = 500_000.0
+
 type InvestmentService interface {
 	GetInvestment(boosterUserID uint, investmentID uint) (*domain.Investment, *domain.Transaction, error)
 	CreateInvestment(boosterUserID uint, boosterEmail string, req dto.CreateInvestmentRequest) (*dto.InvestmentResponse, error)
@@ -101,6 +106,10 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 
 	if err := validateAmount(project, req.Amount); err != nil {
 		return nil, err
+	}
+
+	if req.Amount > MaxInvestmentPerTransaction {
+		return nil, fmt.Errorf("ยอดลงทุนต่อรายการต้องไม่เกิน ฿%.0f (กรุณาแบ่งเป็นหลายรายการหากต้องการลงทุนสูงกว่านี้)", MaxInvestmentPerTransaction)
 	}
 
 	if project.FundingGoal > 0 {

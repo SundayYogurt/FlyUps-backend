@@ -342,6 +342,32 @@ func TestCreateInvestment_AmountAboveMax(t *testing.T) {
 	assert.EqualError(t, err, "maximum investment is ฿50000")
 }
 
+func TestCreateInvestment_ExceedsMaxPerTransaction(t *testing.T) {
+	projectRepo := new(ProjectRepository)
+	investRepo := new(mockInvestmentRepo)
+	txnRepo := new(mockTransactionRepo)
+	userRepo := new(mockUserRepository)
+
+	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
+
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10, Role: "booster"}, nil)
+	project := &domain.Project{
+		ID:              1,
+		State:           domain.StateFunding,
+		FundingGoal:     10_000_000,
+		MinInvestAmount: 500,
+		MaxInvestAmount: 1_000_000,
+		PlatformFee:     2,
+	}
+	projectRepo.On("FindProjectByID", uint(1)).Return(project, nil)
+
+	_, err := svc.CreateInvestment(10, "user@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 600_000})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "ยอดลงทุนต่อรายการต้องไม่เกิน")
+	investRepo.AssertNotCalled(t, "Create", mock.Anything)
+}
+
 func TestCreateInvestment_ExceedsFundingGoal(t *testing.T) {
 	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
