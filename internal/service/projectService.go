@@ -95,7 +95,7 @@ type ProjectService interface {
 
 	//meeting
 	Meeting(input dto.CreateMeetingRequest, userID uint) (*domain.Meeting, error)
-	EditMeeting(input dto.UpdateMeetingRequest, userID uint) (*domain.Meeting, error)
+	EditMeeting(meetingID uint, input dto.UpdateMeetingRequest, userID uint) (*domain.Meeting, error)
 	CancelMeeting(meetingID uint, user domain.User) error
 	GetMyMeeting(userID uint, meetingID uint) (*domain.Meeting, error)
 	GetMyMeetings(userID uint) ([]domain.Meeting, error)
@@ -1985,7 +1985,12 @@ func (s *projectService) GetMyMeetingsByProject(userID uint, projectID uint, fil
 	return s.projectRepo.FindMeetingsByProject(projectID, filter)
 }
 
-func (s *projectService) EditMeeting(input dto.UpdateMeetingRequest, userID uint) (*domain.Meeting, error) {
+func (s *projectService) EditMeeting(meetingID uint, input dto.UpdateMeetingRequest, userID uint) (*domain.Meeting, error) {
+
+	if meetingID == 0 {
+		return nil, errors.New("meeting_id is required")
+	}
+
 	if input.MilestoneID == 0 {
 		return nil, errors.New("milestone_id is required")
 	}
@@ -2019,6 +2024,7 @@ func (s *projectService) EditMeeting(input dto.UpdateMeetingRequest, userID uint
 	}
 
 	meeting := &domain.Meeting{
+		ID:          meetingID,
 		MilestoneID: input.MilestoneID,
 		Date:        dateParsed,
 		Time:        timeParsed,

@@ -104,7 +104,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	Me.Get("/milestones/:id/meetings", handler.GetMyMilestoneMeetings)
 
 	priv.Post("/meeting", handler.Meeting)
-	priv.Patch("/meeting", handler.EditMeeting)
+	priv.Patch("/meeting/:id", handler.EditMeeting)
 	priv.Patch("/cancel/meeting/:id", handler.CancelMeeting)
 
 	// Stories
@@ -1752,12 +1752,17 @@ func (h *ProjectHandler) EditMeeting(ctx fiber.Ctx) error {
 		return rest.UnauthorizedError(ctx, "unauthorized")
 	}
 
+	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+	}
+
 	var body dto.UpdateMeetingRequest
 	if err := ctx.Bind().Body(&body); err != nil {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
-	meeting, err := h.svc.EditMeeting(body, user.ID)
+	meeting, err := h.svc.EditMeeting(uint(id), body, user.ID)
 	if err != nil {
 		return rest.InternalError(ctx, err)
 	}
