@@ -65,6 +65,8 @@ type ProjectRepository interface {
 	FindMeetingByID(id uint) (*domain.Meeting, error)
 	FindMeetingsByMilestone(milestoneID uint, filter string) ([]domain.Meeting, error)
 	FindMeetingsByProject(projectID uint, filter string) ([]domain.Meeting, error)
+	UpdateMeeting(meeting *domain.Meeting) (*domain.Meeting, error)
+	FindMeetingsByOwnerID(ownerID uint) ([]domain.Meeting, error)
 
 	// story
 	FindStoriesByProjectID(projectID uint) ([]domain.StorySection, error)
@@ -97,6 +99,32 @@ type ProjectRepository interface {
 
 type projectRepository struct {
 	db *gorm.DB
+}
+
+func (p *projectRepository) FindMeetingsByOwnerID(ownerID uint) ([]domain.Meeting, error) {
+	var meetings []domain.Meeting
+
+	err := p.db.
+		Joins("JOIN milestones ON milestones.id = meetings.milestone_id").
+		Joins("JOIN projects ON projects.id = milestones.project_id").
+		Where("projects.owner_user_id = ?", ownerID).
+		Find(&meetings).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return meetings, nil
+}
+
+func (p *projectRepository) UpdateMeeting(meeting *domain.Meeting) (*domain.Meeting, error) {
+	err := p.db.Model(&domain.Meeting{}).Where("id = ?", meeting.ID).Updates(meeting).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return meeting, err
 }
 
 func (p *projectRepository) SaveMeeting(meeting *domain.Meeting) error {
