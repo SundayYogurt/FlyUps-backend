@@ -10,6 +10,7 @@ type NotificationClient interface {
 	SendVerifyEmail(to string, verifyLink string) error
 	SendResetPasswordEmail(to string, resetLink string) error
 	SendMeetingEmail(to string, title string, date string, time string, meetingType string, link *string, place *string) error
+	SendUpdateMeetingEmail(to string, title string, date string, time string, meetingType string, link *string, place *string, status string) error
 }
 
 type notificationClient struct {
@@ -263,6 +264,122 @@ func (n notificationClient) SendMeetingEmail(to string, title string, date strin
               </a>
             </td>
           </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="font-size:12px;color:#aaa;padding-top:20px;">
+              © 2026 FlyUp. All rights reserved.
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`,
+	}
+
+	_, err := n.client.Emails.Send(params)
+	return err
+}
+
+func (n notificationClient) SendUpdateMeetingEmail(to string, title string, date string, time string, meetingType string, link *string, place *string, status string, // "updated" | "canceled"
+) error {
+
+	var detail string
+
+	// detail
+	if meetingType == "online" && link != nil {
+		detail = `
+		<tr>
+			<td style="font-size:16px;color:#555;padding-bottom:20px;">
+				Meeting Type: Online<br>
+				Link: <a href="` + *link + `">Join Meeting</a>
+			</td>
+		</tr>`
+	} else if meetingType == "onsite" && place != nil {
+		detail = `
+		<tr>
+			<td style="font-size:16px;color:#555;padding-bottom:20px;">
+				Meeting Type: Onsite<br>
+				Location: ` + *place + `
+			</td>
+		</tr>`
+	} else if meetingType == "hybrid" {
+		detail = `
+		<tr>
+			<td style="font-size:16px;color:#555;padding-bottom:20px;">
+				Meeting Type: Hybrid<br>
+				` + func() string {
+			if link != nil {
+				return "Link: <a href=\"" + *link + "\">Join Meeting</a><br>"
+			}
+			return ""
+		}() + `
+				` + func() string {
+			if place != nil {
+				return "Location: " + *place
+			}
+			return ""
+		}() + `
+			</td>
+		</tr>`
+	}
+
+	// title + badge
+	var header string
+	if status == "canceled" {
+		header = "Meeting Canceled"
+	} else {
+		header = "Meeting Updated"
+	}
+
+	params := &resend.SendEmailRequest{
+		From:    n.config.EmailFrom,
+		To:      []string{to},
+		Subject: header,
+		Html: `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+</head>
+<body style="margin:0;padding:0;background:#f6f9fc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f6f9fc;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="500" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;padding:40px;text-align:center;">
+          
+          <!-- Title -->
+          <tr>
+            <td style="font-size:24px;font-weight:bold;color:#333;padding-bottom:10px;">
+              ` + header + `
+            </td>
+          </tr>
+
+          <!-- Description -->
+          <tr>
+            <td style="font-size:16px;color:#555;padding-bottom:20px;">
+              ` + func() string {
+			if status == "canceled" {
+				return "This meeting has been canceled."
+			}
+			return "The meeting details have been updated."
+		}() + `
+            </td>
+          </tr>
+
+          <!-- Date Time -->
+          <tr>
+            <td style="font-size:16px;color:#555;padding-bottom:20px;">
+              Date: ` + date + `<br>
+              Time: ` + time + `
+            </td>
+          </tr>
+
+          ` + detail + `
 
           <!-- Footer -->
           <tr>

@@ -9,6 +9,7 @@ import (
 	"flyup/internal/repository"
 	"flyup/pkg/notification"
 	"fmt"
+	"log"
 	"net/url"
 	"strings"
 	"time"
@@ -93,10 +94,13 @@ type ProjectService interface {
 	AutoProjectLifecycleTick(now time.Time) error
 
 	//meeting
-	Meeting(req dto.CreateMeetingRequest, userID uint) (*domain.Meeting, error)
-	GetMeeting(meetingID uint) (*domain.Meeting, error)
-	GetMeetingsByMilestone(milestoneID uint, filter string) ([]domain.Meeting, error)
-	GetMeetingsByProject(projectID uint, filter string) ([]domain.Meeting, error)
+	Meeting(input dto.CreateMeetingRequest, userID uint) (*domain.Meeting, error)
+	EditMeeting(input dto.UpdateMeetingRequest, userID uint) (*domain.Meeting, error)
+	CancelMeeting(meetingID uint, user domain.User) error
+	GetMyMeeting(userID uint, meetingID uint) (*domain.Meeting, error)
+	GetMyMeetings(userID uint) ([]domain.Meeting, error)
+	GetMyMeetingsByMilestone(userID uint, milestoneID uint, filter string) ([]domain.Meeting, error)
+	GetMyMeetingsByProject(userID uint, projectID uint, filter string) ([]domain.Meeting, error)
 }
 
 type projectService struct {
@@ -1830,6 +1834,10 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 		return nil, errors.New("forbidden: you cannot use this milestone")
 	}
 
+	if milestone.DueDate != nil && time.Now().After(*milestone.DueDate) {
+		return nil, errors.New("cannot create meeting: milestone is expired")
+	}
+
 	meeting := &domain.Meeting{
 		MilestoneID: input.MilestoneID,
 		Date:        dateParsed,
@@ -1845,37 +1853,299 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 		return nil, err
 	}
 
-	// ยิง email (เหมือนเดิม)
+	emails, err := s.projectRepo.FindInvestorsEmailByProjectID(milestone.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, email := range emails {
+		go func(m domain.Meeting, email string) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("email panic: %v", r)
+				}
+			}()
+
+			dateStr := m.Date.Format("02 Jan 2006")
+			timeStr := m.Time.Format("15:04")
+
+			err := s.emailClient.SendMeetingEmail(
+				email,
+				"Meeting Invitation",  // title
+				dateStr,               // date
+				timeStr,               // time
+				string(m.MeetingType), // แปลงเป็น string
+				m.Link,                // *string
+				m.Place,               // *string
+			)
+
+			if err != nil {
+				log.Printf("send meeting email error: %v", err)
+			}
+		}(*meeting, email)
+	}
+	return meeting, nil
+}
+
+func (s *projectService) GetMyMeeting(userID uint, meetingID uint) (*domain.Meeting, error) {
+	if userID == 0 {
+		return nil, errors.New("userID is required")
+	}
+	if meetingID == 0 {
+		return nil, errors.New("meetingID is required")
+	}
+
+	meeting, err := s.projectRepo.FindMeetingByID(meetingID)
+	if err != nil {
+		return nil, err
+	}
+	if meeting == nil {
+		return nil, errors.New("meeting not found")
+	}
+
+	// ownership check via milestone → project
+	milestone, err := s.projectRepo.FindMilestoneByID(meeting.MilestoneID)
+	if err != nil {
+		return nil, errors.New("milestone not found")
+	}
+
+	project, err := s.projectRepo.FindProjectByID(milestone.ProjectID)
+	if err != nil {
+		return nil, errors.New("project not found")
+	}
+
+	if project.OwnerUserID != userID {
+		return nil, errors.New("forbidden")
+	}
 
 	return meeting, nil
 }
 
-func (s *projectService) GetMeeting(meetingID uint) (*domain.Meeting, error) {
-	if meetingID == 0 {
-		return nil, errors.New("meeting_id is required")
+func (s *projectService) GetMyMeetingsByMilestone(userID uint, milestoneID uint, filter string) ([]domain.Meeting, error) {
+	if userID == 0 {
+		return nil, errors.New("userID is required")
 	}
-
-	return s.projectRepo.FindMeetingByID(meetingID)
-}
-
-func (s *projectService) GetMeetingsByMilestone(milestoneID uint, filter string) ([]domain.Meeting, error) {
 	if milestoneID == 0 {
-		return nil, errors.New("milestone_id is required")
+		return nil, errors.New("milestoneID is required")
 	}
 
-	// validate milestone exists
-	_, err := s.projectRepo.FindMilestoneByID(milestoneID)
+	milestone, err := s.projectRepo.FindMilestoneByID(milestoneID)
 	if err != nil {
+		return nil, err
+	}
+	if milestone == nil {
 		return nil, errors.New("milestone not found")
+	}
+
+	project, err := s.projectRepo.FindProjectByID(milestone.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	if project.OwnerUserID != userID {
+		return nil, errors.New("forbidden")
 	}
 
 	return s.projectRepo.FindMeetingsByMilestone(milestoneID, filter)
 }
 
-func (s *projectService) GetMeetingsByProject(projectID uint, filter string) ([]domain.Meeting, error) {
+func (s *projectService) GetMyMeetings(userID uint) ([]domain.Meeting, error) {
+	if userID == 0 {
+		return nil, errors.New("userID is required")
+	}
+
+	meetings, err := s.projectRepo.FindMeetingsByOwnerID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return meetings, nil
+}
+
+func (s *projectService) GetMyMeetingsByProject(userID uint, projectID uint, filter string) ([]domain.Meeting, error) {
+	if userID == 0 {
+		return nil, errors.New("userID is required")
+	}
 	if projectID == 0 {
-		return nil, errors.New("project_id is required")
+		return nil, errors.New("projectID is required")
+	}
+
+	project, err := s.projectRepo.FindProjectByID(projectID)
+	if err != nil {
+		return nil, err
+	}
+	if project == nil {
+		return nil, errors.New("project not found")
+	}
+
+	if project.OwnerUserID != userID {
+		return nil, errors.New("forbidden")
 	}
 
 	return s.projectRepo.FindMeetingsByProject(projectID, filter)
+}
+
+func (s *projectService) EditMeeting(input dto.UpdateMeetingRequest, userID uint) (*domain.Meeting, error) {
+	if input.MilestoneID == 0 {
+		return nil, errors.New("milestone_id is required")
+	}
+
+	dateParsed, err := time.Parse("2006-01-02", input.Date)
+	if err != nil {
+		return nil, errors.New("invalid date format (YYYY-MM-DD)")
+	}
+
+	timeParsed, err := time.Parse("15:04", input.Time)
+	if err != nil {
+		return nil, errors.New("invalid time format (HH:MM)")
+	}
+
+	milestone, err := s.projectRepo.FindMilestoneByID(input.MilestoneID)
+	if err != nil {
+		return nil, errors.New("failed to find milestone or invalid milestone")
+	}
+
+	project, err := s.projectRepo.FindProjectByID(milestone.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	if project.OwnerUserID != userID {
+		return nil, errors.New("forbidden: you cannot use this milestone")
+	}
+
+	if milestone.DueDate != nil && time.Now().After(*milestone.DueDate) {
+		return nil, errors.New("cannot create meeting: milestone is expired")
+	}
+
+	meeting := &domain.Meeting{
+		MilestoneID: input.MilestoneID,
+		Date:        dateParsed,
+		Time:        timeParsed,
+		MeetingType: input.MeetingType,
+		Link:        input.Link,
+		Place:       input.Place,
+		About:       input.About,
+		Status:      domain.MeetingOpen,
+	}
+
+	updated, err := s.projectRepo.UpdateMeeting(meeting)
+
+	if err != nil {
+		return nil, err
+	}
+
+	emails, err := s.projectRepo.FindInvestorsEmailByProjectID(milestone.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, email := range emails {
+		go func(m domain.Meeting, email string) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("email panic: %v", r)
+				}
+			}()
+
+			dateStr := m.Date.Format("02 Jan 2006")
+			timeStr := m.Time.Format("15:04")
+
+			err := s.emailClient.SendUpdateMeetingEmail(
+				email,
+				"Meeting Updated",
+				dateStr,
+				timeStr,
+				string(m.MeetingType),
+				m.Link,
+				m.Place,
+				"updated",
+			)
+
+			if err != nil {
+				log.Printf("send meeting email error: %v", err)
+			}
+		}(*meeting, email)
+
+	}
+	return updated, nil
+}
+
+func (s *projectService) CancelMeeting(meetingID uint, user domain.User) error {
+	if meetingID == 0 {
+		return errors.New("meeting_id is required")
+	}
+
+	// หา meeting
+	meeting, err := s.projectRepo.FindMeetingByID(meetingID)
+	if err != nil {
+		return errors.New("meeting not found")
+	}
+
+	// หา milestone
+	milestone, err := s.projectRepo.FindMilestoneByID(meeting.MilestoneID)
+	if err != nil {
+		return errors.New("milestone not found")
+	}
+
+	// หา project (เพื่อเช็คสิทธิ์)
+	project, err := s.projectRepo.FindProjectByID(milestone.ProjectID)
+	if err != nil {
+		return err
+	}
+
+	// permission check
+	if project.OwnerUserID != user.ID {
+		return errors.New("forbidden: you cannot cancel this meeting")
+	}
+
+	// ถ้ายกเลิกไปแล้ว
+	if meeting.Status == domain.MeetingCanceled {
+		return errors.New("meeting already canceled")
+	}
+
+	// เปลี่ยนสถานะ
+	meeting.Status = domain.MeetingCanceled
+
+	updated, err := s.projectRepo.UpdateMeeting(meeting)
+	if err != nil {
+		return err
+	}
+
+	// หา email นักลงทุน
+	emails, err := s.projectRepo.FindInvestorsEmailByProjectID(project.ID)
+	if err != nil {
+		return err
+	}
+
+	// ส่ง email
+	for _, email := range emails {
+		go func(m domain.Meeting, email string) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("email panic: %v", r)
+				}
+			}()
+
+			dateStr := m.Date.Format("02 Jan 2006")
+			timeStr := m.Time.Format("15:04")
+
+			err := s.emailClient.SendUpdateMeetingEmail(
+				email,
+				"Meeting Canceled",
+				dateStr,
+				timeStr,
+				string(m.MeetingType),
+				m.Link,
+				m.Place,
+				"canceled",
+			)
+
+			if err != nil {
+				log.Printf("send cancel email error: %v", err)
+			}
+		}(*updated, email)
+	}
+
+	return nil
 }

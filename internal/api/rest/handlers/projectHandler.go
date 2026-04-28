@@ -89,17 +89,19 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 
 	// Milestones
 	priv.Post("/:id<int>/milestones", handler.AddProjectMilestone)
-	priv.Get("/:id<int>/milestones", handler.GetProjectMilestones)
+	pub.Get("/:id<int>/milestones", handler.GetProjectMilestones)
 	priv.Patch("/milestones/:milestone_id<int>", handler.UpdateProjectMilestone)
 	priv.Patch("/milestones/:milestone_id<int>/submit", handler.SubmitProjectMilestone)
 	priv.Patch("/milestones/:milestone_id<int>/open-vote", handler.OpenMilestoneVoting)
 	priv.Delete("/milestones/:milestone_id<int>", handler.DeleteProjectMilestone)
 
 	//meeting
-	priv.Post("/milestones/:id<int>/meeting", handler.Meeting)
-	pub.Get("/meetings/:id", handler.GetMeeting)
-	pub.Get("/milestones/:id/meetings", handler.GetMeetingsByMilestone)
-	pub.Get("/:id/meetings", handler.GetMeetingsByProject)
+	Me := app.Group("/me", rh.Middlewares.Authorize)
+
+	Me.Get("/meetings", handler.GetMyMeetings)
+	Me.Get("/meeting/:id", handler.GetMyMeeting)
+	Me.Get("/projects/:id/meetings", handler.GetMyProjectMeetings)
+	Me.Get("/milestones/:id/meetings", handler.GetMyMilestoneMeetings)
 
 	// Stories
 	priv.Post("/:id<int>/stories", handler.AddProjectStory)
@@ -1734,13 +1736,17 @@ func (h *ProjectHandler) Meeting(ctx fiber.Ctx) error {
 
 	meeting, err := h.svc.Meeting(body, user.ID)
 	if err != nil {
-		return rest.BadRequestError(ctx, err.Error())
+		return rest.InternalError(ctx, err)
 	}
 
 	return rest.SuccessResponse(ctx, "meeting created successfully", meeting)
 }
 
-func (h *ProjectHandler) GetMeeting(ctx fiber.Ctx) error {
+func (h *ProjectHandler) GetMyMeeting(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.UnauthorizedError(ctx, "unauthorized")
+	}
 
 	idParam := ctx.Params("id")
 	meetingID, err := strconv.Atoi(idParam)
@@ -1748,15 +1754,20 @@ func (h *ProjectHandler) GetMeeting(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid meeting id")
 	}
 
-	meeting, err := h.svc.GetMeeting(uint(meetingID))
+	meeting, err := h.svc.GetMyMeeting(user.ID, uint(meetingID))
 	if err != nil {
-		return rest.BadRequestError(ctx, err.Error())
+		return rest.InternalError(ctx, err)
 	}
 
 	return rest.SuccessResponse(ctx, "success", meeting)
 }
 
-func (h *ProjectHandler) GetMeetingsByMilestone(ctx fiber.Ctx) error {
+func (h *ProjectHandler) GetMyMilestoneMeetings(ctx fiber.Ctx) error {
+
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.UnauthorizedError(ctx, "unauthorized")
+	}
 
 	idParam := ctx.Params("id")
 	milestoneID, err := strconv.Atoi(idParam)
@@ -1771,15 +1782,19 @@ func (h *ProjectHandler) GetMeetingsByMilestone(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid filter")
 	}
 
-	meetings, err := h.svc.GetMeetingsByMilestone(uint(milestoneID), filter)
+	meetings, err := h.svc.GetMyMeetingsByMilestone(user.ID, uint(milestoneID), filter)
 	if err != nil {
-		return rest.BadRequestError(ctx, err.Error())
+		return rest.InternalError(ctx, err)
 	}
 
 	return rest.SuccessResponse(ctx, "success", meetings)
 }
 
-func (h *ProjectHandler) GetMeetingsByProject(ctx fiber.Ctx) error {
+func (h *ProjectHandler) GetMyProjectMeetings(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.UnauthorizedError(ctx, "unauthorized")
+	}
 
 	idParam := ctx.Params("id")
 	projectID, err := strconv.Atoi(idParam)
@@ -1794,9 +1809,24 @@ func (h *ProjectHandler) GetMeetingsByProject(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid filter")
 	}
 
-	meetings, err := h.svc.GetMeetingsByProject(uint(projectID), filter)
+	meetings, err := h.svc.GetMyMeetingsByProject(user.ID, uint(projectID), filter)
 	if err != nil {
-		return rest.BadRequestError(ctx, err.Error())
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "success", meetings)
+}
+
+func (h *ProjectHandler) GetMyMeetings(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.UnauthorizedError(ctx, "unauthorized")
+	}
+
+	meetings, err := h.svc.GetMyMeetings(user.ID)
+
+	if err != nil {
+		return rest.InternalError(ctx, err)
 	}
 
 	return rest.SuccessResponse(ctx, "success", meetings)

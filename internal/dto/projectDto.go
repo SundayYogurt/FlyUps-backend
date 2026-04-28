@@ -157,3 +157,13 @@ type CreateMeetingRequest struct {
 	Place       *string            `json:"place,omitempty"`
 	About       string             `json:"about"`
 }
+
+type UpdateMeetingRequest struct {
+	MilestoneID uint               `json:"milestone_id" validate:"required"`
+	Date        string             `json:"date" validate:"required"`
+	Time        string             `json:"time" validate:"required"`
+	MeetingType domain.MeetingType `json:"meeting_type" validate:"required,oneof=online onsite hybrid"`
+	Link        *string            `json:"link,omitempty"`
+	Place       *string            `json:"place,omitempty"`
+	About       string             `json:"about"`
+}
