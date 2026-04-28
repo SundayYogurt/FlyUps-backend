@@ -1919,9 +1919,13 @@ func (s *projectService) GetMeetingsByMilestone(milestoneID uint, filter string)
 	}
 
 	// validate milestone exists
-	_, err := s.projectRepo.FindMilestoneByID(milestoneID)
+	milestone, err := s.projectRepo.FindMilestoneByID(milestoneID)
 	if err != nil {
 		return nil, errors.New("milestone not found")
+	}
+
+	if len(milestone.Meetings) == 0 {
+		return nil, errors.New("no meetings found")
 	}
 
 	return s.projectRepo.FindMeetingsByMilestone(milestoneID, filter)

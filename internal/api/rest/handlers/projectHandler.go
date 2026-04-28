@@ -94,6 +94,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	priv.Patch("/milestones/:milestone_id<int>/submit", handler.SubmitProjectMilestone)
 	priv.Patch("/milestones/:milestone_id<int>/open-vote", handler.OpenMilestoneVoting)
 	priv.Delete("/milestones/:milestone_id<int>", handler.DeleteProjectMilestone)
+
 	//meeting
 	priv.Post("/milestones/:id<int>/meeting", handler.Meeting)
 	pub.Get("/meetings/:id", handler.GetMeeting)
@@ -1740,10 +1741,6 @@ func (h *ProjectHandler) Meeting(ctx fiber.Ctx) error {
 }
 
 func (h *ProjectHandler) GetMeeting(ctx fiber.Ctx) error {
-	user := h.auth.GetCurrentUser(ctx)
-	if user.ID == 0 {
-		return rest.UnauthorizedError(ctx, "unauthorized")
-	}
 
 	idParam := ctx.Params("id")
 	meetingID, err := strconv.Atoi(idParam)
@@ -1760,10 +1757,6 @@ func (h *ProjectHandler) GetMeeting(ctx fiber.Ctx) error {
 }
 
 func (h *ProjectHandler) GetMeetingsByMilestone(ctx fiber.Ctx) error {
-	user := h.auth.GetCurrentUser(ctx)
-	if user.ID == 0 {
-		return rest.UnauthorizedError(ctx, "unauthorized")
-	}
 
 	idParam := ctx.Params("id")
 	milestoneID, err := strconv.Atoi(idParam)
@@ -1787,10 +1780,6 @@ func (h *ProjectHandler) GetMeetingsByMilestone(ctx fiber.Ctx) error {
 }
 
 func (h *ProjectHandler) GetMeetingsByProject(ctx fiber.Ctx) error {
-	user := h.auth.GetCurrentUser(ctx)
-	if user.ID == 0 {
-		return rest.UnauthorizedError(ctx, "unauthorized")
-	}
 
 	idParam := ctx.Params("id")
 	projectID, err := strconv.Atoi(idParam)

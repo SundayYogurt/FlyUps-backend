@@ -65,6 +65,9 @@ func StartServer(cfg config.AppConfig) {
 
 		// complaints
 		&domain.Complaint{},
+
+		//meeting
+		&domain.Meeting{},
 	)
 
 	if err != nil {

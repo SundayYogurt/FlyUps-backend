@@ -461,7 +461,7 @@ func (p *projectRepository) FindUpdatesByProjectID(projectID uint) ([]domain.Pro
 
 func (p *projectRepository) FindMilestoneByID(id uint) (*domain.Milestone, error) {
 	var m domain.Milestone
-	if err := p.db.First(&m, id).Error; err != nil {
+	if err := p.db.Preload("Meetings").First(&m, id).Error; err != nil {
 		return nil, err
 	}
 	return &m, nil
