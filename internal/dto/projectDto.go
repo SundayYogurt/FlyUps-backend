@@ -115,8 +115,8 @@ type UpdateProjectUpdateRequest struct {
 }
 
 type ProjectMediaItem struct {
-	URL  string               `json:"url" validate:"required" example:"https://res.cloudinary.com/dsvexmpb6/video/upload/v1774969166/flyup/projects/videos/demo.mp4"`
-	Type []domain.MediaType   `json:"type" validate:"required" example:"video"`
+	URL  string             `json:"url" validate:"required" example:"https://res.cloudinary.com/dsvexmpb6/video/upload/v1774969166/flyup/projects/videos/demo.mp4"`
+	Type []domain.MediaType `json:"type" validate:"required" example:"video"`
 }
 
 type EvidenceFile struct {
@@ -146,4 +146,14 @@ type AdminMilestoneDetailResponse struct {
 	FundingGoal     float64              `json:"funding_goal"`
 	EndDate         *time.Time           `json:"end_date"`
 	ProgressPct     int                  `json:"progress_pct"`
+}
+
+type CreateMeetingRequest struct {
+	MilestoneID uint               `json:"milestone_id" validate:"required"`
+	Date        string             `json:"date" validate:"required"`
+	Time        string             `json:"time" validate:"required"`
+	MeetingType domain.MeetingType `json:"meeting_type" validate:"required,oneof=online onsite"`
+	Link        *string            `json:"link,omitempty"`
+	Place       *string            `json:"place,omitempty"`
+	About       string             `json:"about"`
 }

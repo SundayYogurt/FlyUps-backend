@@ -31,6 +31,8 @@ type ProjectRepository interface {
 	FindProjectRecommendations() ([]domain.Project, error)
 	FindNewProjects() ([]domain.Project, error)
 	FindProjectEndingSoon() ([]domain.Project, error)
+	SaveMeeting(meeting *domain.Meeting) error
+	FindInvestorsEmailByProjectID(projectID uint) ([]string, error)
 
 	FindMediaByProjectID(projectID uint) ([]domain.ProjectMedia, error)
 	FindMediaByID(id uint) (*domain.ProjectMedia, error)
@@ -59,6 +61,10 @@ type ProjectRepository interface {
 	CountVerifiedBoostersByProjectID(projectID uint) (int64, error)
 	CountMilestoneVotes(milestoneID uint, choice domain.MilestoneVoteChoice) (int64, error)
 	HasVerifiedInvestment(projectID uint, boosterUserID uint) (bool, error)
+	CloseMeetingsByMilestoneID(milestoneID uint) error
+	FindMeetingByID(id uint) (*domain.Meeting, error)
+	FindMeetingsByMilestone(milestoneID uint, filter string) ([]domain.Meeting, error)
+	FindMeetingsByProject(projectID uint, filter string) ([]domain.Meeting, error)
 
 	// story
 	FindStoriesByProjectID(projectID uint) ([]domain.StorySection, error)
@@ -91,6 +97,100 @@ type ProjectRepository interface {
 
 type projectRepository struct {
 	db *gorm.DB
+}
+
+func (p *projectRepository) SaveMeeting(meeting *domain.Meeting) error {
+	return p.db.Create(meeting).Error
+}
+
+func (p *projectRepository) FindMeetingByID(id uint) (*domain.Meeting, error) {
+	var m domain.Meeting
+	err := p.db.First(&m, id).Error
+	return &m, err
+}
+
+func (p *projectRepository) FindMeetingsByMilestone(milestoneID uint, filter string) ([]domain.Meeting, error) {
+	var meetings []domain.Meeting
+
+	now := time.Now()
+	today := now.Format("2006-01-02")
+	currentTime := now.Format("15:04")
+
+	db := p.db.Model(&domain.Meeting{}).
+		Where("milestone_id = ?", milestoneID)
+
+	switch filter {
+	case "upcoming":
+		db = db.Where(`
+			date > ?
+			OR (date = ? AND time >= ?)
+		`, today, today, currentTime).
+			Order("date ASC, time ASC")
+
+	case "past":
+		db = db.Where(`
+			date < ?
+			OR (date = ? AND time < ?)
+		`, today, today, currentTime).
+			Order("date DESC, time DESC")
+
+	default: // all
+		db = db.Order("date ASC, time ASC")
+	}
+
+	err := db.Find(&meetings).Error
+	return meetings, err
+}
+
+func (p *projectRepository) FindMeetingsByProject(projectID uint, filter string) ([]domain.Meeting, error) {
+	var meetings []domain.Meeting
+
+	now := time.Now()
+	today := now.Format("2006-01-02")
+	currentTime := now.Format("15:04")
+
+	db := p.db.Model(&domain.Meeting{}).
+		Joins("JOIN milestones ON milestones.id = meetings.milestone_id").
+		Where("milestones.project_id = ?", projectID)
+
+	switch filter {
+	case "upcoming":
+		db = db.Where(`
+			meetings.date > ?
+			OR (meetings.date = ? AND meetings.time >= ?)
+		`, today, today, currentTime).
+			Order("meetings.date ASC, meetings.time ASC")
+
+	case "past":
+		db = db.Where(`
+			meetings.date < ?
+			OR (meetings.date = ? AND meetings.time < ?)
+		`, today, today, currentTime).
+			Order("meetings.date DESC, meetings.time DESC")
+
+	default:
+		db = db.Order("meetings.date ASC, meetings.time ASC")
+	}
+
+	err := db.Find(&meetings).Error
+	return meetings, err
+}
+
+func (p *projectRepository) CloseMeetingsByMilestoneID(milestoneID uint) error {
+	return p.db.Model(&domain.Meeting{}).
+		Where("milestone_id = ? AND status != ?", milestoneID, domain.MeetingClosed).
+		Update("status", domain.MeetingClosed).Error
+}
+
+func (p *projectRepository) FindInvestorsEmailByProjectID(projectID uint) ([]string, error) {
+	var emails []string
+	err := p.db.Model(&domain.Investment{}).
+		Select("users.email").
+		Joins("JOIN users on users.id = investments.booster_user_id").
+		Where("investments.project_id = ? AND investments.status = ?", projectID, string(domain.InvestmentVerified)).
+		Group("users.email").
+		Pluck("email", &emails).Error
+	return emails, err
 }
 
 func (p *projectRepository) FindProjectRecommendations() ([]domain.Project, error) {
@@ -361,7 +461,7 @@ func (p *projectRepository) FindUpdatesByProjectID(projectID uint) ([]domain.Pro
 
 func (p *projectRepository) FindMilestoneByID(id uint) (*domain.Milestone, error) {
 	var m domain.Milestone
-	if err := p.db.First(&m, id).Error; err != nil {
+	if err := p.db.Preload("Meetings").First(&m, id).Error; err != nil {
 		return nil, err
 	}
 	return &m, nil

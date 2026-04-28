@@ -146,6 +146,7 @@ type Milestone struct {
 	SortOrder      int             `json:"sort_order"`
 	PercentRelease int             `json:"percent_release"`
 	Status         MilestoneStatus `json:"status"`
+	Meetings       []Meeting       `gorm:"foreignKey:MilestoneID"`
 }
 
 // MilestoneVote represents booster voting on milestone submission.
@@ -231,4 +232,33 @@ type ProjectThreadMessage struct {
 	Status    ThreadStatus `json:"status"`
 	CreatedAt time.Time    `json:"created_at"`
 	UpdatedAt time.Time    `json:"updated_at"`
+}
+type MeetingType string
+
+const (
+	Online MeetingType = "online"
+	Onsite MeetingType = "onsite"
+	Hybrid MeetingType = "hybrid"
+)
+
+type MeetingStatus string
+
+const (
+	MeetingOpen   MeetingStatus = "open"
+	MeetingClosed MeetingStatus = "closed"
+)
+
+type Meeting struct {
+	ID          uint          `json:"id"`
+	MilestoneID uint          `json:"milestone_id" gorm:"index"`
+	Milestone   Milestone     `gorm:"foreignKey:MilestoneID"`
+	Date        time.Time     `json:"date"`
+	Time        time.Time     `json:"time"`
+	MeetingType MeetingType   `json:"meeting_type"`           // "online" หรือ "onsite"
+	Link        *string       `json:"link,omitempty"`         // อนุญาตให้เป็น null
+	Place       *string       `json:"place,omitempty"`        // อนุญาตให้เป็น null
+	About       string        `json:"about" gorm:"type:text"` // ใช้ type text เพราะวาระการประชุมอาจจะยาว
+	Status      MeetingStatus `json:"status"`
+
+	gorm.Model
 }

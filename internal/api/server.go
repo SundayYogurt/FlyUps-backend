@@ -65,6 +65,9 @@ func StartServer(cfg config.AppConfig) {
 
 		// complaints
 		&domain.Complaint{},
+
+		//meeting
+		&domain.Meeting{},
 	)
 
 	if err != nil {
@@ -146,6 +149,7 @@ func StartServer(cfg config.AppConfig) {
 		repository.NewUserRepository(db),
 		cloudinarySvc,
 		notifSvc,
+		notificationClient,
 	)
 	go func() {
 		ticker := time.NewTicker(1 * time.Minute)

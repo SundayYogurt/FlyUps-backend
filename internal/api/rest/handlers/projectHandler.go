@@ -32,6 +32,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 		repository.NewUserRepository(rh.DB),
 		rh.Cloudinary,
 		rh.NotifSvc,
+		rh.Notification,
 	)
 
 	handler := ProjectHandler{
@@ -93,6 +94,12 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	priv.Patch("/milestones/:milestone_id<int>/submit", handler.SubmitProjectMilestone)
 	priv.Patch("/milestones/:milestone_id<int>/open-vote", handler.OpenMilestoneVoting)
 	priv.Delete("/milestones/:milestone_id<int>", handler.DeleteProjectMilestone)
+
+	//meeting
+	priv.Post("/milestones/:id<int>/meeting", handler.Meeting)
+	pub.Get("/meetings/:id", handler.GetMeeting)
+	pub.Get("/milestones/:id/meetings", handler.GetMeetingsByMilestone)
+	pub.Get("/:id/meetings", handler.GetMeetingsByProject)
 
 	// Stories
 	priv.Post("/:id<int>/stories", handler.AddProjectStory)
@@ -1699,7 +1706,7 @@ func (h *ProjectHandler) ProjectsPendingList(ctx fiber.Ctx) error {
 func (h *ProjectHandler) ProjectDetailReview(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
-		return rest.BadRequestError(ctx, "unauthorized")
+		return rest.UnauthorizedError(ctx, "unauthorized")
 	}
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
@@ -1712,4 +1719,85 @@ func (h *ProjectHandler) ProjectDetailReview(ctx fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, "project detail review success", project)
+}
+
+func (h *ProjectHandler) Meeting(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.UnauthorizedError(ctx, "unauthorized")
+	}
+
+	var body dto.CreateMeetingRequest
+	if err := ctx.Bind().Body(&body); err != nil {
+		return rest.BadRequestError(ctx, "invalid body")
+	}
+
+	err := h.svc.Meeting(body, user.ID)
+	if err != nil {
+		return rest.BadRequestError(ctx, "message")
+	}
+
+	return rest.SuccessResponse(ctx, "meeting created successfully", nil)
+}
+
+func (h *ProjectHandler) GetMeeting(ctx fiber.Ctx) error {
+
+	idParam := ctx.Params("id")
+	meetingID, err := strconv.Atoi(idParam)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid meeting id")
+	}
+
+	meeting, err := h.svc.GetMeeting(uint(meetingID))
+	if err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "success", meeting)
+}
+
+func (h *ProjectHandler) GetMeetingsByMilestone(ctx fiber.Ctx) error {
+
+	idParam := ctx.Params("id")
+	milestoneID, err := strconv.Atoi(idParam)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid milestone id")
+	}
+
+	filter := ctx.Query("filter", "all") // default = all
+
+	// validate filter
+	if filter != "upcoming" && filter != "past" && filter != "all" {
+		return rest.BadRequestError(ctx, "invalid filter")
+	}
+
+	meetings, err := h.svc.GetMeetingsByMilestone(uint(milestoneID), filter)
+	if err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "success", meetings)
+}
+
+func (h *ProjectHandler) GetMeetingsByProject(ctx fiber.Ctx) error {
+
+	idParam := ctx.Params("id")
+	projectID, err := strconv.Atoi(idParam)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid project id")
+	}
+
+	filter := ctx.Query("filter", "all")
+
+	// validate filter
+	if filter != "upcoming" && filter != "past" && filter != "all" {
+		return rest.BadRequestError(ctx, "invalid filter")
+	}
+
+	meetings, err := h.svc.GetMeetingsByProject(uint(projectID), filter)
+	if err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "success", meetings)
 }
