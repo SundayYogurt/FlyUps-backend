@@ -103,6 +103,10 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	Me.Get("/projects/:id/meetings", handler.GetMyProjectMeetings)
 	Me.Get("/milestones/:id/meetings", handler.GetMyMilestoneMeetings)
 
+	priv.Post("/meeting", handler.Meeting)
+	priv.Patch("/meeting", handler.EditMeeting)
+	priv.Patch("/cancel/meeting/:id", handler.CancelMeeting)
+
 	// Stories
 	priv.Post("/:id<int>/stories", handler.AddProjectStory)
 	priv.Get("/:id<int>/stories", handler.GetProjectStories)
@@ -1740,6 +1744,44 @@ func (h *ProjectHandler) Meeting(ctx fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, "meeting created successfully", meeting)
+}
+
+func (h *ProjectHandler) EditMeeting(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.UnauthorizedError(ctx, "unauthorized")
+	}
+
+	var body dto.UpdateMeetingRequest
+	if err := ctx.Bind().Body(&body); err != nil {
+		return rest.BadRequestError(ctx, "invalid body")
+	}
+
+	meeting, err := h.svc.EditMeeting(body, user.ID)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "meeting updated successfully", meeting)
+}
+
+func (h *ProjectHandler) CancelMeeting(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.UnauthorizedError(ctx, "unauthorized")
+	}
+
+	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid meeting id")
+	}
+
+	err = h.svc.CancelMeeting(uint(id), user)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "meeting canceled successfully", nil)
 }
 
 func (h *ProjectHandler) GetMyMeeting(ctx fiber.Ctx) error {
