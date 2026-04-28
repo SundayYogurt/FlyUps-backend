@@ -7,7 +7,9 @@ import (
 	"flyup/internal/dto"
 	"flyup/internal/helper"
 	"flyup/internal/repository"
+	"flyup/pkg/notification"
 	"fmt"
+	"log"
 	"net/url"
 	"strings"
 	"time"
@@ -90,6 +92,12 @@ type ProjectService interface {
 	GetAllProjectsRequest() ([]domain.Project, error)
 	GetProjectDetailRequest(projectID uint) (*domain.Project, error)
 	AutoProjectLifecycleTick(now time.Time) error
+
+	//meeting
+	Meeting(req dto.CreateMeetingRequest, userID uint) error
+	GetMeeting(meetingID uint) (*domain.Meeting, error)
+	GetMeetingsByMilestone(milestoneID uint, filter string) ([]domain.Meeting, error)
+	GetMeetingsByProject(projectID uint, filter string) ([]domain.Meeting, error)
 }
 
 type projectService struct {
@@ -97,14 +105,16 @@ type projectService struct {
 	userRepo    repository.UserRepository
 	cld         *helper.CloudinaryService
 	notifSvc    NotificationService
+	emailClient notification.NotificationClient
 }
 
-func NewProjectService(projectRepo repository.ProjectRepository, userRepo repository.UserRepository, cld *helper.CloudinaryService, notifSvc NotificationService) ProjectService {
+func NewProjectService(projectRepo repository.ProjectRepository, userRepo repository.UserRepository, cld *helper.CloudinaryService, notifSvc NotificationService, emailClient notification.NotificationClient) ProjectService {
 	return &projectService{
 		projectRepo: projectRepo,
 		userRepo:    userRepo,
 		cld:         cld,
 		notifSvc:    notifSvc,
+		emailClient: emailClient,
 	}
 }
 
@@ -1787,4 +1797,140 @@ func (s *projectService) AutoProjectLifecycleTick(now time.Time) error {
 	}
 
 	return nil
+}
+
+func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) error {
+
+	mt := input.MeetingType
+
+	if mt == domain.Online {
+		if input.Link == nil || strings.TrimSpace(*input.Link) == "" {
+			return errors.New("link is required for online meeting")
+		}
+	} else if mt == domain.Onsite {
+		if input.Place == nil || strings.TrimSpace(*input.Place) == "" {
+			return errors.New("place is required for onsite meeting")
+		}
+	} else if mt == domain.Hybrid {
+		if input.Link == nil || strings.TrimSpace(*input.Link) == "" {
+			return errors.New("link is required for hybrid meeting")
+		}
+		if input.Place == nil || strings.TrimSpace(*input.Place) == "" {
+			return errors.New("place is required for hybrid meeting")
+		}
+	} else {
+		return errors.New("invalid meeting type, must be 'online' or 'onsite' or 'hybrid'")
+	}
+
+	if input.MilestoneID == 0 {
+		return errors.New("milestone_id is required")
+	}
+	if input.Date == "" || input.Time == "" {
+		return errors.New("date and time are required")
+	}
+
+	dateParsed, err := time.Parse("2006-01-02", input.Date)
+	if err != nil {
+		return errors.New("invalid date format (YYYY-MM-DD)")
+	}
+
+	timeParsed, err := time.Parse("15:04", input.Time)
+	if err != nil {
+		return errors.New("invalid time format (HH:MM)")
+	}
+
+	milestone, err := s.projectRepo.FindMilestoneByID(input.MilestoneID)
+	if err != nil {
+		return errors.New("failed to find milestone or invalid milestone")
+	}
+
+	emails, err := s.projectRepo.FindInvestorsEmailByProjectID(milestone.ProjectID)
+	if err != nil {
+		return err
+	}
+
+	project, err := s.projectRepo.FindProjectByID(milestone.ProjectID)
+	if err != nil {
+		return err
+	}
+
+	if project.OwnerUserID != userID {
+		return errors.New("forbidden: you cannot use this milestone")
+	}
+
+	meeting := &domain.Meeting{
+		MilestoneID: input.MilestoneID,
+		Date:        dateParsed,
+		Time:        timeParsed,
+		MeetingType: input.MeetingType,
+		Link:        input.Link,
+		Place:       input.Place,
+		About:       input.About,
+		Status:      domain.MeetingOpen,
+	}
+
+	err = s.projectRepo.SaveMeeting(meeting)
+	if err != nil {
+		return err
+	}
+
+	// ส่ง Email โดยใช้ Goroutine
+	for _, email := range emails {
+		go func(m domain.Meeting, email string) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("email panic: %v", r)
+				}
+			}()
+
+			dateStr := m.Date.Format("02 Jan 2006")
+			timeStr := m.Time.Format("15:04")
+
+			err := s.emailClient.SendMeetingEmail(
+				email,
+				"Meeting Invitation",  // title
+				dateStr,               // date
+				timeStr,               // time
+				string(m.MeetingType), // แปลงเป็น string
+				m.Link,                // *string
+				m.Place,               // *string
+			)
+
+			if err != nil {
+				log.Printf("send meeting email error: %v", err)
+			}
+		}(*meeting, email)
+	}
+
+	return nil
+}
+
+func (s *projectService) GetMeeting(meetingID uint) (*domain.Meeting, error) {
+	if meetingID == 0 {
+		return nil, errors.New("meeting_id is required")
+	}
+
+	return s.projectRepo.FindMeetingByID(meetingID)
+}
+
+func (s *projectService) GetMeetingsByMilestone(milestoneID uint, filter string) ([]domain.Meeting, error) {
+	if milestoneID == 0 {
+		return nil, errors.New("milestone_id is required")
+	}
+
+	// validate milestone exists
+	_, err := s.projectRepo.FindMilestoneByID(milestoneID)
+	if err != nil {
+		return nil, errors.New("milestone not found")
+	}
+
+	return s.projectRepo.FindMeetingsByMilestone(milestoneID, filter)
+}
+
+func (s *projectService) GetMeetingsByProject(projectID uint, filter string) ([]domain.Meeting, error) {
+	if projectID == 0 {
+		return nil, errors.New("project_id is required")
+	}
+
+	return s.projectRepo.FindMeetingsByProject(projectID, filter)
 }

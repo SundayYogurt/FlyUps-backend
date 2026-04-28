@@ -367,6 +367,7 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 			m.VotingOpen = false
 			m.VotingClosedAt = &now
 			_ = s.projectRepo.UpdateMilestone(m)
+			_ = s.projectRepo.CloseMeetingsByMilestoneID(m.ID)
 			s.createDisbursementForMilestone(m)
 		}
 
@@ -376,6 +377,7 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 			m.Status = domain.MilestoneRejected
 			m.VotingOpen = false
 			m.VotingClosedAt = &now
+			_ = s.projectRepo.CloseMeetingsByMilestoneID(m.ID)
 			_ = s.projectRepo.UpdateMilestone(m)
 		}
 	}
