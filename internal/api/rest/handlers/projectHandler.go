@@ -1732,12 +1732,12 @@ func (h *ProjectHandler) Meeting(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
-	err := h.svc.Meeting(body, user.ID)
+	meeting, err := h.svc.Meeting(body, user.ID)
 	if err != nil {
-		return rest.BadRequestError(ctx, "message")
+		return rest.BadRequestError(ctx, err.Error())
 	}
 
-	return rest.SuccessResponse(ctx, "meeting created successfully", nil)
+	return rest.SuccessResponse(ctx, "meeting created successfully", meeting)
 }
 
 func (h *ProjectHandler) GetMeeting(ctx fiber.Ctx) error {
