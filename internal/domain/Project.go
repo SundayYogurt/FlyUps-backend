@@ -251,7 +251,7 @@ type MeetingStatus string
 const (
 	MeetingOpen     MeetingStatus = "open"
 	MeetingClosed   MeetingStatus = "closed"
-	MeetingCanceled MeetingStatus = "canceleed"
+	MeetingCanceled MeetingStatus = "canceled"
 )
 
 type Meeting struct {
