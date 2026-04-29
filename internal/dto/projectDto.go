@@ -92,8 +92,6 @@ type CreateMilestoneRequest struct {
 }
 
 type SubmitMilestoneRequest struct {
-	// summary of what has been done in this phase
-	Summary string `json:"summary" validate:"required,min=1,max=5000"`
 	// checklist or items done (e.g. mapped from acceptance criteria)
 	Criteria []string `json:"criteria,omitempty"`
 	// evidence files uploaded to Cloudinary (use /upload first)

@@ -912,11 +912,6 @@ func (s *projectService) SubmitMilestone(milestoneID uint, input dto.SubmitMiles
 		}
 	}
 
-	summary := strings.TrimSpace(input.Summary)
-	if summary == "" {
-		return nil, errors.New("summary is required")
-	}
-
 	// validate attachments: must be cloudinary URLs (same rule as existing milestone media)
 	attachments := make([]string, 0, len(input.Attachments))
 	for _, rawURL := range input.Attachments {
