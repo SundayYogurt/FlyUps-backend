@@ -43,6 +43,7 @@ type ProjectService interface {
 	DeleteMilestone(milestoneID uint, user domain.User) error
 	GetProjectMilestones(projectID uint) ([]domain.Milestone, error)
 	SubmitMilestone(milestoneID uint, input dto.SubmitMilestoneRequest, user domain.User) (*domain.Milestone, error)
+	CancelSubmit(milestoneID uint, user domain.User) (*domain.Milestone, error)
 	AdminApproveMilestoneSubmission(milestoneID uint) (*domain.Milestone, error)
 	AdminRejectMilestoneSubmission(milestoneID uint, reason *string) (*domain.Milestone, error)
 	OpenMilestoneVoting(milestoneID uint, user domain.User) (*domain.Milestone, error)
@@ -866,6 +867,42 @@ func (s *projectService) GetProjectMilestones(projectID uint) ([]domain.Mileston
 		return nil, errors.New("failed to retrieve milestones")
 	}
 	return milestones, nil
+}
+
+func (s *projectService) CancelSubmit(milestoneID uint, user domain.User) (*domain.Milestone, error) {
+	m, err := s.projectRepo.FindMilestoneByID(milestoneID)
+	if err != nil {
+		return nil, errors.New("milestone not found")
+	}
+
+	project, err := s.projectRepo.FindProjectByID(m.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	if project.OwnerUserID != user.ID {
+		return nil, errors.New("permission denied")
+	}
+
+	// allow cancel only when submitted
+	if m.Status != domain.MilestoneSubmitted {
+		return nil, errors.New("milestone is not in submitted state")
+	}
+
+	// reset submission data
+	m.SubmissionCriteria = nil
+	m.SubmissionAttachments = nil
+	m.SubmissionLinks = nil
+	m.SubmittedAt = nil
+
+	// revert status (simplest: back to active)
+	m.Status = domain.MilestoneActive
+
+	if err := s.projectRepo.UpdateMilestone(m); err != nil {
+		return nil, err
+	}
+
+	return m, nil
 }
 
 func (s *projectService) SubmitMilestone(milestoneID uint, input dto.SubmitMilestoneRequest, user domain.User) (*domain.Milestone, error) {
