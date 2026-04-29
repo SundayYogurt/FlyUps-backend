@@ -5,6 +5,7 @@ import (
 	"flyup/internal/domain"
 	"time"
 
+	"github.com/gofiber/utils/v2/strings"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -141,26 +142,16 @@ func (p *projectRepository) FindMeetingsByMilestone(milestoneID uint, filter str
 	var meetings []domain.Meeting
 
 	now := time.Now()
-	today := now.Format("2006-01-02")
-	currentTime := now.Format("15:04")
 
 	db := p.db.Model(&domain.Meeting{}).
 		Where("milestone_id = ?", milestoneID)
 
 	switch filter {
 	case "upcoming":
-		db = db.Where(`
-			date > ?
-			OR (date = ? AND time >= ?)
-		`, today, today, currentTime).
-			Order("date ASC, time ASC")
+		db = db.Where("meetings.time >= ?", now).Order("meetings.time ASC")
 
 	case "past":
-		db = db.Where(`
-			date < ?
-			OR (date = ? AND time < ?)
-		`, today, today, currentTime).
-			Order("date DESC, time DESC")
+		db = db.Where("meetings.time < ?", now).Order("meetings.time DESC")
 
 	default: // all
 		db = db.Order("date ASC, time ASC")
@@ -173,31 +164,25 @@ func (p *projectRepository) FindMeetingsByMilestone(milestoneID uint, filter str
 func (p *projectRepository) FindMeetingsByProject(projectID uint, filter string) ([]domain.Meeting, error) {
 	var meetings []domain.Meeting
 
-	now := time.Now()
-	today := now.Format("2006-01-02")
-	currentTime := now.Format("15:04")
+	now := time.Now().UTC()
+	filter = strings.ToLower(filter)
 
 	db := p.db.Model(&domain.Meeting{}).
 		Joins("JOIN milestones ON milestones.id = meetings.milestone_id").
-		Where("milestones.project_id = ?", projectID)
+		Where("milestones.project_id = ?", projectID).
+		Distinct("meetings.*")
 
 	switch filter {
 	case "upcoming":
-		db = db.Where(`
-			meetings.date > ?
-			OR (meetings.date = ? AND meetings.time >= ?)
-		`, today, today, currentTime).
-			Order("meetings.date ASC, meetings.time ASC")
+		db = db.Where("meetings.time >= ?", now).
+			Order("meetings.time ASC")
 
 	case "past":
-		db = db.Where(`
-			meetings.date < ?
-			OR (meetings.date = ? AND meetings.time < ?)
-		`, today, today, currentTime).
-			Order("meetings.date DESC, meetings.time DESC")
+		db = db.Where("meetings.time < ?", now).
+			Order("meetings.time DESC")
 
-	default:
-		db = db.Order("meetings.date ASC, meetings.time ASC")
+	default: // all
+		db = db.Order("meetings.time ASC")
 	}
 
 	err := db.Find(&meetings).Error
