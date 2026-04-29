@@ -19,6 +19,8 @@ import (
 	"github.com/stripe/stripe-go/v85/paymentintent"
 	"github.com/stripe/stripe-go/v85/paymentmethod"
 	"github.com/stripe/stripe-go/v85/webhook"
+	"flyup/pkg/notification"
+
 	"gorm.io/gorm"
 )
 
@@ -49,10 +51,11 @@ type investmentService struct {
 	stripeSecretKey  string
 	webhookSecret    string
 	notifSvc         NotificationService
+	emailClient      notification.NotificationClient
 }
 
-func NewInvestmentService(projectRepo repository.ProjectRepository, investmentRepo repository.InvestmentRepository, transactionRepo repository.TransactionRepository, userRepo repository.UserRepository, disbursementRepo repository.DisbursementRepository, stripeSecretKey string, webhookSecret string, notifSvc NotificationService) InvestmentService {
-	return &investmentService{projectRepo, investmentRepo, transactionRepo, userRepo, disbursementRepo, stripeSecretKey, webhookSecret, notifSvc}
+func NewInvestmentService(projectRepo repository.ProjectRepository, investmentRepo repository.InvestmentRepository, transactionRepo repository.TransactionRepository, userRepo repository.UserRepository, disbursementRepo repository.DisbursementRepository, stripeSecretKey string, webhookSecret string, notifSvc NotificationService, emailClient notification.NotificationClient) InvestmentService {
+	return &investmentService{projectRepo, investmentRepo, transactionRepo, userRepo, disbursementRepo, stripeSecretKey, webhookSecret, notifSvc, emailClient}
 }
 
 func (s *investmentService) GetInvestment(boosterUserID uint, investmentID uint) (*domain.Investment, *domain.Transaction, error) {
@@ -392,16 +395,72 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 			_ = s.projectRepo.UpdateMilestone(m)
 			_ = s.projectRepo.CloseMeetingsByMilestoneID(m.ID)
 			s.createDisbursementForMilestone(m)
-		}
 
-		rejectCount, err3 := s.projectRepo.CountMilestoneVotes(milestoneID, domain.MilestoneVoteReject)
-		if err3 == nil && rejectCount*2 > eligible {
-			now := time.Now().UTC()
-			m.Status = domain.MilestoneRejected
-			m.VotingOpen = false
-			m.VotingClosedAt = &now
-			_ = s.projectRepo.CloseMeetingsByMilestoneID(m.ID)
-			_ = s.projectRepo.UpdateMilestone(m)
+			if p, pErr := s.projectRepo.FindProjectByID(m.ProjectID); pErr == nil {
+				if s.notifSvc != nil {
+					relatedID := m.ID
+					relatedType := "milestone"
+					body := fmt.Sprintf("Milestone Phase %d: %s ผ่านการโหวตแล้ว กำลังดำเนินการปล่อยทุน", m.PhaseNo, m.Title)
+					_ = s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifMilestone, "Milestone ผ่านการโหวต", body, &relatedID, &relatedType)
+				}
+				if s.emailClient != nil {
+					projectTitle := p.Title
+					phaseNo := m.PhaseNo
+					phaseTitle := m.Title
+					projectID := m.ProjectID
+					go func() {
+						defer func() {
+							if r := recover(); r != nil {
+								log.Printf("milestone vote email panic: %v", r)
+							}
+						}()
+						investors, _ := s.investmentRepo.ListInvestorsByProjectID(projectID)
+						for _, inv := range investors {
+							if err := s.emailClient.SendMilestoneVoteResultEmail(inv.Email, projectTitle, phaseNo, phaseTitle, true); err != nil {
+								log.Printf("send milestone vote result email error: %v", err)
+							}
+						}
+					}()
+				}
+			}
+		} else {
+			rejectCount, err3 := s.projectRepo.CountMilestoneVotes(milestoneID, domain.MilestoneVoteReject)
+			if err3 == nil && rejectCount*2 > eligible {
+				now := time.Now().UTC()
+				m.Status = domain.MilestoneRejected
+				m.VotingOpen = false
+				m.VotingClosedAt = &now
+				_ = s.projectRepo.CloseMeetingsByMilestoneID(m.ID)
+				_ = s.projectRepo.UpdateMilestone(m)
+
+				if p, pErr := s.projectRepo.FindProjectByID(m.ProjectID); pErr == nil {
+					if s.notifSvc != nil {
+						relatedID := m.ID
+						relatedType := "milestone"
+						body := fmt.Sprintf("Milestone Phase %d: %s ไม่ผ่านการโหวต กรุณาปรับปรุงและส่งใหม่", m.PhaseNo, m.Title)
+						_ = s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifMilestone, "Milestone ไม่ผ่านการโหวต", body, &relatedID, &relatedType)
+					}
+					if s.emailClient != nil {
+						projectTitle := p.Title
+						phaseNo := m.PhaseNo
+						phaseTitle := m.Title
+						projectID := m.ProjectID
+						go func() {
+							defer func() {
+								if r := recover(); r != nil {
+									log.Printf("milestone vote email panic: %v", r)
+								}
+							}()
+							investors, _ := s.investmentRepo.ListInvestorsByProjectID(projectID)
+							for _, inv := range investors {
+								if err := s.emailClient.SendMilestoneVoteResultEmail(inv.Email, projectTitle, phaseNo, phaseTitle, false); err != nil {
+									log.Printf("send milestone vote result email error: %v", err)
+								}
+							}
+						}()
+					}
+				}
+			}
 		}
 	}
 
