@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 //func SendVerifyEmail(to string, token string, config EmailConfig) error {
@@ -212,4 +214,12 @@ func IsValidStatusForState(state domain.ProjectState, status domain.ProjectStatu
 	}
 
 	return true
+}
+
+func IsUniqueConstraintError(err error) bool {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "23505" // unique_violation
+	}
+	return false
 }
