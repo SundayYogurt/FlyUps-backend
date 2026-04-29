@@ -68,6 +68,7 @@ type Project struct {
 type ProjectCategory struct {
 	ID   uint   `json:"id"`
 	Name string `json:"name"`
+	gorm.Model
 }
 
 type MediaType string
@@ -84,6 +85,7 @@ type ProjectMedia struct {
 	Type      []MediaType `json:"type" gorm:"type:json;serializer:json"`
 	URL       string      `json:"url"`
 	SortOrder int         `json:"sort_order"`
+	gorm.Model
 }
 
 type StorySection struct {
@@ -92,6 +94,7 @@ type StorySection struct {
 	Title     string `json:"title"`
 	Body      string `json:"body"`
 	SortOrder int    `json:"sort_order"`
+	gorm.Model
 }
 
 type ProjectFAQ struct {
@@ -100,6 +103,7 @@ type ProjectFAQ struct {
 	Question  string `json:"question"`
 	Answer    string `json:"answer"`
 	SortOrder int    `json:"sort_order"`
+	gorm.Model
 }
 
 type MilestoneStatus string
@@ -147,6 +151,7 @@ type Milestone struct {
 	PercentRelease int             `json:"percent_release"`
 	Status         MilestoneStatus `json:"status"`
 	Meetings       []Meeting       `gorm:"foreignKey:MilestoneID"`
+	gorm.Model
 }
 
 // MilestoneVote represents booster voting on milestone submission.
