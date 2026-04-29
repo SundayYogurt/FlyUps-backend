@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
+	"flyup/internal/helper"
 	"flyup/internal/repository"
 	"fmt"
 	"log"
@@ -356,6 +357,11 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 		return nil, errors.New("only verified investors can vote")
 	}
 
+	existing, _ := s.projectRepo.FindVote(milestoneID, boosterUserID)
+	if existing != nil {
+		return nil, errors.New("you have already voted")
+	}
+
 	vote := &domain.MilestoneVote{
 		MilestoneID:   milestoneID,
 		ProjectID:     m.ProjectID,
@@ -363,7 +369,15 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 		Choice:        choice,
 	}
 	if err := s.projectRepo.UpsertMilestoneVote(vote); err != nil {
+		if helper.IsUniqueConstraintError(err) {
+			return nil, errors.New("you have already voted")
+		}
 		return nil, errors.New("failed to save vote")
+	}
+
+	m, _ = s.projectRepo.FindMilestoneByID(milestoneID)
+	if !m.VotingOpen {
+		return vote, nil // voting already closed
 	}
 
 	// auto-finalize: if approval reaches strict majority of eligible verified investors -> paid
