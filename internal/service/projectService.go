@@ -931,21 +931,33 @@ func (s *projectService) SubmitMilestone(milestoneID uint, input dto.SubmitMiles
 
 	// validate external links: require http/https
 	links := make([]string, 0, len(input.Links))
+
 	for _, rawURL := range input.Links {
 		raw := strings.TrimSpace(rawURL)
 		if raw == "" {
 			continue
 		}
-		u, err := url.Parse(raw)
+
+		// auto add scheme if missing
+		if !strings.Contains(raw, "://") {
+			raw = "https://" + raw
+		}
+
+		u, err := url.ParseRequestURI(raw)
 		if err != nil {
-			return nil, errors.New("invalid link url")
+			return nil, errors.New("invalid link format")
 		}
+
+		// strict scheme check
 		if u.Scheme != "http" && u.Scheme != "https" {
-			return nil, errors.New("invalid link scheme")
+			return nil, errors.New("link must use http or https")
 		}
-		if strings.TrimSpace(u.Host) == "" {
+
+		// host check (กันพวก malformed)
+		if u.Host == "" {
 			return nil, errors.New("invalid link host")
 		}
+
 		links = append(links, raw)
 	}
 
