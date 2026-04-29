@@ -92,6 +92,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	pub.Get("/:id<int>/milestones", handler.GetProjectMilestones)
 	priv.Patch("/milestones/:milestone_id<int>", handler.UpdateProjectMilestone)
 	priv.Patch("/milestones/:milestone_id<int>/submit", handler.SubmitProjectMilestone)
+	priv.Patch("/milestones/:milestone_id<int>/cancel", handler.CancelProjectMilestone)
 	priv.Patch("/milestones/:milestone_id<int>/open-vote", handler.OpenMilestoneVoting)
 	priv.Delete("/milestones/:milestone_id<int>", handler.DeleteProjectMilestone)
 
@@ -999,6 +1000,35 @@ func (h *ProjectHandler) SubmitProjectMilestone(ctx fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, "milestone submitted successfully", m)
+}
+
+// CancelProjectMilestone godoc
+// @Summary Cancel milestone submission
+// @Description Pioneer cancels a submitted milestone and reverts it back to active
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param milestone_id path int true "Milestone ID"
+// @Success 200 {object} object "Milestone cancelled"
+// @Router /pioneer/projects/milestones/{milestone_id}/cancel [patch]
+func (h *ProjectHandler) CancelProjectMilestone(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	milestoneID, err := strconv.Atoi(ctx.Params("milestone_id"))
+	if err != nil || milestoneID <= 0 {
+		return rest.BadRequestError(ctx, "invalid milestone id")
+	}
+
+	m, err := h.svc.CancelSubmit(uint(milestoneID), user)
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
+	}
+
+	return rest.SuccessResponse(ctx, "milestone cancelled successfully", m)
 }
 
 // AdminListSubmittedMilestones godoc

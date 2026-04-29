@@ -645,6 +645,14 @@ func (s *projectService) AdminApproveMilestoneSubmission(milestoneID uint) (*dom
 		return nil, err
 	}
 
+	if s.notifSvc != nil {
+		if p, err := s.projectRepo.FindProjectByID(m.ProjectID); err == nil {
+			relatedID := m.ID
+			relatedType := "milestone"
+			body := fmt.Sprintf("Milstone Phase %d: %s ได้รับการอนุมัติแล้ว", m.PhaseNo, m.Title)
+			_ = s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifMilestone, "Milestone อนุมัติแล้ว", body, &relatedID, &relatedType)
+		}
+	}
 	return m, nil
 }
 
@@ -677,6 +685,16 @@ func (s *projectService) AdminRejectMilestoneSubmission(milestoneID uint, reason
 	if err := s.projectRepo.UpdateMilestone(m); err != nil {
 		return nil, err
 	}
+
+	if s.notifSvc != nil {
+		if p, err := s.projectRepo.FindProjectByID(m.ProjectID); err == nil {
+			relatedID := m.ID
+			relatedType := "milestone"
+			body := fmt.Sprintf("Milstone Phase %d: %s ถูกปฏิเสธ กรุณาแก้ไขและส่งใหม่", m.PhaseNo, m.Title)
+			_ = s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifMilestone, "Milestone ถูกปฏิเสธคำขอ", body, &relatedID, &relatedType)
+		}
+	}
+
 	return m, nil
 }
 
