@@ -396,6 +396,17 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 			_ = s.projectRepo.CloseMeetingsByMilestoneID(m.ID)
 			s.createDisbursementForMilestone(m)
 
+			// activate next phase
+			if allMs, err := s.projectRepo.FindMilestonesByProjectID(m.ProjectID); err == nil {
+				for i := range allMs {
+					if allMs[i].PhaseNo == m.PhaseNo+1 && (allMs[i].Status == domain.MilestoneWaiting || allMs[i].Status == domain.MilestoneDraft) {
+						allMs[i].Status = domain.MilestoneActive
+						_ = s.projectRepo.UpdateMilestone(&allMs[i])
+						break
+					}
+				}
+			}
+
 			if p, pErr := s.projectRepo.FindProjectByID(m.ProjectID); pErr == nil {
 				if s.notifSvc != nil {
 					relatedID := m.ID

@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/repository"
@@ -15,6 +16,7 @@ type DisbursementService interface {
 	ListAll() ([]dto.DisbursementItem, error)
 	ListPending() ([]dto.DisbursementItem, error)
 	Confirm(disbursementID uint, adminID uint, req dto.ConfirmDisbursementRequest) (*domain.Disbursement, error)
+	ListMyPayouts(pioneerID uint) ([]dto.PioneerPayoutItem, error)
 }
 
 type disbursementService struct {
@@ -108,7 +110,71 @@ func (s *disbursementService) Confirm(disbursementID uint, adminID uint, req dto
 		return nil, errors.New("failed to confirm disbursement")
 	}
 
+	if s.notifSvc != nil {
+		projectTitle := ""
+		if project, err := s.projectRepo.FindProjectByID(d.ProjectID); err == nil && project != nil {
+			projectTitle = project.Title
+		}
+		relatedID := d.ID
+		relatedType := "disbursement"
+		title := "ได้รับเงินจาก Milestone แล้ว"
+		body := fmt.Sprintf("โอนเงิน Phase %d โปรเจกต์ %s จำนวน ฿%.2f เรียบร้อยแล้ว (ref: %s)",
+			d.PhaseNo, projectTitle, d.Amount, d.TransferRef)
+		_ = s.notifSvc.CreateAndPush(d.PioneerUserID, domain.NotifProfit, title, body, &relatedID, &relatedType)
+	}
+
 	return d, nil
+}
+
+func (s *disbursementService) ListMyPayouts(pioneerID uint) ([]dto.PioneerPayoutItem, error) {
+	list, err := s.disbursementRepo.ListByPioneerID(pioneerID)
+	if err != nil {
+		return nil, errors.New("internal server error")
+	}
+
+	// collect unique project IDs to check if all phases are complete
+	projectIDs := map[uint]bool{}
+	for _, d := range list {
+		projectIDs[d.ProjectID] = true
+	}
+	allComplete := map[uint]bool{}
+	for pid := range projectIDs {
+		milestones, err := s.projectRepo.FindMilestonesByProjectID(pid)
+		if err != nil {
+			continue
+		}
+		done := len(milestones) > 0
+		for _, m := range milestones {
+			if m.Status != domain.MilestonePaid {
+				done = false
+				break
+			}
+		}
+		allComplete[pid] = done
+	}
+
+	items := make([]dto.PioneerPayoutItem, 0, len(list))
+	for _, d := range list {
+		item := dto.PioneerPayoutItem{
+			ID:                d.ID,
+			MilestoneID:       d.MilestoneID,
+			ProjectID:         d.ProjectID,
+			PhaseNo:           d.PhaseNo,
+			PercentRelease:    d.PercentRelease,
+			Amount:            d.Amount,
+			Status:            string(d.Status),
+			TransferRef:       d.TransferRef,
+			AdminNote:         d.AdminNote,
+			CreatedAt:         d.CreatedAt,
+			ConfirmedAt:       d.ConfirmedAt,
+			AllPhasesComplete: allComplete[d.ProjectID],
+		}
+		if project, err := s.projectRepo.FindProjectByID(d.ProjectID); err == nil && project != nil {
+			item.ProjectTitle = project.Title
+		}
+		items = append(items, item)
+	}
+	return items, nil
 }
 
 func (s *disbursementService) toItems(list []domain.Disbursement) []dto.DisbursementItem {

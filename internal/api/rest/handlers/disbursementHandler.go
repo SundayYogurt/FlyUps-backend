@@ -37,6 +37,21 @@ func SetupDisbursementRoutes(rh *rest.RestHandler) {
 	admin.Get("/", h.ListAll)
 	admin.Get("/pending", h.ListPending)
 	admin.Patch("/:id/confirm", h.Confirm)
+
+	pioneer := rh.App.Group("/pioneer/payouts", rh.Middlewares.AuthorizePioneer)
+	pioneer.Get("/", h.ListMyPayouts)
+}
+
+func (h *DisbursementHandler) ListMyPayouts(ctx fiber.Ctx) error {
+	currentUser := h.auth.GetCurrentUser(ctx)
+	if currentUser.ID == 0 {
+		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
+	}
+	items, err := h.svc.ListMyPayouts(currentUser.ID)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+	return rest.SuccessResponse(ctx, "success", items)
 }
 
 // ListAll godoc

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"testing"
@@ -115,7 +116,7 @@ func TestCloseProject_ExecutingToClosed_WhenAllPaid(t *testing.T) {
 func TestVoteMilestone_AutoPaidOnMajorityApprove(t *testing.T) {
 	projRepo := new(ProjectRepository)
 	disbRepo := new(mockDisbursementRepo)
-	svc := NewInvestmentService(projRepo, nil, nil, nil, disbRepo, "", "", nil)
+	svc := NewInvestmentService(projRepo, nil, nil, nil, disbRepo, "", "", nil, nil)
 
 	milestoneID := uint(301)
 	projectID := uint(401)
@@ -130,16 +131,20 @@ func TestVoteMilestone_AutoPaidOnMajorityApprove(t *testing.T) {
 
 	projRepo.On("FindMilestoneByID", milestoneID).Return(m, nil)
 	projRepo.On("HasVerifiedInvestment", projectID, boosterID).Return(true, nil)
+	projRepo.On("FindVote", milestoneID, boosterID).Return((*domain.MilestoneVote)(nil), errors.New("not found"))
 	projRepo.On("UpsertMilestoneVote", mock.AnythingOfType("*domain.MilestoneVote")).Return(nil)
 	projRepo.On("CountVerifiedBoostersByProjectID", projectID).Return(int64(3), nil)
 	projRepo.On("CountMilestoneVotes", milestoneID, domain.MilestoneVoteApprove).Return(int64(2), nil)
-	projRepo.On("UpdateMilestone", mock.AnythingOfType("*domain.Milestone")).Return(nil).Once()
+	projRepo.On("UpdateMilestone", mock.AnythingOfType("*domain.Milestone")).Return(nil)
+	projRepo.On("CloseMeetingsByMilestoneID", milestoneID).Return(nil)
 	// reject count still queried
 	projRepo.On("CountMilestoneVotes", milestoneID, domain.MilestoneVoteReject).Return(int64(1), nil)
 	// disbursement creation path invoked after majority approve
 	disbRepo.On("FindByMilestoneID", milestoneID).Return(nil, gorm.ErrRecordNotFound)
 	projRepo.On("FindProjectByID", projectID).Return(project, nil)
 	disbRepo.On("Create", mock.AnythingOfType("*domain.Disbursement")).Return(nil)
+	// activate next phase
+	projRepo.On("FindMilestonesByProjectID", projectID).Return([]domain.Milestone{}, nil)
 
 	vote, err := svc.VoteMilestone(boosterID, milestoneID, domain.MilestoneVoteApprove)
 	assert.NoError(t, err)
@@ -169,7 +174,6 @@ func TestSubmitMilestone_SetsSubmittedAndData(t *testing.T) {
 	projRepo.On("UpdateMilestone", mock.AnythingOfType("*domain.Milestone")).Return(nil)
 
 	req := dto.SubmitMilestoneRequest{
-		Summary:     "done milestone work",
 		Criteria:    []string{"A", "B"},
 		Attachments: []string{"https://res.cloudinary.com/demo/raw/upload/v1/report.pdf"},
 		Links:       []string{"https://github.com/example/repo/pull/1"},
@@ -206,7 +210,7 @@ func TestSubmitMilestone_Phase2_RequiresPrevPaid(t *testing.T) {
 	}, nil)
 	projRepo.On("UpdateMilestone", mock.AnythingOfType("*domain.Milestone")).Return(nil)
 
-	req := dto.SubmitMilestoneRequest{Summary: "phase 2 work"}
+	req := dto.SubmitMilestoneRequest{}
 	res, err := projectSvc.SubmitMilestone(milestoneID, req, user)
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
@@ -235,7 +239,7 @@ func TestSubmitMilestone_Phase2_FailsWhenPrevNotPaid(t *testing.T) {
 		{ID: 22, ProjectID: projectID, PhaseNo: 2, Status: domain.MilestoneActive},
 	}, nil)
 
-	req := dto.SubmitMilestoneRequest{Summary: "phase 2 work"}
+	req := dto.SubmitMilestoneRequest{}
 	res, err := projectSvc.SubmitMilestone(milestoneID, req, user)
 	assert.Error(t, err)
 	assert.Nil(t, res)

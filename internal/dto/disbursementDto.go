@@ -31,3 +31,19 @@ type ConfirmDisbursementRequest struct {
 	TransferRef string `json:"transfer_ref" validate:"required"`
 	Note        string `json:"note"`
 }
+
+type PioneerPayoutItem struct {
+	ID             uint       `json:"id"`
+	MilestoneID    uint       `json:"milestone_id"`
+	ProjectID      uint       `json:"project_id"`
+	ProjectTitle   string     `json:"project_title"`
+	PhaseNo        int        `json:"phase_no"`
+	PercentRelease int        `json:"percent_release"`
+	Amount         float64    `json:"amount"`
+	Status         string     `json:"status"`
+	TransferRef    string     `json:"transfer_ref"`
+	AdminNote      string     `json:"admin_note"`
+	CreatedAt      time.Time  `json:"created_at"`
+	ConfirmedAt    *time.Time `json:"confirmed_at,omitempty"`
+	AllPhasesComplete bool    `json:"all_phases_complete"`
+}

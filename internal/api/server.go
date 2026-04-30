@@ -68,6 +68,10 @@ func StartServer(cfg config.AppConfig) {
 
 		//meeting
 		&domain.Meeting{},
+
+		// profit pools
+		&domain.ProfitPool{},
+		&domain.InvestorProfitPayout{},
 	)
 
 	if err != nil {
@@ -176,6 +180,7 @@ func setupRoutes(rh *rest.RestHandler) {
 	handlers.SetupUploadRoutes(rh)
 	handlers.SetupNotificationRoutes(rh)
 	handlers.SetupComplaintRoutes(rh)
+	handlers.SetupProfitPoolRoutes(rh)
 }
 
 func HealthCheck(ctx fiber.Ctx) error {
