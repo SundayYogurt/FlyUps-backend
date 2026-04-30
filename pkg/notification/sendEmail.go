@@ -1,8 +1,8 @@
 package notification
 
 import (
-	"fmt"
 	"flyup/config"
+	"fmt"
 
 	"github.com/resend/resend-go/v2"
 )
@@ -13,6 +13,7 @@ type NotificationClient interface {
 	SendMeetingEmail(to string, title string, date string, time string, meetingType string, link *string, place *string) error
 	SendUpdateMeetingEmail(to string, title string, date string, time string, meetingType string, link *string, place *string, status string) error
 	SendMilestoneVoteResultEmail(to, projectTitle string, phaseNo int, phaseTitle string, approved bool) error
+	SendUserSuspendedEmail(to string, reason string) error
 }
 
 type notificationClient struct {
@@ -441,6 +442,72 @@ func (n notificationClient) SendMilestoneVoteResultEmail(to, projectTitle string
   </table>
 </body>
 </html>`, projectTitle, phaseNo, phaseTitle, resultColor, resultText, descText),
+	}
+
+	_, err := n.client.Emails.Send(params)
+	return err
+}
+
+func (n notificationClient) SendUserSuspendedEmail(to string, reason string) error {
+
+	params := &resend.SendEmailRequest{
+		From:    n.config.EmailFrom,
+		To:      []string{to},
+		Subject: "Your account has been suspended",
+		Html: `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+</head>
+<body style="margin:0;padding:0;background:#f6f9fc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f6f9fc;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="500" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;padding:40px;text-align:center;">
+          
+          <!-- Title -->
+          <tr>
+            <td style="font-size:24px;font-weight:bold;color:#dc2626;padding-bottom:10px;">
+              Account Suspended
+            </td>
+          </tr>
+
+          <!-- Message -->
+          <tr>
+            <td style="font-size:16px;color:#555;padding-bottom:20px;">
+              Your <strong>FlyUp</strong> account has been suspended due to the following reason:
+            </td>
+          </tr>
+
+          <!-- Reason -->
+          <tr>
+            <td style="font-size:15px;color:#111;background:#f3f4f6;padding:15px;border-radius:6px;">
+              ` + reason + `
+            </td>
+          </tr>
+
+          <!-- Info -->
+          <tr>
+            <td style="font-size:14px;color:#666;padding-top:20px;">
+              If you believe this is a mistake, please contact our support team.
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="font-size:12px;color:#aaa;padding-top:30px;">
+              © 2026 FlyUp. All rights reserved.
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`,
 	}
 
 	_, err := n.client.Emails.Send(params)

@@ -585,6 +585,23 @@ func (s *userService) SuspendUser(adminID uint, userID uint, reason string) erro
 		"suspended_by":   adminID,
 	}
 
+	email := user.Email
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("email panic: %v", r)
+			}
+		}()
+
+		notificationClient := notification.NewNotificationClient(s.Config)
+
+		err := notificationClient.SendUserSuspendedEmail(email, reason)
+		if err != nil {
+			log.Printf("send verify email error: %v", err)
+		}
+	}()
+
 	return s.Repo.UpdateUser(userID, updates)
 
 }
@@ -1314,6 +1331,11 @@ func (s *userService) GoogleSigning(code string, role string, oauthConfig *oauth
 		// User not found, automatically register them!
 		if role != "pioneer" && role != "booster" {
 			role = "pending" // Fallback Default
+		}
+
+		// Check if user is suspended
+		if user.Status == domain.SUSPENDED {
+			return "", errors.New("your account has been suspended")
 		}
 
 		googleSub := googleUser.ID
