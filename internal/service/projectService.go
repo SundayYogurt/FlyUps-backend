@@ -608,7 +608,24 @@ func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMiles
 		m.Status = *input.Status
 	}
 
-	return s.projectRepo.UpdateMilestone(m)
+	if err := s.projectRepo.UpdateMilestone(m); err != nil {
+		return err
+	}
+
+	// when admin manually sets a milestone to paid, unlock the next phase
+	if input.Status != nil && *input.Status == domain.MilestonePaid {
+		if allMs, err := s.projectRepo.FindMilestonesByProjectID(m.ProjectID); err == nil {
+			for i := range allMs {
+				if allMs[i].PhaseNo == m.PhaseNo+1 && (allMs[i].Status == domain.MilestoneWaiting || allMs[i].Status == domain.MilestoneDraft) {
+					allMs[i].Status = domain.MilestoneActive
+					_ = s.projectRepo.UpdateMilestone(&allMs[i])
+					break
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func (s *projectService) AdminApproveMilestoneSubmission(milestoneID uint) (*domain.Milestone, error) {
