@@ -585,6 +585,23 @@ func (s *userService) SuspendUser(adminID uint, userID uint, reason string) erro
 		"suspended_by":   adminID,
 	}
 
+	email := user.Email
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("email panic: %v", r)
+			}
+		}()
+
+		notificationClient := notification.NewNotificationClient(s.Config)
+
+		err := notificationClient.SendUserSuspendedEmail(email, reason)
+		if err != nil {
+			log.Printf("send verify email error: %v", err)
+		}
+	}()
+
 	return s.Repo.UpdateUser(userID, updates)
 
 }
