@@ -36,6 +36,7 @@ type ProjectRepository interface {
 	FindProjectEndingSoon() ([]domain.Project, error)
 	SaveMeeting(meeting *domain.Meeting) error
 	FindInvestorsEmailByProjectID(projectID uint) ([]string, error)
+	ExistsFundingProjectByOwner(userID uint) (bool, error)
 
 	FindMediaByProjectID(projectID uint) ([]domain.ProjectMedia, error)
 	FindMediaByID(id uint) (*domain.ProjectMedia, error)
@@ -104,6 +105,20 @@ type ProjectRepository interface {
 
 type projectRepository struct {
 	db *gorm.DB
+}
+
+func (p *projectRepository) ExistsFundingProjectByOwner(userID uint) (bool, error) {
+	var count int64
+
+	err := p.db.Model(&domain.Project{}).
+		Where("owner_user_id = ? AND state = ?", userID, domain.StateFunding).
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }
 
 func (p *projectRepository) FindMeetingByMilestoneID(milestoneID uint) (*domain.Meeting, error) {
