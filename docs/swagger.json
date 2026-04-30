@@ -4488,9 +4488,555 @@
                     }
                 }
             }
+        },
+        "/me/meeting/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get details of a specific meeting that the authenticated user is associated with",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "Get My Meeting by ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Meeting ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Meeting details",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid meeting ID",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/me/meetings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all meetings that the authenticated user is associated with (as pioneer or investor)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "Get All My Meetings",
+                "responses": {
+                    "200": {
+                        "description": "List of all meetings",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/me/milestones/{id}/meetings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all meetings associated with a specific milestone that the current user participates in",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "Get My Meetings by Milestone",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Milestone ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "all",
+                        "description": "Filter: all | upcoming | past",
+                        "name": "filter",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of meetings",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid milestone ID or filter",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/me/projects/{id}/meetings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all meetings associated with a specific project that the current user participates in",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "Get My Meetings by Project",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Project ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "all",
+                        "description": "Filter: all | upcoming | past",
+                        "name": "filter",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of meetings",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project ID or filter",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/pioneer/projects/cancel/meeting/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Pioneer cancels an existing meeting",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "Cancel Meeting",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Meeting ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Meeting canceled successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid meeting ID",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/pioneer/projects/meeting": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Pioneer creates a meeting invitation for investors of a milestone",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "Create Meeting",
+                "parameters": [
+                    {
+                        "description": "Create Meeting Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateMeetingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Meeting created successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/pioneer/projects/meeting/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Pioneer edits an existing meeting",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "Edit Meeting",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Meeting ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update Meeting Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateMeetingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Meeting updated successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or meeting ID",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/ending": {
+            "get": {
+                "description": "Get projects whose funding deadline is approaching",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Get Ending Soon Projects",
+                "responses": {
+                    "200": {
+                        "description": "List of projects ending soon",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/new": {
+            "get": {
+                "description": "Get a list of the most recently created/approved projects",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Get Newest Projects",
+                "responses": {
+                    "200": {
+                        "description": "List of newest projects",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/recommend": {
+            "get": {
+                "description": "Get a curated list of recommended/featured projects",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Get Recommended Projects",
+                "responses": {
+                    "200": {
+                        "description": "List of recommended projects",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "dto.CreateMeetingRequest": {
+            "type": "object",
+            "required": [
+                "milestone_id",
+                "date",
+                "time",
+                "meeting_type",
+                "about"
+            ],
+            "properties": {
+                "milestone_id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "date": {
+                    "type": "string",
+                    "example": "2026-05-01"
+                },
+                "time": {
+                    "type": "string",
+                    "example": "10:00"
+                },
+                "meeting_type": {
+                    "type": "string",
+                    "enum": [
+                        "online",
+                        "onsite",
+                        "hybrid"
+                    ]
+                },
+                "link": {
+                    "type": "string",
+                    "example": "https://meet.google.com/abc-xyz"
+                },
+                "place": {
+                    "type": "string",
+                    "example": "ห้องประชุม 101"
+                },
+                "about": {
+                    "type": "string",
+                    "example": "ประชุมติดตาม milestone 1"
+                }
+            }
+        },
+        "dto.UpdateMeetingRequest": {
+            "type": "object",
+            "required": [
+                "milestone_id",
+                "date",
+                "time",
+                "meeting_type",
+                "about"
+            ],
+            "properties": {
+                "milestone_id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "date": {
+                    "type": "string",
+                    "example": "2026-05-01"
+                },
+                "time": {
+                    "type": "string",
+                    "example": "10:00"
+                },
+                "meeting_type": {
+                    "type": "string",
+                    "enum": [
+                        "online",
+                        "onsite",
+                        "hybrid"
+                    ]
+                },
+                "link": {
+                    "type": "string",
+                    "example": "https://meet.google.com/abc-xyz"
+                },
+                "place": {
+                    "type": "string",
+                    "example": "ห้องประชุม 101"
+                },
+                "about": {
+                    "type": "string",
+                    "example": "ประชุมติดตาม milestone 1"
+                }
+            }
+        },
         "domain.MediaType": {
             "type": "string",
             "enum": [
@@ -4503,6 +5049,7 @@
                 "MediaTypeVideo",
                 "MediaTypeRaw"
             ]
+
         },
         "domain.MilestoneStatus": {
             "type": "string",
