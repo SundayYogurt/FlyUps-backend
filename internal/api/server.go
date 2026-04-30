@@ -120,8 +120,9 @@ func StartServer(cfg config.AppConfig) {
 	notificationClient := notification.NewNotificationClient(cfg)
 	notifSvc := service.NewNotificationService(repository.NewNotificationRepository(db))
 	auth := helper.SetupAuth(cfg.AppSecret)
+	userRepo := repository.NewUserRepository(db)
 
-	middleware := rest.SetupMiddleware(auth)
+	middleware := rest.SetupMiddleware(auth, userRepo)
 
 	cloudinarySvc, err := helper.NewCloudinary(
 		cfg.CloudinaryCloudName,
