@@ -52,7 +52,7 @@ func (m Middleware) Authorize(ctx fiber.Ctx) error {
 		})
 	}
 
-	ctx.Locals("user", user)
+	ctx.Locals("user", *user)
 
 	return ctx.Next()
 }
