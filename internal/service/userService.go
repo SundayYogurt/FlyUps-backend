@@ -1333,11 +1333,6 @@ func (s *userService) GoogleSigning(code string, role string, oauthConfig *oauth
 			role = "pending" // Fallback Default
 		}
 
-		// Check if user is suspended
-		if user.Status == domain.SUSPENDED {
-			return "", errors.New("your account has been suspended")
-		}
-
 		googleSub := googleUser.ID
 		now := time.Now()
 		newUser := &domain.User{
@@ -1369,6 +1364,11 @@ func (s *userService) GoogleSigning(code string, role string, oauthConfig *oauth
 				"email_verified_at": time.Now(),
 			})
 		}
+	}
+
+	// Check if user is suspended
+	if user.Status == domain.SUSPENDED {
+		return "", errors.New("your account has been suspended")
 	}
 
 	// 4. Generate JWT Token
