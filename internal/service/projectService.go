@@ -1451,12 +1451,19 @@ func (s *projectService) SubmitForReview(projectID uint, user domain.User) error
 		return errors.New("project must be in draft state to submit for review")
 	}
 
-	hasFunding, err := s.projectRepo.ExistsFundingProjectByOwner(user.ID)
+	hasActive, err := s.projectRepo.ExistsProjectByOwnerAndStates(
+		user.ID,
+		[]domain.ProjectState{
+			domain.StateFunding,
+			domain.StatePendingReview,
+			domain.StateExecuting,
+		},
+	)
 	if err != nil {
 		return err
 	}
-	if hasFunding {
-		return errors.New("you already have a project in funding state")
+	if hasActive {
+		return errors.New("you already have an active project")
 	}
 
 	if err := s.validateProjectForSubmit(p); err != nil {
