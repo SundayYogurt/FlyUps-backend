@@ -1450,6 +1450,15 @@ func (s *projectService) SubmitForReview(projectID uint, user domain.User) error
 	if p.State != domain.StateDraft {
 		return errors.New("project must be in draft state to submit for review")
 	}
+
+	hasFunding, err := s.projectRepo.ExistsFundingProjectByOwner(user.ID)
+	if err != nil {
+		return err
+	}
+	if hasFunding {
+		return errors.New("you already have a project in funding state")
+	}
+
 	if err := s.validateProjectForSubmit(p); err != nil {
 		return err
 	}
