@@ -249,9 +249,9 @@ const (
 type MeetingStatus string
 
 const (
-	MeetingOpen     MeetingStatus = "open"
-	MeetingClosed   MeetingStatus = "closed"
-	MeetingCanceled MeetingStatus = "canceled"
+	MeetingOpen      MeetingStatus = "open"
+	MeetingClosed    MeetingStatus = "closed"
+	MeetingCancelled MeetingStatus = "cancelled"
 )
 
 type Meeting struct {
