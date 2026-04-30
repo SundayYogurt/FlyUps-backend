@@ -51,6 +51,13 @@ func (m *mockDisbursementRepo) ListByStatus(status domain.DisbursementStatus) ([
 	}
 	return args.Get(0).([]domain.Disbursement), args.Error(1)
 }
+func (m *mockDisbursementRepo) ListByPioneerID(pioneerID uint) ([]domain.Disbursement, error) {
+	args := m.Called(pioneerID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Disbursement), args.Error(1)
+}
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
 

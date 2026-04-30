@@ -98,7 +98,7 @@ func newTestInvestmentService(
 	txnRepo *mockTransactionRepo,
 	userRepo *mockUserRepository,
 ) InvestmentService {
-	return NewInvestmentService(projectRepo, investRepo, txnRepo, userRepo, nil, "sk_test_dummy", "whsec_dummy", nil)
+	return NewInvestmentService(projectRepo, investRepo, txnRepo, userRepo, nil, "sk_test_dummy", "whsec_dummy", nil, nil)
 }
 
 // ─── GetInvestment ────────────────────────────────────────────────────────────
