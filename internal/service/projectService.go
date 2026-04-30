@@ -1899,6 +1899,11 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 		return nil, errors.New("cannot create meeting: milestone is expired")
 	}
 
+	existing, err := s.projectRepo.FindMeetingByMilestoneID(input.MilestoneID)
+	if err == nil && existing != nil {
+		return nil, errors.New("meeting already exists for this milestone")
+	}
+
 	meeting := &domain.Meeting{
 		MilestoneID: input.MilestoneID,
 		Date:        dateParsed,
@@ -2143,10 +2148,14 @@ func (s *projectService) CancelMeeting(meetingID uint, user domain.User) error {
 		return errors.New("meeting_id is required")
 	}
 
-	// หา meeting
 	meeting, err := s.projectRepo.FindMeetingByID(meetingID)
 	if err != nil {
 		return errors.New("meeting not found")
+	}
+
+	// check already cancelled
+	if meeting.Status == domain.MeetingCancelled {
+		return errors.New("meeting is already cancelled")
 	}
 
 	// หา milestone
@@ -2167,12 +2176,12 @@ func (s *projectService) CancelMeeting(meetingID uint, user domain.User) error {
 	}
 
 	// ถ้ายกเลิกไปแล้ว
-	if meeting.Status == domain.MeetingCanceled {
+	if meeting.Status == domain.MeetingCancelled {
 		return errors.New("meeting already canceled")
 	}
 
 	// เปลี่ยนสถานะ
-	meeting.Status = domain.MeetingCanceled
+	meeting.Status = domain.MeetingCancelled
 
 	updated, err := s.projectRepo.UpdateMeeting(meeting)
 	if err != nil {

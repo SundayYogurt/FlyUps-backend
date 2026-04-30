@@ -69,6 +69,7 @@ type ProjectRepository interface {
 	UpdateMeeting(meeting *domain.Meeting) (*domain.Meeting, error)
 	FindMeetingsByOwnerID(ownerID uint) ([]domain.Meeting, error)
 	FindVote(milestoneID uint, boosterUserID uint) (*domain.MilestoneVote, error)
+	FindMeetingByMilestoneID(milestoneID uint) (*domain.Meeting, error)
 
 	// story
 	FindStoriesByProjectID(projectID uint) ([]domain.StorySection, error)
@@ -101,6 +102,17 @@ type ProjectRepository interface {
 
 type projectRepository struct {
 	db *gorm.DB
+}
+
+func (p *projectRepository) FindMeetingByMilestoneID(milestoneID uint) (*domain.Meeting, error) {
+	var meeting domain.Meeting
+	err := p.db.Where("milestone_id = ?", milestoneID).First(&meeting).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &meeting, nil
 }
 
 func (p *projectRepository) FindVote(milestoneID uint, boosterUserID uint) (*domain.MilestoneVote, error) {
