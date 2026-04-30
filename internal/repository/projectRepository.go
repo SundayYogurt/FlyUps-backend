@@ -689,8 +689,11 @@ func (p *projectRepository) FindPublicProjects(filter dto.PublicProjectFilter) (
 		Preload("Category").
 		Preload("Owner.StudentProfile.University").
 		Preload("Media").
-		Where("state = ? AND visibility = ? AND status = ?",
-			domain.StateFunding, domain.VisibilityPublic, domain.StatusActive)
+		Where("state IN ? AND visibility = ? AND status = ?",
+			[]domain.ProjectState{domain.StateFunding, domain.StateExecuting},
+			domain.VisibilityPublic,
+			domain.StatusActive,
+		)
 
 	// search by title
 	if filter.Search != "" {
