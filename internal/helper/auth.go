@@ -152,7 +152,16 @@ func (a Auth) GenerateCode() (string, error) {
 //}
 
 func (a Auth) GetCurrentUser(ctx fiber.Ctx) domain.User {
-	user := ctx.Locals("user")
-	return user.(domain.User)
-
+	local := ctx.Locals("user")
+	if local == nil {
+		return domain.User{}
+	}
+	// รองรับทั้ง domain.User และ *domain.User
+	if u, ok := local.(domain.User); ok {
+		return u
+	}
+	if u, ok := local.(*domain.User); ok && u != nil {
+		return *u
+	}
+	return domain.User{}
 }
