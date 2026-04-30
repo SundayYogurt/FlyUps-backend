@@ -2089,7 +2089,16 @@ func (s *projectService) EditMeeting(meetingID uint, input dto.UpdateMeetingRequ
 		return nil, errors.New("cannot create meeting: milestone is expired")
 	}
 
-	meeting := &domain.Meeting{
+	meeting, err := s.projectRepo.FindMeetingByID(meetingID)
+	if err != nil {
+		return nil, errors.New("failed to find meeting")
+	}
+
+	if meeting.Status != domain.MeetingOpen {
+		return nil, errors.New("cannot edit meeting: meeting is not open")
+	}
+
+	meeting = &domain.Meeting{
 		ID:          meetingID,
 		MilestoneID: input.MilestoneID,
 		Date:        dateParsed,
