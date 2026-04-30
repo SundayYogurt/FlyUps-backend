@@ -111,7 +111,7 @@ func (p *projectRepository) ExistsFundingProjectByOwner(userID uint) (bool, erro
 	var count int64
 
 	err := p.db.Model(&domain.Project{}).
-		Where("owner_user_id = ? AND state = ?", userID, domain.StateFunding).
+		Where("owner_user_id = ? AND state = ?", userID, domain.StatePendingReview).
 		Count(&count).Error
 
 	if err != nil {
