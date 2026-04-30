@@ -134,6 +134,14 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	adminProj.Get("/milestones/:milestone_id<int>", handler.AdminGetMilestoneDetail)
 }
 
+// GetRecommendationProjects godoc
+// @Summary Get Recommended Projects
+// @Description Get a curated list of recommended/featured projects
+// @Tags Projects
+// @Produce json
+// @Success 200 {object} object "List of recommended projects"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /projects/recommend [get]
 func (h *ProjectHandler) GetRecommendationProjects(ctx fiber.Ctx) error {
 	projects, err := h.svc.GetProjectRecommendations()
 	if err != nil {
@@ -142,6 +150,14 @@ func (h *ProjectHandler) GetRecommendationProjects(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", projects)
 }
 
+// GetNewProjects godoc
+// @Summary Get Newest Projects
+// @Description Get a list of the most recently created/approved projects
+// @Tags Projects
+// @Produce json
+// @Success 200 {object} object "List of newest projects"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /projects/new [get]
 func (h *ProjectHandler) GetNewProjects(ctx fiber.Ctx) error {
 	projects, err := h.svc.GetNewProjects()
 	if err != nil {
@@ -150,6 +166,14 @@ func (h *ProjectHandler) GetNewProjects(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", projects)
 }
 
+// GetEndingSoonProjects godoc
+// @Summary Get Ending Soon Projects
+// @Description Get projects whose funding deadline is approaching
+// @Tags Projects
+// @Produce json
+// @Success 200 {object} object "List of projects ending soon"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /projects/ending [get]
 func (h *ProjectHandler) GetEndingSoonProjects(ctx fiber.Ctx) error {
 	projects, err := h.svc.GetProjectEndingSoon()
 	if err != nil {
@@ -1757,6 +1781,19 @@ func (h *ProjectHandler) ProjectDetailReview(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "project detail review success", project)
 }
 
+// Meeting godoc
+// @Summary Create Meeting
+// @Description Pioneer creates a meeting invitation for investors of a milestone
+// @Tags Meetings
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.CreateMeetingRequest true "Create Meeting Request"
+// @Success 200 {object} object "Meeting created successfully"
+// @Failure 400 {object} object "Invalid request body"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /pioneer/projects/meeting [post]
 func (h *ProjectHandler) Meeting(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -1776,6 +1813,20 @@ func (h *ProjectHandler) Meeting(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "meeting created successfully", meeting)
 }
 
+// EditMeeting godoc
+// @Summary Edit Meeting
+// @Description Pioneer edits an existing meeting
+// @Tags Meetings
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Meeting ID"
+// @Param request body dto.UpdateMeetingRequest true "Update Meeting Request"
+// @Success 200 {object} object "Meeting updated successfully"
+// @Failure 400 {object} object "Invalid request body or meeting ID"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /pioneer/projects/meeting/{id} [patch]
 func (h *ProjectHandler) EditMeeting(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -1800,6 +1851,18 @@ func (h *ProjectHandler) EditMeeting(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "meeting updated successfully", meeting)
 }
 
+// CancelMeeting godoc
+// @Summary Cancel Meeting
+// @Description Pioneer cancels an existing meeting
+// @Tags Meetings
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Meeting ID"
+// @Success 200 {object} object "Meeting canceled successfully"
+// @Failure 400 {object} object "Invalid meeting ID"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /pioneer/projects/cancel/meeting/{id} [patch]
 func (h *ProjectHandler) CancelMeeting(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -1819,6 +1882,18 @@ func (h *ProjectHandler) CancelMeeting(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "meeting canceled successfully", nil)
 }
 
+// GetMyMeeting godoc
+// @Summary Get My Meeting by ID
+// @Description Get details of a specific meeting that the authenticated user is associated with
+// @Tags Meetings
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Meeting ID"
+// @Success 200 {object} object "Meeting details"
+// @Failure 400 {object} object "Invalid meeting ID"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /me/meeting/{id} [get]
 func (h *ProjectHandler) GetMyMeeting(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -1839,6 +1914,19 @@ func (h *ProjectHandler) GetMyMeeting(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", meeting)
 }
 
+// GetMyMilestoneMeetings godoc
+// @Summary Get My Meetings by Milestone
+// @Description Get all meetings associated with a specific milestone that the current user participates in
+// @Tags Meetings
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Milestone ID"
+// @Param filter query string false "Filter: all | upcoming | past" default(all)
+// @Success 200 {object} object "List of meetings"
+// @Failure 400 {object} object "Invalid milestone ID or filter"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /me/milestones/{id}/meetings [get]
 func (h *ProjectHandler) GetMyMilestoneMeetings(ctx fiber.Ctx) error {
 
 	user := h.auth.GetCurrentUser(ctx)
@@ -1867,6 +1955,19 @@ func (h *ProjectHandler) GetMyMilestoneMeetings(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", meetings)
 }
 
+// GetMyProjectMeetings godoc
+// @Summary Get My Meetings by Project
+// @Description Get all meetings associated with a specific project that the current user participates in
+// @Tags Meetings
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Param filter query string false "Filter: all | upcoming | past" default(all)
+// @Success 200 {object} object "List of meetings"
+// @Failure 400 {object} object "Invalid project ID or filter"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /me/projects/{id}/meetings [get]
 func (h *ProjectHandler) GetMyProjectMeetings(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -1894,6 +1995,16 @@ func (h *ProjectHandler) GetMyProjectMeetings(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", meetings)
 }
 
+// GetMyMeetings godoc
+// @Summary Get All My Meetings
+// @Description Get all meetings that the authenticated user is associated with (as pioneer or investor)
+// @Tags Meetings
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} object "List of all meetings"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /me/meetings [get]
 func (h *ProjectHandler) GetMyMeetings(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
