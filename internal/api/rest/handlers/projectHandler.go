@@ -554,14 +554,25 @@ func (h *ProjectHandler) GetMyProjectByID(ctx fiber.Ctx) error {
 
 // GetPublicProjects godoc
 // @Summary Get Public Projects
-// @Description Get list of all public/approved projects
+// @Description Get list of public funding projects with optional filters
 // @Tags Projects
 // @Accept json
 // @Produce json
+// @Param search query string false "Search by project title"
+// @Param category_id query int false "Filter by category ID"
+// @Param sort query string false "Sort order: newest (default) | ending_soon | popular"
+// @Param min_goal query number false "Minimum funding goal"
+// @Param max_goal query number false "Maximum funding goal"
 // @Success 200 {object} object "List of public projects"
+// @Failure 500 {object} object "Internal Server Error"
 // @Router /projects [get]
 func (h *ProjectHandler) GetPublicProjects(ctx fiber.Ctx) error {
-	projects, err := h.svc.GetPublicProjects()
+	var filter dto.PublicProjectFilter
+	if err := ctx.Bind().Query(&filter); err != nil {
+		return rest.BadRequestError(ctx, "invalid query params")
+	}
+
+	projects, err := h.svc.GetPublicProjects(filter)
 	if err != nil {
 		return rest.InternalError(ctx, err)
 	}

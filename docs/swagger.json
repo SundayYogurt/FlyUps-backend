@@ -3644,7 +3644,7 @@
         },
         "/projects": {
             "get": {
-                "description": "Get list of all public/approved projects",
+                "description": "Get list of public funding projects with optional filters",
                 "consumes": [
                     "application/json"
                 ],
@@ -3655,9 +3655,48 @@
                     "Projects"
                 ],
                 "summary": "Get Public Projects",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search by project title",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by category ID",
+                        "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order: newest (default) | ending_soon | popular",
+                        "name": "sort",
+                        "in": "query",
+                        "enum": ["newest", "ending_soon", "popular"]
+                    },
+                    {
+                        "type": "number",
+                        "description": "Minimum funding goal",
+                        "name": "min_goal",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Maximum funding goal",
+                        "name": "max_goal",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "List of public projects",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
                         }

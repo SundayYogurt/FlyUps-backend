@@ -3,6 +3,7 @@ package repository
 import (
 	"errors"
 	"flyup/internal/domain"
+	"flyup/internal/dto"
 	"time"
 
 	"github.com/gofiber/utils/v2/strings"
@@ -17,6 +18,7 @@ type ProjectRepository interface {
 	FindProjectByIDAndOwner(id uint, ownerID uint) (*domain.Project, error)
 	FindProjectsByOwnerID(ownerID uint) ([]domain.Project, error)
 	FindProjects(state *domain.ProjectState, status *domain.ProjectStatus, visibility *domain.ProjectVisibility) ([]domain.Project, error)
+	FindPublicProjects(filter dto.PublicProjectFilter) ([]domain.Project, error)
 	FindProjectsByCategory(categoryID uint) ([]domain.Project, error)
 	UpdateProject(project *domain.Project) (*domain.Project, error)
 	DeleteProject(projectId uint) error
@@ -659,6 +661,49 @@ func (p *projectRepository) FindProjects(state *domain.ProjectState, status *dom
 
 	if visibility != nil {
 		query = query.Where("visibility = ?", *visibility)
+	}
+
+	err := query.Find(&projects).Error
+	return projects, err
+}
+
+// FindPublicProjects ดึงโปรเจกต์สาธารณะพร้อม filter และ sort
+func (p *projectRepository) FindPublicProjects(filter dto.PublicProjectFilter) ([]domain.Project, error) {
+	var projects []domain.Project
+
+	query := p.db.Model(&domain.Project{}).
+		Preload("Category").
+		Preload("Owner.StudentProfile.University").
+		Preload("Media").
+		Where("state = ? AND visibility = ? AND status = ?",
+			domain.StateFunding, domain.VisibilityPublic, domain.StatusActive)
+
+	// search by title
+	if filter.Search != "" {
+		query = query.Where("LOWER(title) LIKE ?", "%"+strings.ToLower(filter.Search)+"%")
+	}
+
+	// filter by category
+	if filter.CategoryID != nil {
+		query = query.Where("category_id = ?", *filter.CategoryID)
+	}
+
+	// filter by funding goal range
+	if filter.MinGoal > 0 {
+		query = query.Where("funding_goal >= ?", filter.MinGoal)
+	}
+	if filter.MaxGoal > 0 {
+		query = query.Where("funding_goal <= ?", filter.MaxGoal)
+	}
+
+	// sort
+	switch filter.Sort {
+	case "ending_soon":
+		query = query.Where("end_date > ?", time.Now()).Order("end_date ASC")
+	case "popular":
+		query = query.Order("current_funding DESC")
+	default: // newest
+		query = query.Order("funding_at DESC")
 	}
 
 	err := query.Find(&projects).Error
