@@ -36,7 +36,9 @@ type ProjectRepository interface {
 	FindProjectEndingSoon() ([]domain.Project, error)
 	SaveMeeting(meeting *domain.Meeting) error
 	FindInvestorsEmailByProjectID(projectID uint) ([]string, error)
+	FindInvestorIDsByProjectID(projectID uint) ([]uint, error)
 	ExistsProjectByOwnerAndStates(userID uint, states []domain.ProjectState) (bool, error)
+	FindProjectsCancelRequest() ([]domain.Project, error)
 
 	FindMediaByProjectID(projectID uint) ([]domain.ProjectMedia, error)
 	FindMediaByID(id uint) (*domain.ProjectMedia, error)
@@ -105,6 +107,17 @@ type ProjectRepository interface {
 
 type projectRepository struct {
 	db *gorm.DB
+}
+
+func (p *projectRepository) FindProjectsCancelRequest() ([]domain.Project, error) {
+	var projects []domain.Project
+
+	err := p.db.Model(&domain.Project{}).Where("state = ?", domain.StatePendingCancel).Find(&projects).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return projects, nil
 }
 
 func (p *projectRepository) ExistsProjectByOwnerAndStates(userID uint, states []domain.ProjectState) (bool, error) {
@@ -243,12 +256,13 @@ func (p *projectRepository) CloseMeetingsByMilestoneID(milestoneID uint) error {
 
 func (p *projectRepository) FindInvestorsEmailByProjectID(projectID uint) ([]string, error) {
 	var emails []string
+
 	err := p.db.Model(&domain.Investment{}).
-		Select("users.email").
-		Joins("JOIN users on users.id = investments.booster_user_id").
-		Where("investments.project_id = ? AND investments.status = ?", projectID, string(domain.InvestmentVerified)).
-		Group("users.email").
-		Pluck("email", &emails).Error
+		Select("DISTINCT users.email").
+		Joins("JOIN users ON users.id = investments.booster_user_id").
+		Where("investments.project_id = ? AND investments.status = ?", projectID, domain.InvestmentVerified).
+		Pluck("users.email", &emails).Error
+
 	return emails, err
 }
 
@@ -866,4 +880,15 @@ func (p *projectRepository) CountProjectsByCategoryID(categoryID uint) (int64, e
 		Where("category_id = ?", categoryID).
 		Count(&count).Error
 	return count, err
+}
+
+func (p *projectRepository) FindInvestorIDsByProjectID(projectID uint) ([]uint, error) {
+	var ids []uint
+
+	err := p.db.Model(&domain.Investment{}).
+		Select("DISTINCT investments.booster_user_id").
+		Where("investments.project_id = ? AND investments.status = ?", projectID, domain.InvestmentVerified).
+		Pluck("investments.booster_user_id", &ids).Error
+
+	return ids, err
 }

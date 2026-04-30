@@ -14,7 +14,6 @@ type PublicProjectFilter struct {
 	MaxGoal    float64 `query:"max_goal"`    // funding_goal <= max_goal
 }
 
-
 type ProjectResponse struct {
 	ID              uint                 `json:"id"`
 	OwnerUserID     uint                 `json:"owner_user_id"`
@@ -174,4 +173,8 @@ type UpdateMeetingRequest struct {
 	Link        *string            `json:"link,omitempty"`
 	Place       *string            `json:"place,omitempty"`
 	About       string             `json:"about"`
+}
+
+type CancelProjectRequest struct {
+	Reason string `json:"reason" validate:"required,min=20"`
 }

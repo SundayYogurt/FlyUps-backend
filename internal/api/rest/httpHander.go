@@ -12,13 +12,14 @@ import (
 )
 
 type RestHandler struct {
-	App          *fiber.App
-	DB           *gorm.DB
-	Auth         helper.Auth
-	Middlewares  Middleware
-	Config       config.AppConfig
-	Validator    *validator.Validate
-	Notification notification.NotificationClient
-	Cloudinary   *helper.CloudinaryService
-	NotifSvc     service.NotificationService
+	App           *fiber.App
+	DB            *gorm.DB
+	Auth          helper.Auth
+	Middlewares   Middleware
+	Config        config.AppConfig
+	Validator     *validator.Validate
+	Notification  notification.NotificationClient
+	Cloudinary    *helper.CloudinaryService
+	NotifSvc      service.NotificationService
+	InvestmentSvc service.InvestmentService
 }

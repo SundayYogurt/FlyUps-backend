@@ -14,12 +14,14 @@ import (
 	"strings"
 	"time"
 
+	"flyup/pkg/notification"
+
 	"github.com/stripe/stripe-go/v85"
 	"github.com/stripe/stripe-go/v85/charge"
 	"github.com/stripe/stripe-go/v85/paymentintent"
 	"github.com/stripe/stripe-go/v85/paymentmethod"
+	"github.com/stripe/stripe-go/v85/refund"
 	"github.com/stripe/stripe-go/v85/webhook"
-	"flyup/pkg/notification"
 
 	"gorm.io/gorm"
 )
@@ -40,6 +42,8 @@ type InvestmentService interface {
 	GetProjectInvestors(projectID uint) ([]dto.ProjectInvestorItem, error)
 	ListInvestedProjects(boosterUserID uint) ([]dto.InvestedProjectItem, error)
 	VoteMilestone(boosterUserID uint, milestoneID uint, choice domain.MilestoneVoteChoice) (*domain.MilestoneVote, error)
+	// RefundProjectInvestments คืนเงินนักลงทุนทุกคนเมื่อโปรเจกต์ถูก cancel
+	RefundProjectInvestments(project domain.Project)
 }
 
 type investmentService struct {
@@ -298,6 +302,112 @@ func (s *investmentService) ApproveRefund(investmentID uint) error {
 	}
 
 	return nil
+}
+
+// RefundProjectInvestments คืนเงินนักลงทุนทุกคนเมื่อโปรเจกต์ถูก cancel
+func (s *investmentService) RefundProjectInvestments(project domain.Project) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[RefundProjectInvestments] panic: %v", r)
+		}
+	}()
+
+	investments, err := s.investmentRepo.FindVerifiedByProjectID(project.ID)
+	if err != nil {
+		log.Printf("[RefundProjectInvestments] find investments error: %v", err)
+		return
+	}
+
+	if len(investments) == 0 {
+		return
+	}
+
+	// รวมยอดที่ต้องคืน
+	var totalFunding float64
+	for _, inv := range investments {
+		totalFunding += inv.TotalAmount
+	}
+
+	remaining := project.CurrentFunding
+	if totalFunding == 0 || remaining == 0 {
+		return
+	}
+
+	var totalRefunded float64
+	stripe.Key = s.stripeSecretKey
+
+	for i, inv := range investments {
+		// กัน refund ซ้ำ
+		if inv.Status == domain.InvestmentRefunded {
+			continue
+		}
+
+		var refundAmount float64
+		// กัน rounding error ของรายการสุดท้าย
+		if i == len(investments)-1 {
+			refundAmount = remaining - totalRefunded
+		} else {
+			ratio := inv.TotalAmount / totalFunding
+			refundAmount = math.Round(ratio*remaining*100) / 100
+			totalRefunded += refundAmount
+		}
+
+		// กัน refund เกินยอดที่จ่ายจริง
+		if refundAmount > inv.TotalAmount {
+			refundAmount = inv.TotalAmount
+		}
+		if refundAmount <= 0 {
+			continue
+		}
+
+		// หา transaction เพื่อเอา Stripe PaymentIntent ID
+		txn, err := s.transactionRepo.FindByInvestmentID(inv.ID)
+		if err != nil {
+			log.Printf("[RefundProjectInvestments] txn not found inv %d: %v", inv.ID, err)
+			continue
+		}
+
+		// ยิง Stripe Refund
+		refundAmountSatang := int64(math.Round(refundAmount * 100))
+		_, err = refund.New(&stripe.RefundParams{
+			PaymentIntent: stripe.String(txn.StripePaymentIntentID),
+			Amount:        stripe.Int64(refundAmountSatang),
+		})
+		if err != nil {
+			log.Printf("[RefundProjectInvestments] stripe refund fail inv %d: %v", inv.ID, err)
+			continue
+		}
+
+		// อัพเดต DB
+		now := time.Now()
+		inv.Status = domain.InvestmentRefunded
+		inv.RefundAmount = refundAmount
+		inv.RefundedAt = &now
+		if err := s.investmentRepo.UpdateRefunded(&inv); err != nil {
+			log.Printf("[RefundProjectInvestments] update refund fail inv %d: %v", inv.ID, err)
+		}
+
+		// notify นักลงทุน
+		if s.notifSvc != nil {
+			relatedID := project.ID
+			relatedType := "project"
+			body := fmt.Sprintf(
+				"โปรเจกต์ \"%s\" ถูกยกเลิก คุณได้รับเงินคืน %.2f บาท",
+				project.Title,
+				refundAmount,
+			)
+			_ = s.notifSvc.CreateAndPush(
+				inv.BoosterUserID,
+				domain.NotifProjectStatus,
+				"คืนเงินจากโปรเจกต์",
+				body,
+				&relatedID,
+				&relatedType,
+			)
+		}
+
+		log.Printf("[RefundProjectInvestments] refunded user %d amount %.2f", inv.BoosterUserID, refundAmount)
+	}
 }
 
 func (s *investmentService) HandleStripeWebhook(payload []byte, sigHeader string) error {

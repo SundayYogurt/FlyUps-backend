@@ -11,6 +11,7 @@ type InvestmentRepository interface {
 	Create(investment *domain.Investment) error
 	FindByID(id uint) (*domain.Investment, error)
 	FindByReferenceNumber(ref string) (*domain.Investment, error)
+	FindVerifiedByProjectID(projectID uint) ([]domain.Investment, error)
 	UpdateStatus(id uint, status domain.InvestmentStatus) error
 	UpdatePaid(investment *domain.Investment) error
 	UpdateRefunded(investment *domain.Investment) error
@@ -54,6 +55,14 @@ func (r *investmentRepository) FindByReferenceNumber(ref string) (*domain.Invest
 	}
 
 	return inv, nil
+}
+
+func (r *investmentRepository) FindVerifiedByProjectID(projectID uint) ([]domain.Investment, error) {
+	var investments []domain.Investment
+	err := r.db.
+		Where("project_id = ? AND status = ?", projectID, string(domain.InvestmentVerified)).
+		Find(&investments).Error
+	return investments, err
 }
 
 func (r *investmentRepository) UpdateStatus(id uint, status domain.InvestmentStatus) error {

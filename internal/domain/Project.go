@@ -17,6 +17,7 @@ const (
 	StateExecuting     ProjectState = "executing"
 	StateClosed        ProjectState = "closed"
 	StateCancelled     ProjectState = "cancelled"
+	StatePendingCancel ProjectState = "pending_cancel"
 )
 
 const (
@@ -62,6 +63,7 @@ type Project struct {
 	Milestones      []Milestone       `json:"milestones" gorm:"foreignKey:ProjectID"`
 	Stories         []StorySection    `json:"stories" gorm:"foreignKey:ProjectID"`
 	FAQs            []ProjectFAQ      `json:"faqs" gorm:"foreignKey:ProjectID"`
+	CancelReason    string            `json:"cancel_reason"`
 	gorm.Model
 }
 
@@ -117,6 +119,7 @@ const (
 	MilestoneRejected  MilestoneStatus = "rejected"
 	MilestoneFailed    MilestoneStatus = "failed"
 	MilestonePaid      MilestoneStatus = "paid"
+	MilestoneCancelled MilestoneStatus = "cancelled"
 )
 
 type MilestoneVoteChoice string
