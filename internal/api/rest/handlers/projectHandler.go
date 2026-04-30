@@ -33,6 +33,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 		rh.Cloudinary,
 		rh.NotifSvc,
 		rh.Notification,
+		rh.InvestmentSvc,
 	)
 
 	handler := ProjectHandler{
@@ -80,6 +81,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	priv.Patch("/messages/:message_id<int>", handler.UpdateProjectThreadMessage)
 	priv.Delete("/messages/:message_id<int>", handler.DeleteProjectThreadMessage)
 	priv.Patch("/:id<int>/cancel", handler.CancelProject)
+	priv.Patch("/:id<int>/submit-cancel ", handler.SubmitCancelProject)
 
 	// Media
 	priv.Post("/:id<int>/media", handler.AttachProjectMedia)
@@ -132,6 +134,9 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	adminProj.Patch("/milestones/:milestone_id<int>/approve", handler.AdminApproveMilestoneSubmission)
 	adminProj.Patch("/milestones/:milestone_id<int>/reject", handler.AdminRejectMilestoneSubmission)
 	adminProj.Get("/milestones/:milestone_id<int>", handler.AdminGetMilestoneDetail)
+	adminProj.Patch("/:id<int>/approve-cancel", handler.ApproveCancel)
+	adminProj.Patch("/:id<int>/reject-cancel", handler.RejectCancel)
+	adminProj.Get("/cancel-request", handler.GetPendingCancel)
 }
 
 // GetRecommendationProjects godoc
@@ -209,6 +214,68 @@ func (h *ProjectHandler) CancelProject(ctx fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, "cancelled successfully", nil)
+}
+
+func (h *ProjectHandler) SubmitCancelProject(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil || id <= 0 {
+		return rest.BadRequestError(ctx, "invalid project id")
+	}
+
+	var body dto.CancelProjectRequest
+	if err := ctx.Bind().Body(&body); err != nil {
+		return rest.BadRequestError(ctx, "invalid body")
+	}
+
+	err = h.svc.SubmitCancelRequest(uint(id), body, user)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "submit cancel successfully", nil)
+}
+
+func (h *ProjectHandler) ApproveCancel(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil || id <= 0 {
+		return rest.BadRequestError(ctx, "invalid project id")
+	}
+
+	err = h.svc.ApproveCancelProject(uint(id))
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "project cancelled successfully", nil)
+}
+
+func (h *ProjectHandler) RejectCancel(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil || id <= 0 {
+		return rest.BadRequestError(ctx, "invalid project id")
+	}
+
+	err = h.svc.RejectCancelProject(uint(id))
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "reject project cancelled successfully", nil)
 }
 
 // AttachProjectMedia godoc
@@ -2029,4 +2096,18 @@ func (h *ProjectHandler) GetMyMeetings(ctx fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, "success", meetings)
+}
+
+func (h *ProjectHandler) GetPendingCancel(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.UnauthorizedError(ctx, "unauthorized")
+	}
+
+	proj, err := h.svc.GetCancelRequest()
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "success", proj)
 }

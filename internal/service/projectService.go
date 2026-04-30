@@ -49,6 +49,7 @@ type ProjectService interface {
 	OpenMilestoneVoting(milestoneID uint, user domain.User) (*domain.Milestone, error)
 	GetSubmittedMilestonesForAdmin(projectID *uint) ([]dto.AdminMilestoneListResponse, error)
 	GetAdminMilestoneDetail(milestoneID uint) (*dto.AdminMilestoneDetailResponse, error)
+
 	// PROJECT UPDATE
 	CreateProjectUpdate(projectID uint, req dto.CreateProjectUpdateRequest, user domain.User) error
 	GetProjectUpdates(projectID uint) ([]domain.ProjectUpdate, error)
@@ -93,6 +94,10 @@ type ProjectService interface {
 	GetAllProjectsRequest() ([]domain.Project, error)
 	GetProjectDetailRequest(projectID uint) (*domain.Project, error)
 	AutoProjectLifecycleTick(now time.Time) error
+	SubmitCancelRequest(projectID uint, input dto.CancelProjectRequest, user domain.User) error
+	ApproveCancelProject(projectID uint) error
+	RejectCancelProject(projectID uint) error
+	GetCancelRequest() ([]domain.Project, error)
 
 	//meeting
 	Meeting(input dto.CreateMeetingRequest, userID uint) (*domain.Meeting, error)
@@ -105,20 +110,29 @@ type ProjectService interface {
 }
 
 type projectService struct {
-	projectRepo repository.ProjectRepository
-	userRepo    repository.UserRepository
-	cld         *helper.CloudinaryService
-	notifSvc    NotificationService
-	emailClient notification.NotificationClient
+	projectRepo   repository.ProjectRepository
+	userRepo      repository.UserRepository
+	cld           *helper.CloudinaryService
+	notifSvc      NotificationService
+	emailClient   notification.NotificationClient
+	investmentSvc InvestmentService
 }
 
-func NewProjectService(projectRepo repository.ProjectRepository, userRepo repository.UserRepository, cld *helper.CloudinaryService, notifSvc NotificationService, emailClient notification.NotificationClient) ProjectService {
+func NewProjectService(
+	projectRepo repository.ProjectRepository,
+	userRepo repository.UserRepository,
+	cld *helper.CloudinaryService,
+	notifSvc NotificationService,
+	emailClient notification.NotificationClient,
+	investmentSvc InvestmentService,
+) ProjectService {
 	return &projectService{
-		projectRepo: projectRepo,
-		userRepo:    userRepo,
-		cld:         cld,
-		notifSvc:    notifSvc,
-		emailClient: emailClient,
+		projectRepo:   projectRepo,
+		userRepo:      userRepo,
+		cld:           cld,
+		notifSvc:      notifSvc,
+		emailClient:   emailClient,
+		investmentSvc: investmentSvc,
 	}
 }
 
@@ -1722,6 +1736,38 @@ func (s *projectService) CancelProject(projectID uint, user domain.User) error {
 
 }
 
+func (s *projectService) SubmitCancelRequest(projectID uint, input dto.CancelProjectRequest, user domain.User) error {
+	project, err := s.projectRepo.FindProjectByID(projectID)
+	if err != nil {
+		return err
+	}
+
+	if project.OwnerUserID != user.ID {
+		return errors.New("you are not authorized to cancel this project")
+	}
+
+	if project.State == domain.StateCancelled || project.State == domain.StateDraft {
+		return errors.New("project is already cancelled or state is draft")
+	}
+
+	if project.State == domain.StatePendingCancel {
+		return errors.New("cancel request is already pending")
+	}
+
+	// validate reason
+	reason := strings.TrimSpace(input.Reason)
+	if reason == "" {
+		return errors.New("reason is required")
+	}
+
+	// update state
+	project.State = domain.StatePendingCancel
+	project.CancelReason = reason
+
+	_, err = s.projectRepo.UpdateProject(project)
+	return err
+}
+
 func (s *projectService) GetAllProjectsRequest() ([]domain.Project, error) {
 	state := domain.StatePendingReview
 	return s.projectRepo.FindProjectsState(string(state))
@@ -2250,4 +2296,141 @@ func (s *projectService) CancelMeeting(meetingID uint, user domain.User) error {
 	}
 
 	return nil
+}
+
+func (s *projectService) ApproveCancelProject(projectID uint) error {
+	p, err := s.projectRepo.FindProjectByID(projectID)
+	if err != nil {
+		return err
+	}
+
+	if p.State != domain.StatePendingCancel {
+		return errors.New("project is not in pending_cancel state")
+	}
+
+	if p.CancelReason == "" {
+		return errors.New("cannot approve cancel project without cancel reason")
+	}
+
+	p.State = domain.StateCancelled
+	p.Status = domain.StatusCancelled
+	p.Visibility = domain.VisibilityUnlisted
+	_, err = s.projectRepo.UpdateProject(p)
+	if err != nil {
+		return err
+	}
+
+	// ยกเลิก milestones ที่ยังไม่เสร็จ
+	milestones, err := s.projectRepo.FindMilestonesByProjectID(p.ID)
+	if err != nil {
+		return err
+	}
+	for i := range milestones {
+		switch milestones[i].Status {
+		case domain.MilestonePaid, domain.MilestoneRejected:
+			continue // ข้าม milestone ที่จบแล้ว
+		default:
+			milestones[i].Status = domain.MilestoneCancelled
+			if err := s.projectRepo.UpdateMilestone(&milestones[i]); err != nil {
+				return err
+			}
+		}
+	}
+
+	// notify เจ้าของโปรเจกต์
+	if s.notifSvc != nil {
+		relatedID := p.ID
+		relatedType := "project"
+		body := fmt.Sprintf("โปรเจกต์ \"%s\" ถูกยกเลิกเรียบร้อยแล้ว", p.Title)
+		_ = s.notifSvc.CreateAndPush(
+			p.OwnerUserID,
+			domain.NotifProjectStatus,
+			"โปรเจกต์ถูกยกเลิก",
+			body,
+			&relatedID,
+			&relatedType,
+		)
+	}
+
+	// notify นักลงทุนล่วงหน้า (ก่อน refund)
+	if s.notifSvc != nil {
+		investorIDs, err := s.projectRepo.FindInvestorIDsByProjectID(p.ID)
+		if err == nil {
+			relatedID := p.ID
+			relatedType := "project"
+			for _, userID := range investorIDs {
+				body := fmt.Sprintf("โปรเจกต์ \"%s\" ถูกยกเลิก เราจะทำการคืนเงินส่วนที่เหลือให้", p.Title)
+				_ = s.notifSvc.CreateAndPush(
+					userID,
+					domain.NotifProjectStatus,
+					"โปรเจกต์ที่คุณลงทุนถูกยกเลิก",
+					body,
+					&relatedID,
+					&relatedType,
+				)
+			}
+		}
+	}
+
+	// คืนเงินผ่าน Stripe
+	if s.investmentSvc != nil {
+		go s.investmentSvc.RefundProjectInvestments(*p)
+	}
+
+	return nil
+}
+
+func (s *projectService) RejectCancelProject(projectID uint) error {
+	p, err := s.projectRepo.FindProjectByID(projectID)
+	if err != nil {
+		return err
+	}
+
+	if p.State != domain.StatePendingCancel {
+		return errors.New("project is not in pending_cancel state")
+	}
+
+	// revert กลับไปสถานะเดิมก่อน pending_cancel
+	// ถ้ามี funding > 0 หรือ funding_at ไม่ว่าง ถือว่าอยู่ใน executing/funding
+	var prevState domain.ProjectState
+	if !p.FundingAt.IsZero() && p.CurrentFunding > 0 {
+		prevState = domain.StateExecuting
+	} else if !p.FundingAt.IsZero() {
+		prevState = domain.StateFunding
+	} else {
+		prevState = domain.StateFunding
+	}
+
+	p.State = prevState
+	p.CancelReason = "" // ล้าง reason เมื่อ reject
+	_, err = s.projectRepo.UpdateProject(p)
+	if err != nil {
+		return err
+	}
+
+	// notify เจ้าของโปรเจกต์
+	if s.notifSvc != nil {
+		relatedID := p.ID
+		relatedType := "project"
+		body := fmt.Sprintf("คำขอยกเลิกโปรเจกต์ \"%s\" ถูกปฏิเสธ โปรเจกต์ยังคงดำเนินต่อไป", p.Title)
+		_ = s.notifSvc.CreateAndPush(
+			p.OwnerUserID,
+			domain.NotifProjectStatus,
+			"คำขอยกเลิกถูกปฏิเสธ",
+			body,
+			&relatedID,
+			&relatedType,
+		)
+	}
+
+	return nil
+}
+
+func (s *projectService) GetCancelRequest() ([]domain.Project, error) {
+	proj, err := s.projectRepo.FindProjectsCancelRequest()
+	if err != nil {
+		return nil, err
+	}
+
+	return proj, nil
 }

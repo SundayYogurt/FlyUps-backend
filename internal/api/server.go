@@ -149,12 +149,27 @@ func StartServer(cfg config.AppConfig) {
 
 	// Background lifecycle job:
 	// auto mark funding projects as failed when end date passed and funding < softcap.
+	investmentRepo := repository.NewInvestmentRepository(db)
+	transactionRepo := repository.NewTransactionRepository(db)
+	disbursementRepo := repository.NewDisbursementRepository(db)
+	investmentSvc := service.NewInvestmentService(
+		repository.NewProjectRepository(db),
+		investmentRepo,
+		transactionRepo,
+		userRepo,
+		disbursementRepo,
+		cfg.StripeSecretKey,
+		cfg.StripeWebhookSecret,
+		notifSvc,
+		notificationClient,
+	)
 	projectSvc := service.NewProjectService(
 		repository.NewProjectRepository(db),
 		repository.NewUserRepository(db),
 		cloudinarySvc,
 		notifSvc,
 		notificationClient,
+		investmentSvc,
 	)
 	go func() {
 		ticker := time.NewTicker(1 * time.Minute)

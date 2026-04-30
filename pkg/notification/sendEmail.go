@@ -491,7 +491,7 @@ func (n notificationClient) SendUserSuspendedEmail(to string, reason string) err
           <tr>
             <td style="font-size:14px;color:#666;padding-top:20px;">
               If you believe this is a mistake or need assistance, please contact our support team at<br>
-              <a href="mailto:flyup.Official@gmail.com" style="color:#2563eb;text-decoration:none;font-weight:bold;">
+              <a href="mailto:support@flyup.com" style="color:#2563eb;text-decoration:none;font-weight:bold;">
                 flyup.Official@gmail.com
               </a>
             </td>
