@@ -563,6 +563,10 @@ func (s *userService) SuspendUser(adminID uint, userID uint, reason string) erro
 		return errors.New("invalid reason")
 	}
 
+	if userID == adminID {
+		return errors.New("admin cannot be suspended")
+	}
+
 	user, err := s.Repo.FindUserById(userID)
 	if err != nil {
 		return err
