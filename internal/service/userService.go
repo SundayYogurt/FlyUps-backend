@@ -1316,6 +1316,11 @@ func (s *userService) GoogleSigning(code string, role string, oauthConfig *oauth
 			role = "pending" // Fallback Default
 		}
 
+		// Check if user is suspended
+		if user.Status == domain.SUSPENDED {
+			return "", errors.New("your account has been suspended")
+		}
+
 		googleSub := googleUser.ID
 		now := time.Now()
 		newUser := &domain.User{
