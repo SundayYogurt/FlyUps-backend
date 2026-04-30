@@ -22,7 +22,7 @@ type ProjectService interface {
 	UpdateProject(projectID uint, input dto.UpdateProjectRequest, user domain.User) (*domain.Project, error)
 	DeleteProject(projectID uint, user domain.User) error
 	GetMyProjects(ownerID uint) ([]domain.Project, error)
-	GetPublicProjects() ([]domain.Project, error)
+	GetPublicProjects(filter dto.PublicProjectFilter) ([]domain.Project, error)
 	GetPublicProjectByID(id uint) (*domain.Project, error)
 	GetOwnerProjectByID(id uint, ownerID uint) (*domain.Project, error)
 	GetProjectsByCategory(categoryID uint) ([]domain.Project, error)
@@ -319,24 +319,8 @@ func (s *projectService) GetNewProjects() ([]domain.Project, error) {
 	return projects, nil
 }
 
-func (s *projectService) GetPublicProjects() ([]domain.Project, error) {
-	status := domain.StatusActive
-	visibility := domain.VisibilityPublic
-	projects, err := s.projectRepo.FindProjects(nil, &status, &visibility)
-
-	if err != nil {
-		return nil, err
-	}
-
-	// public projects include both fundraising and post-fundraising execution phases
-	filtered := make([]domain.Project, 0, len(projects))
-	for _, p := range projects {
-		if p.State == domain.StateFunding {
-			filtered = append(filtered, p)
-		}
-	}
-
-	return filtered, nil
+func (s *projectService) GetPublicProjects(filter dto.PublicProjectFilter) ([]domain.Project, error) {
+	return s.projectRepo.FindPublicProjects(filter)
 }
 
 func (s *projectService) GetProjectDetailByID(id uint) (*domain.Project, error) {

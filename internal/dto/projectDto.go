@@ -5,6 +5,16 @@ import (
 	"time"
 )
 
+// PublicProjectFilter คือ query params สำหรับ GET /projects
+type PublicProjectFilter struct {
+	Search     string  `query:"search"`      // ค้นหาจาก title
+	CategoryID *uint   `query:"category_id"` // กรองตาม category
+	Sort       string  `query:"sort"`        // newest | ending_soon | popular (default: newest)
+	MinGoal    float64 `query:"min_goal"`    // funding_goal >= min_goal
+	MaxGoal    float64 `query:"max_goal"`    // funding_goal <= max_goal
+}
+
+
 type ProjectResponse struct {
 	ID              uint                 `json:"id"`
 	OwnerUserID     uint                 `json:"owner_user_id"`
