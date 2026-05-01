@@ -14,6 +14,7 @@ type DisbursementRepository interface {
 	ListAll() ([]domain.Disbursement, error)
 	ListByStatus(status domain.DisbursementStatus) ([]domain.Disbursement, error)
 	ListByPioneerID(pioneerID uint) ([]domain.Disbursement, error)
+	ListByProjectID(projectID uint) ([]domain.Disbursement, error)
 }
 
 type disbursementRepository struct {
@@ -67,6 +68,14 @@ func (r *disbursementRepository) ListByStatus(status domain.DisbursementStatus) 
 func (r *disbursementRepository) ListByPioneerID(pioneerID uint) ([]domain.Disbursement, error) {
 	var list []domain.Disbursement
 	if err := r.db.Where("pioneer_user_id = ?", pioneerID).Order("project_id asc, phase_no asc").Find(&list).Error; err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+func (r *disbursementRepository) ListByProjectID(projectID uint) ([]domain.Disbursement, error) {
+	var list []domain.Disbursement
+	if err := r.db.Where("project_id = ?", projectID).Order("phase_no asc").Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil

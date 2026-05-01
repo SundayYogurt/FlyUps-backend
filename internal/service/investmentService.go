@@ -44,6 +44,7 @@ type InvestmentService interface {
 	VoteMilestone(boosterUserID uint, milestoneID uint, choice domain.MilestoneVoteChoice) (*domain.MilestoneVote, error)
 	// RefundProjectInvestments คืนเงินนักลงทุนทุกคนเมื่อโปรเจกต์ถูก cancel
 	RefundProjectInvestments(project domain.Project)
+	GetCancelPreview(projectID uint) (*dto.CancelPreviewResponse, error)
 }
 
 type investmentService struct {
@@ -408,6 +409,114 @@ func (s *investmentService) RefundProjectInvestments(project domain.Project) {
 
 		log.Printf("[RefundProjectInvestments] refunded user %d amount %.2f", inv.BoosterUserID, refundAmount)
 	}
+}
+
+func (s *investmentService) GetCancelPreview(projectID uint) (*dto.CancelPreviewResponse, error) {
+	project, err := s.projectRepo.FindProjectByID(projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	milestones, err := s.projectRepo.FindMilestonesByProjectID(projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	disbursements, err := s.disbursementRepo.ListByProjectID(projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	// index disbursements by milestone_id for quick lookup
+	disbByMilestone := make(map[uint]domain.Disbursement, len(disbursements))
+	var totalDisbursed float64
+	for _, d := range disbursements {
+		disbByMilestone[d.MilestoneID] = d
+		if d.Status == domain.DisbursementConfirmed {
+			totalDisbursed += d.Amount
+		}
+	}
+
+	previewMilestones := make([]dto.CancelPreviewMilestone, 0, len(milestones))
+	for _, m := range milestones {
+		d, hasDisbursement := disbByMilestone[m.ID]
+		var disbursedAmount float64
+		isConfirmed := false
+		if hasDisbursement && d.Status == domain.DisbursementConfirmed {
+			disbursedAmount = d.Amount
+			isConfirmed = true
+		}
+		previewMilestones = append(previewMilestones, dto.CancelPreviewMilestone{
+			PhaseNo:         m.PhaseNo,
+			Title:           m.Title,
+			PercentRelease:  m.PercentRelease,
+			DisbursedAmount: disbursedAmount,
+			IsConfirmed:     isConfirmed,
+		})
+	}
+
+	// use same logic as RefundProjectInvestments
+	investments, err := s.investmentRepo.FindVerifiedByProjectID(projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	remaining := project.CurrentFunding
+	var totalInvested float64
+	for _, inv := range investments {
+		totalInvested += inv.TotalAmount
+	}
+
+	previewInvestors := make([]dto.CancelPreviewInvestor, 0, len(investments))
+	// aggregate by booster_user_id
+	type aggEntry struct {
+		dto.CancelPreviewInvestor
+		totalAmount float64
+	}
+	aggMap := make(map[uint]*aggEntry)
+
+	for _, inv := range investments {
+		e, ok := aggMap[inv.BoosterUserID]
+		if !ok {
+			aggMap[inv.BoosterUserID] = &aggEntry{
+				CancelPreviewInvestor: dto.CancelPreviewInvestor{
+					UserID:      inv.BoosterUserID,
+					TotalAmount: inv.TotalAmount,
+				},
+				totalAmount: inv.TotalAmount,
+			}
+		} else {
+			e.TotalAmount += inv.TotalAmount
+			e.totalAmount += inv.TotalAmount
+		}
+	}
+
+	// fetch user info and calculate refund
+	for userID, entry := range aggMap {
+		u, _ := s.userRepo.FindUserById(userID)
+		if u != nil {
+			entry.FirstName = u.FirstName
+			entry.LastName = u.LastName
+			entry.Email = u.Email
+		}
+		var refundAmount float64
+		if totalInvested > 0 {
+			ratio := entry.totalAmount / totalInvested
+			refundAmount = math.Round(ratio*remaining*100) / 100
+		}
+		entry.RefundAmount = refundAmount
+		previewInvestors = append(previewInvestors, entry.CancelPreviewInvestor)
+	}
+
+	return &dto.CancelPreviewResponse{
+		ProjectID:        projectID,
+		Title:            project.Title,
+		TotalFunding:     project.CurrentFunding,
+		TotalDisbursed:   totalDisbursed,
+		RefundableAmount: remaining,
+		Milestones:       previewMilestones,
+		Investors:        previewInvestors,
+	}, nil
 }
 
 func (s *investmentService) HandleStripeWebhook(payload []byte, sigHeader string) error {

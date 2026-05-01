@@ -98,6 +98,7 @@ type ProjectService interface {
 	ApproveCancelProject(projectID uint) error
 	RejectCancelProject(projectID uint) error
 	GetCancelRequest() ([]domain.Project, error)
+	GetCancelPreview(projectID uint) (*dto.CancelPreviewResponse, error)
 
 	//meeting
 	Meeting(input dto.CreateMeetingRequest, userID uint) (*domain.Meeting, error)
@@ -2447,4 +2448,11 @@ func (s *projectService) GetCancelRequest() ([]domain.Project, error) {
 	}
 
 	return proj, nil
+}
+
+func (s *projectService) GetCancelPreview(projectID uint) (*dto.CancelPreviewResponse, error) {
+	if s.investmentSvc == nil {
+		return nil, errors.New("investment service unavailable")
+	}
+	return s.investmentSvc.GetCancelPreview(projectID)
 }

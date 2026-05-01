@@ -179,3 +179,30 @@ type CancelProjectRequest struct {
 	Reason            string `json:"reason" validate:"required,min=20"`
 	CancelDescription string `json:"description,omitempty"`
 }
+
+type CancelPreviewMilestone struct {
+	PhaseNo         int     `json:"phase_no"`
+	Title           string  `json:"title"`
+	PercentRelease  int     `json:"percent_release"`
+	DisbursedAmount float64 `json:"disbursed_amount"`
+	IsConfirmed     bool    `json:"is_confirmed"`
+}
+
+type CancelPreviewInvestor struct {
+	UserID       uint    `json:"user_id"`
+	FirstName    string  `json:"first_name"`
+	LastName     string  `json:"last_name"`
+	Email        string  `json:"email"`
+	TotalAmount  float64 `json:"total_amount"`
+	RefundAmount float64 `json:"refund_amount"`
+}
+
+type CancelPreviewResponse struct {
+	ProjectID        uint                     `json:"project_id"`
+	Title            string                   `json:"title"`
+	TotalFunding     float64                  `json:"total_funding"`
+	TotalDisbursed   float64                  `json:"total_disbursed"`
+	RefundableAmount float64                  `json:"refundable_amount"`
+	Milestones       []CancelPreviewMilestone `json:"milestones"`
+	Investors        []CancelPreviewInvestor  `json:"investors"`
+}

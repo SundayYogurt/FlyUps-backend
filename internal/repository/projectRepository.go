@@ -218,7 +218,7 @@ func (p *projectRepository) FindMeetingsByMilestone(milestoneID uint, filter str
 
 	switch filter {
 	case "upcoming":
-		db = db.Where("meetings.time >= ?", now).Order("meetings.time ASC")
+		db = db.Where("meetings.time >= ? AND meetings.status != ?", now, domain.MeetingCancelled).Order("meetings.time ASC")
 
 	case "past":
 		db = db.Where("meetings.time < ?", now).Order("meetings.time DESC")
@@ -244,7 +244,7 @@ func (p *projectRepository) FindMeetingsByProject(projectID uint, filter string)
 
 	switch filter {
 	case "upcoming":
-		db = db.Where("meetings.time >= ?", now).
+		db = db.Where("meetings.time >= ? AND meetings.status != ?", now, domain.MeetingCancelled).
 			Order("meetings.time ASC")
 
 	case "past":
