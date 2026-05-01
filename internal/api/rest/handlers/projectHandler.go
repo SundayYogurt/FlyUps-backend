@@ -81,7 +81,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	priv.Patch("/messages/:message_id<int>", handler.UpdateProjectThreadMessage)
 	priv.Delete("/messages/:message_id<int>", handler.DeleteProjectThreadMessage)
 	priv.Patch("/:id<int>/cancel", handler.CancelProject)
-	priv.Patch("/:id<int>/submit-cancel ", handler.SubmitCancelProject)
+	priv.Patch("/:id<int>/submit-cancel", handler.SubmitCancelProject)
 
 	// Media
 	priv.Post("/:id<int>/media", handler.AttachProjectMedia)
