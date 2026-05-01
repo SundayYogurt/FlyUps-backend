@@ -14,6 +14,16 @@ type PublicProjectFilter struct {
 	MaxGoal    float64 `query:"max_goal"`    // funding_goal <= max_goal
 }
 
+// AdminProjectFilter คือ query params สำหรับ GET /admin/projects
+type AdminProjectFilter struct {
+	Search     string  `query:"search"`
+	CategoryID *uint   `query:"category_id"`
+	State      string  `query:"state"`
+	Status     string  `query:"status"`
+	Visibility string  `query:"visibility"`
+	Sort       string  `query:"sort"`
+}
+
 type ProjectResponse struct {
 	ID              uint                 `json:"id"`
 	OwnerUserID     uint                 `json:"owner_user_id"`

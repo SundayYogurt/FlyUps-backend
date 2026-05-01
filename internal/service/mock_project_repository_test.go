@@ -873,9 +873,9 @@ func (_m *ProjectRepository) FindProjectUpdateByID(updateID uint) (*domain.Proje
 	return r0, r1
 }
 
-// FindProjects provides a mock function with given fields: state, status, visibility
-func (_m *ProjectRepository) FindProjects(state *domain.ProjectState, status *domain.ProjectStatus, visibility *domain.ProjectVisibility) ([]domain.Project, error) {
-	ret := _m.Called(state, status, visibility)
+// FindProjects provides a mock function with given fields: state, status, visibility, categoryID, search
+func (_m *ProjectRepository) FindProjects(state *domain.ProjectState, status *domain.ProjectStatus, visibility *domain.ProjectVisibility, categoryID *uint, search string) ([]domain.Project, error) {
+	ret := _m.Called(state, status, visibility, categoryID, search)
 
 	if len(ret) == 0 {
 		panic("no return value specified for FindProjects")
@@ -883,19 +883,19 @@ func (_m *ProjectRepository) FindProjects(state *domain.ProjectState, status *do
 
 	var r0 []domain.Project
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*domain.ProjectState, *domain.ProjectStatus, *domain.ProjectVisibility) ([]domain.Project, error)); ok {
-		return rf(state, status, visibility)
+	if rf, ok := ret.Get(0).(func(*domain.ProjectState, *domain.ProjectStatus, *domain.ProjectVisibility, *uint, string) ([]domain.Project, error)); ok {
+		return rf(state, status, visibility, categoryID, search)
 	}
-	if rf, ok := ret.Get(0).(func(*domain.ProjectState, *domain.ProjectStatus, *domain.ProjectVisibility) []domain.Project); ok {
-		r0 = rf(state, status, visibility)
+	if rf, ok := ret.Get(0).(func(*domain.ProjectState, *domain.ProjectStatus, *domain.ProjectVisibility, *uint, string) []domain.Project); ok {
+		r0 = rf(state, status, visibility, categoryID, search)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]domain.Project)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*domain.ProjectState, *domain.ProjectStatus, *domain.ProjectVisibility) error); ok {
-		r1 = rf(state, status, visibility)
+	if rf, ok := ret.Get(1).(func(*domain.ProjectState, *domain.ProjectStatus, *domain.ProjectVisibility, *uint, string) error); ok {
+		r1 = rf(state, status, visibility, categoryID, search)
 	} else {
 		r1 = ret.Error(1)
 	}

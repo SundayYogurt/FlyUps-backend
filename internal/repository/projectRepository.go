@@ -17,7 +17,7 @@ type ProjectRepository interface {
 	FindProjectDetailByID(id uint, state *domain.ProjectState, status *domain.ProjectStatus, visibility *domain.ProjectVisibility) (*domain.Project, error)
 	FindProjectByIDAndOwner(id uint, ownerID uint) (*domain.Project, error)
 	FindProjectsByOwnerID(ownerID uint) ([]domain.Project, error)
-	FindProjects(state *domain.ProjectState, status *domain.ProjectStatus, visibility *domain.ProjectVisibility) ([]domain.Project, error)
+	FindProjects(state *domain.ProjectState, status *domain.ProjectStatus, visibility *domain.ProjectVisibility, categoryID *uint, search string) ([]domain.Project, error)
 	FindPublicProjects(filter dto.PublicProjectFilter) ([]domain.Project, error)
 	FindProjectsByCategory(categoryID uint) ([]domain.Project, error)
 	UpdateProject(project *domain.Project) (*domain.Project, error)
@@ -680,7 +680,7 @@ func (p *projectRepository) FindProjectDetailByID(id uint, state *domain.Project
 	return &project, nil
 }
 
-func (p *projectRepository) FindProjects(state *domain.ProjectState, status *domain.ProjectStatus, visibility *domain.ProjectVisibility,
+func (p *projectRepository) FindProjects(state *domain.ProjectState, status *domain.ProjectStatus, visibility *domain.ProjectVisibility, categoryID *uint, search string,
 ) ([]domain.Project, error) {
 	var projects []domain.Project
 
@@ -700,6 +700,14 @@ func (p *projectRepository) FindProjects(state *domain.ProjectState, status *dom
 
 	if visibility != nil {
 		query = query.Where("visibility = ?", *visibility)
+	}
+
+	if categoryID != nil {
+		query = query.Where("category_id = ?", *categoryID)
+	}
+
+	if search != "" {
+		query = query.Where("LOWER(title) LIKE ?", "%"+strings.ToLower(search)+"%")
 	}
 
 	err := query.Find(&projects).Error
