@@ -114,6 +114,7 @@ type ProjectService interface {
 type projectService struct {
 	projectRepo   repository.ProjectRepository
 	userRepo      repository.UserRepository
+	uniRepo       repository.UniversityRepository
 	cld           *helper.CloudinaryService
 	notifSvc      NotificationService
 	emailClient   notification.NotificationClient
@@ -2003,10 +2004,25 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 		return nil, errors.New("cannot create meeting: milestone is expired")
 	}
 
+	if input.Description == nil {
+		return nil, errors.New("description is required")
+	}
+
 	existing, err := s.projectRepo.FindMeetingByMilestoneID(input.MilestoneID)
 	if err == nil && existing != nil {
 		return nil, errors.New("meeting already exists for this milestone")
 	}
+
+	user, err := s.userRepo.FindUniversityByUserId(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if user.StudentProfile.ID == 0 {
+		return nil, errors.New("user has no student profile")
+	}
+
+	place := user.StudentProfile.University.NameTH
 
 	meeting := &domain.Meeting{
 		MilestoneID: input.MilestoneID,
@@ -2014,7 +2030,8 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 		Time:        timeParsed,
 		MeetingType: input.MeetingType,
 		Link:        input.Link,
-		Place:       input.Place,
+		Place:       place,
+		Description: input.Description,
 		About:       input.About,
 		Status:      domain.MeetingOpen,
 	}
@@ -2047,6 +2064,7 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 				string(m.MeetingType), // แปลงเป็น string
 				m.Link,                // *string
 				m.Place,               // *string
+				m.Description,
 			)
 
 			if err != nil {

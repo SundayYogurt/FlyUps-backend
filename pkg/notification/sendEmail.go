@@ -10,7 +10,7 @@ import (
 type NotificationClient interface {
 	SendVerifyEmail(to string, verifyLink string) error
 	SendResetPasswordEmail(to string, resetLink string) error
-	SendMeetingEmail(to string, title string, date string, time string, meetingType string, link *string, place *string) error
+	SendMeetingEmail(to string, title string, date string, time string, meetingType string, link *string, place *string, description *string) error
 	SendUpdateMeetingEmail(to string, title string, date string, time string, meetingType string, link *string, place *string, status string) error
 	SendMilestoneVoteResultEmail(to, projectTitle string, phaseNo int, phaseTitle string, approved bool) error
 	SendUserSuspendedEmail(to string, reason string) error
@@ -183,7 +183,7 @@ func (n notificationClient) SendResetPasswordEmail(to string, resetLink string) 
 	return err
 }
 
-func (n notificationClient) SendMeetingEmail(to string, title string, date string, time string, meetingType string, link *string, place *string) error {
+func (n notificationClient) SendMeetingEmail(to string, title string, date string, time string, meetingType string, link *string, place *string, description *string) error {
 
 	var detail string
 
@@ -200,7 +200,8 @@ func (n notificationClient) SendMeetingEmail(to string, title string, date strin
 		<tr>
 			<td style="font-size:16px;color:#555;padding-bottom:20px;">
 				Meeting Type: Onsite<br>
-				Location: ` + *place + `
+				Location: ` + *place + `<br>
+				Description: ` + *description + `
 			</td>
 		</tr>`
 	}

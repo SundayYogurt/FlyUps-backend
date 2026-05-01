@@ -16,12 +16,12 @@ type PublicProjectFilter struct {
 
 // AdminProjectFilter คือ query params สำหรับ GET /admin/projects
 type AdminProjectFilter struct {
-	Search     string  `query:"search"`
-	CategoryID *uint   `query:"category_id"`
-	State      string  `query:"state"`
-	Status     string  `query:"status"`
-	Visibility string  `query:"visibility"`
-	Sort       string  `query:"sort"`
+	Search     string `query:"search"`
+	CategoryID *uint  `query:"category_id"`
+	State      string `query:"state"`
+	Status     string `query:"status"`
+	Visibility string `query:"visibility"`
+	Sort       string `query:"sort"`
 }
 
 type ProjectResponse struct {
@@ -171,7 +171,7 @@ type CreateMeetingRequest struct {
 	Time        string             `json:"time" validate:"required"`
 	MeetingType domain.MeetingType `json:"meeting_type" validate:"required,oneof=online onsite hybrid"`
 	Link        *string            `json:"link,omitempty"`
-	Place       *string            `json:"place,omitempty"`
+	Description *string            `json:"description,omitempty"`
 	About       string             `json:"about"`
 }
 
