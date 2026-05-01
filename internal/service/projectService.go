@@ -99,6 +99,7 @@ type ProjectService interface {
 	RejectCancelProject(projectID uint) error
 	GetCancelRequest() ([]domain.Project, error)
 	GetCancelPreview(projectID uint) (*dto.CancelPreviewResponse, error)
+	AdminListProjects(filter dto.AdminProjectFilter) ([]domain.Project, error)
 
 	//meeting
 	Meeting(input dto.CreateMeetingRequest, userID uint) (*domain.Meeting, error)
@@ -336,6 +337,31 @@ func (s *projectService) GetNewProjects() ([]domain.Project, error) {
 
 func (s *projectService) GetPublicProjects(filter dto.PublicProjectFilter) ([]domain.Project, error) {
 	return s.projectRepo.FindPublicProjects(filter)
+}
+
+func (s *projectService) AdminListProjects(filter dto.AdminProjectFilter) ([]domain.Project, error) {
+	var state *domain.ProjectState
+	if filter.State != "" {
+		st := domain.ProjectState(filter.State)
+		state = &st
+	}
+
+	var status *domain.ProjectStatus
+	if filter.Status != "" {
+		st := domain.ProjectStatus(filter.Status)
+		status = &st
+	}
+
+	var visibility *domain.ProjectVisibility
+	if filter.Visibility != "" {
+		v := domain.ProjectVisibility(filter.Visibility)
+		visibility = &v
+	}
+
+	// We can reuse FindProjects but let's check if we need to support search/category
+	// Actually, repository.FindProjects doesn't support Search/Category yet.
+	// Let's enhance it or use a new repo method.
+	return s.projectRepo.FindProjects(state, status, visibility, filter.CategoryID, filter.Search)
 }
 
 func (s *projectService) GetProjectDetailByID(id uint) (*domain.Project, error) {
@@ -1811,7 +1837,7 @@ func (s *projectService) GetProjectDetailRequest(projectID uint) (*domain.Projec
 func (s *projectService) AutoProjectLifecycleTick(now time.Time) error {
 	state := domain.StateFunding
 	status := domain.StatusActive
-	projects, err := s.projectRepo.FindProjects(&state, &status, nil)
+	projects, err := s.projectRepo.FindProjects(&state, &status, nil, nil, "")
 	if err != nil {
 		return err
 	}
@@ -1868,7 +1894,7 @@ func (s *projectService) AutoProjectLifecycleTick(now time.Time) error {
 
 	// execution timeout: when execution period ends, close project automatically.
 	executing := domain.StateExecuting
-	executingProjects, err := s.projectRepo.FindProjects(&executing, &status, nil)
+	executingProjects, err := s.projectRepo.FindProjects(&executing, &status, nil, nil, "")
 	if err != nil {
 		return err
 	}

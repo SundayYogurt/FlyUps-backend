@@ -126,6 +126,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	adminProj.Patch("/:id<int>/approve", handler.ApproveProject)
 	adminProj.Patch("/:id<int>/reject", handler.RejectProject)
 	adminProj.Patch("/:id<int>/status", handler.UpdateProjectStatus)
+	adminProj.Get("/", handler.AdminListProjects)
 	adminProj.Get("/pending-review", handler.ProjectsPendingList)
 	adminProj.Get("/:id<int>/detail/pending-review", handler.ProjectDetailReview)
 
@@ -1354,6 +1355,39 @@ func (h *ProjectHandler) UpdateProjectStatus(ctx fiber.Ctx) error {
 		return rest.InternalError(ctx, err)
 	}
 	return rest.SuccessResponse(ctx, "status updated successfully", nil)
+}
+
+// AdminListProjects godoc
+// @Summary Admin list all projects
+// @Description Admin gets a list of all projects with optional filters
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param search query string false "Search by project title"
+// @Param category_id query int false "Filter by category ID"
+// @Param state query string false "Filter by state"
+// @Param status query string false "Filter by status"
+// @Param visibility query string false "Filter by visibility"
+// @Success 200 {object} object "List of projects"
+// @Router /admin/projects [get]
+func (h *ProjectHandler) AdminListProjects(ctx fiber.Ctx) error {
+	var filter dto.AdminProjectFilter
+	if err := ctx.Bind().Query(&filter); err != nil {
+		return rest.BadRequestError(ctx, "invalid query params")
+	}
+
+	projects, err := h.svc.AdminListProjects(filter)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	result := make([]dto.ProjectResponse, 0, len(projects))
+	for _, proj := range projects {
+		result = append(result, h.toProjectResponse(&proj))
+	}
+
+	return rest.SuccessResponse(ctx, "success", result)
 }
 
 // CreateProjectUpdate godoc
