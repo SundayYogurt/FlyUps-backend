@@ -176,5 +176,6 @@ type UpdateMeetingRequest struct {
 }
 
 type CancelProjectRequest struct {
-	Reason string `json:"reason" validate:"required,min=20"`
+	Reason            string `json:"reason" validate:"required,min=20"`
+	CancelDescription string `json:"description,omitempty"`
 }
