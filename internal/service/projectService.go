@@ -1756,8 +1756,13 @@ func (s *projectService) SubmitCancelRequest(projectID uint, input dto.CancelPro
 
 	// validate reason
 	reason := strings.TrimSpace(input.Reason)
+	description := strings.TrimSpace(input.CancelDescription)
 	if reason == "" {
 		return errors.New("reason is required")
+	}
+
+	if description == "" {
+		return errors.New("description is required")
 	}
 
 	// update state

@@ -36,34 +36,35 @@ const (
 )
 
 type Project struct {
-	ID              uint              `json:"id"`
-	OwnerUserID     uint              `json:"owner_user_id"`
-	Owner           *User             `json:"owner,omitempty" gorm:"foreignKey:OwnerUserID"`
-	CategoryID      *uint             `json:"category_id,omitempty"`
-	Category        *ProjectCategory  `json:"category,omitempty"`
-	Title           string            `json:"title"`
-	Description     *string           `json:"description,omitempty"`
-	Risk            *string           `json:"risk,omitempty"`
-	State           ProjectState      `json:"state"`
-	Status          ProjectStatus     `json:"status"`
-	Visibility      ProjectVisibility `json:"visibility"`
-	FundingGoal     float64           `json:"funding_goal"`
-	Softcap         float64           `json:"softcap"`
-	CurrentFunding  float64           `json:"current_funding"`
-	DurationDays    int               `json:"duration_days"`
-	DurationMonths  int               `json:"duration_months"`
-	EndDate         time.Time         `json:"end_date"`
-	ExecutionEndAt  *time.Time        `json:"execution_end_at,omitempty"`
-	ProfitSharePct  float64           `json:"profit_share_pct"`
-	MinInvestAmount float64           `json:"min_invest_amount"`
-	MaxInvestAmount float64           `json:"max_invest_amount"`
-	PlatformFee     float64           `json:"platform_fee"`
-	FundingAt       time.Time         `json:"funding_at"`
-	Media           []ProjectMedia    `json:"media" gorm:"foreignKey:ProjectID"`
-	Milestones      []Milestone       `json:"milestones" gorm:"foreignKey:ProjectID"`
-	Stories         []StorySection    `json:"stories" gorm:"foreignKey:ProjectID"`
-	FAQs            []ProjectFAQ      `json:"faqs" gorm:"foreignKey:ProjectID"`
-	CancelReason    string            `json:"cancel_reason"`
+	ID                uint              `json:"id"`
+	OwnerUserID       uint              `json:"owner_user_id"`
+	Owner             *User             `json:"owner,omitempty" gorm:"foreignKey:OwnerUserID"`
+	CategoryID        *uint             `json:"category_id,omitempty"`
+	Category          *ProjectCategory  `json:"category,omitempty"`
+	Title             string            `json:"title"`
+	Description       *string           `json:"description,omitempty"`
+	Risk              *string           `json:"risk,omitempty"`
+	State             ProjectState      `json:"state"`
+	Status            ProjectStatus     `json:"status"`
+	Visibility        ProjectVisibility `json:"visibility"`
+	FundingGoal       float64           `json:"funding_goal"`
+	Softcap           float64           `json:"softcap"`
+	CurrentFunding    float64           `json:"current_funding"`
+	DurationDays      int               `json:"duration_days"`
+	DurationMonths    int               `json:"duration_months"`
+	EndDate           time.Time         `json:"end_date"`
+	ExecutionEndAt    *time.Time        `json:"execution_end_at,omitempty"`
+	ProfitSharePct    float64           `json:"profit_share_pct"`
+	MinInvestAmount   float64           `json:"min_invest_amount"`
+	MaxInvestAmount   float64           `json:"max_invest_amount"`
+	PlatformFee       float64           `json:"platform_fee"`
+	FundingAt         time.Time         `json:"funding_at"`
+	Media             []ProjectMedia    `json:"media" gorm:"foreignKey:ProjectID"`
+	Milestones        []Milestone       `json:"milestones" gorm:"foreignKey:ProjectID"`
+	Stories           []StorySection    `json:"stories" gorm:"foreignKey:ProjectID"`
+	FAQs              []ProjectFAQ      `json:"faqs" gorm:"foreignKey:ProjectID"`
+	CancelReason      string            `json:"cancel_reason"`
+	CancelDescription string            `json:"cancel_description"`
 	gorm.Model
 }
 
