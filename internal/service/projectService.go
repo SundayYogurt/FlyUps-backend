@@ -722,6 +722,7 @@ func (s *projectService) OpenMilestoneVoting(milestoneID uint, user domain.User)
 	if err != nil {
 		return nil, err
 	}
+
 	if project.OwnerUserID != user.ID {
 		return nil, errors.New("permission denied")
 	}
@@ -730,6 +731,14 @@ func (s *projectService) OpenMilestoneVoting(milestoneID uint, user domain.User)
 	}
 	if m.VotingOpen {
 		return nil, errors.New("voting is already open")
+	}
+
+	meeting, err := s.projectRepo.FindMeetingByMilestoneID(milestoneID)
+	if err != nil {
+		return nil, errors.New("failed to fetch meeting")
+	}
+	if meeting == nil {
+		return nil, errors.New("please create meeting first")
 	}
 
 	now := time.Now().UTC()
