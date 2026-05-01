@@ -37,10 +37,23 @@ type UserRepository interface {
 	FindStudentRequest(status string) ([]domain.StudentCardVerification, error)
 	FindUserIDCardRequest(status string) ([]domain.IdCardVerification, error)
 	FindAllUsers(page, limit int, role, status, search string) ([]domain.User, int64, error)
+	FindUniversityByUserId(userID uint) (*domain.User, error)
 }
 
 type userRepository struct {
 	db *gorm.DB
+}
+
+func (r *userRepository) FindUniversityByUserId(userID uint) (*domain.User, error) {
+	var user domain.User
+
+	err := r.db.Preload("StudentProfile").Where("id = ?", userID).First(&user).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
 }
 
 func (r *userRepository) FindAllUsers(page, limit int, role, status, search string) ([]domain.User, int64, error) {

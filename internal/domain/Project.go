@@ -266,9 +266,10 @@ type Meeting struct {
 	Milestone   Milestone     `gorm:"foreignKey:MilestoneID"`
 	Date        time.Time     `json:"date"`
 	Time        time.Time     `json:"time"`
-	MeetingType MeetingType   `json:"meeting_type"`           // "online" หรือ "onsite"
-	Link        *string       `json:"link,omitempty"`         // อนุญาตให้เป็น null
-	Place       *string       `json:"place,omitempty"`        // อนุญาตให้เป็น null
+	MeetingType MeetingType   `json:"meeting_type"`    // "online" หรือ "onsite"
+	Link        *string       `json:"link,omitempty"`  // อนุญาตให้เป็น null
+	Place       *string       `json:"place,omitempty"` // อนุญาตให้เป็น null
+	Description *string       `json:"description,omitempty"`
 	About       string        `json:"about" gorm:"type:text"` // ใช้ type text เพราะวาระการประชุมอาจจะยาว
 	Status      MeetingStatus `json:"status"`
 
