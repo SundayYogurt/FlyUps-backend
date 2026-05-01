@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const ComplaintSuspendThreshold = 3
+
 type ComplaintService interface {
 	Create(userID uint, req dto.CreateComplaintRequest) (*domain.Complaint, error)
 	ListMine(userID uint) ([]dto.ComplaintItem, error)
@@ -15,6 +17,7 @@ type ComplaintService interface {
 	AdminGet(id uint) (*dto.ComplaintItem, error)
 	AdminResolve(id, adminID uint, note string) (*domain.Complaint, error)
 	AdminReject(id, adminID uint, note string) (*domain.Complaint, error)
+	GetProjectStats(projectID uint) (*dto.ProjectComplaintStats, error)
 }
 
 type complaintService struct {
@@ -71,7 +74,20 @@ func (s *complaintService) AdminList(status *domain.ComplaintStatus) ([]dto.Comp
 	if err != nil {
 		return nil, errors.New("internal server error")
 	}
-	return s.toItems(list), nil
+	items := s.toItems(list)
+	// inject per-project counts (cache by projectID to avoid N+1)
+	cache := make(map[uint][2]int64)
+	for i := range items {
+		pid := items[i].ProjectID
+		if _, ok := cache[pid]; !ok {
+			total, _ := s.complaintRepo.CountByProjectID(pid)
+			resolved, _ := s.complaintRepo.CountResolvedByProjectID(pid)
+			cache[pid] = [2]int64{total, resolved}
+		}
+		items[i].TotalReports = cache[pid][0]
+		items[i].ResolvedReports = cache[pid][1]
+	}
+	return items, nil
 }
 
 func (s *complaintService) AdminGet(id uint) (*dto.ComplaintItem, error) {
@@ -80,6 +96,10 @@ func (s *complaintService) AdminGet(id uint) (*dto.ComplaintItem, error) {
 		return nil, errors.New("complaint not found")
 	}
 	item := s.toItem(c)
+	total, _ := s.complaintRepo.CountByProjectID(c.ProjectID)
+	resolved, _ := s.complaintRepo.CountResolvedByProjectID(c.ProjectID)
+	item.TotalReports = total
+	item.ResolvedReports = resolved
 	return &item, nil
 }
 
@@ -107,7 +127,53 @@ func (s *complaintService) adminClose(id, adminID uint, note string, target doma
 	if err := s.complaintRepo.Update(c); err != nil {
 		return nil, errors.New("failed to update complaint")
 	}
+
+	// ถ้า resolve → เช็ค threshold แล้ว auto-suspend project
+	if target == domain.ComplaintResolved {
+		go s.checkAndSuspendProject(c.ProjectID)
+	}
+
 	return c, nil
+}
+
+func (s *complaintService) checkAndSuspendProject(projectID uint) {
+	resolvedCount, err := s.complaintRepo.CountResolvedByProjectID(projectID)
+	if err != nil || resolvedCount < ComplaintSuspendThreshold {
+		return
+	}
+	project, err := s.projectRepo.FindProjectByID(projectID)
+	if err != nil || project == nil {
+		return
+	}
+	// ระงับเฉพาะโปรเจกต์ที่ยังไม่ถูก suspend/cancel
+	if project.State == domain.StateSuspended || project.State == domain.StateCancelled || project.State == domain.StateClosed {
+		return
+	}
+	project.State = domain.StateSuspended
+	project.Status = domain.StatusSuspended
+	s.projectRepo.UpdateProject(project)
+}
+
+func (s *complaintService) GetProjectStats(projectID uint) (*dto.ProjectComplaintStats, error) {
+	project, err := s.projectRepo.FindProjectByID(projectID)
+	if err != nil || project == nil {
+		return nil, errors.New("project not found")
+	}
+	total, err := s.complaintRepo.CountByProjectID(projectID)
+	if err != nil {
+		return nil, errors.New("internal server error")
+	}
+	resolved, err := s.complaintRepo.CountResolvedByProjectID(projectID)
+	if err != nil {
+		return nil, errors.New("internal server error")
+	}
+	return &dto.ProjectComplaintStats{
+		ProjectID:       projectID,
+		ProjectTitle:    project.Title,
+		TotalReports:    total,
+		ResolvedReports: resolved,
+		Threshold:       ComplaintSuspendThreshold,
+	}, nil
 }
 
 func (s *complaintService) toItem(c *domain.Complaint) dto.ComplaintItem {
