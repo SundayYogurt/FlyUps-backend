@@ -2009,7 +2009,7 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 	}
 
 	existing, err := s.projectRepo.FindMeetingByMilestoneID(input.MilestoneID)
-	if err == nil && existing != nil {
+	if err == nil && existing != nil && existing.Status != domain.MeetingCancelled {
 		return nil, errors.New("meeting already exists for this milestone")
 	}
 
@@ -2040,12 +2040,18 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 		return nil, err
 	}
 
-	emails, err := s.projectRepo.FindInvestorsEmailByProjectID(milestone.ProjectID)
-	if err != nil {
-		return nil, err
+	investorEmails, _ := s.projectRepo.FindInvestorsEmailByProjectID(milestone.ProjectID)
+
+	// รวม email pioneer เสมอ (ไม่ว่าจะมี investor หรือเปล่า)
+	emailSet := make(map[string]struct{})
+	for _, e := range investorEmails {
+		emailSet[e] = struct{}{}
+	}
+	if owner, err := s.userRepo.FindUserById(project.OwnerUserID); err == nil && owner != nil {
+		emailSet[owner.Email] = struct{}{}
 	}
 
-	for _, email := range emails {
+	for email := range emailSet {
 		go func(m domain.Meeting, email string) {
 			defer func() {
 				if r := recover(); r != nil {
@@ -2056,7 +2062,7 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 			dateStr := m.Date.Format("02 Jan 2006")
 			timeStr := m.Time.Format("15:04")
 
-			err := s.emailClient.SendMeetingEmail(
+			if err := s.emailClient.SendMeetingEmail(
 				email,
 				"Meeting Invitation",  // title
 				dateStr,               // date
