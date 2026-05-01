@@ -75,6 +75,7 @@ type ProjectRepository interface {
 	FindMeetingsByOwnerID(ownerID uint) ([]domain.Meeting, error)
 	FindVote(milestoneID uint, boosterUserID uint) (*domain.MilestoneVote, error)
 	FindMeetingByMilestoneID(milestoneID uint) (*domain.Meeting, error)
+	HasCompletedMeeting(milestoneID uint) (bool, error)
 
 	// story
 	FindStoriesByProjectID(projectID uint) ([]domain.StorySection, error)
@@ -107,6 +108,16 @@ type ProjectRepository interface {
 
 type projectRepository struct {
 	db *gorm.DB
+}
+
+func (p *projectRepository) HasCompletedMeeting(milestoneID uint) (bool, error) {
+	var count int64
+
+	err := p.db.Model(&domain.Meeting{}).
+		Where("milestone_id = ? AND status = ?", milestoneID, domain.MeetingClosed).
+		Count(&count).Error
+
+	return count > 0, err
 }
 
 func (p *projectRepository) FindProjectsCancelRequest() ([]domain.Project, error) {
