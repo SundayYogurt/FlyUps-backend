@@ -134,6 +134,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	adminProj.Patch("/milestones/:milestone_id<int>/approve", handler.AdminApproveMilestoneSubmission)
 	adminProj.Patch("/milestones/:milestone_id<int>/reject", handler.AdminRejectMilestoneSubmission)
 	adminProj.Get("/milestones/:milestone_id<int>", handler.AdminGetMilestoneDetail)
+	adminProj.Get("/:id<int>/cancel-preview", handler.GetCancelPreview)
 	adminProj.Patch("/:id<int>/approve-cancel", handler.ApproveCancel)
 	adminProj.Patch("/:id<int>/reject-cancel", handler.RejectCancel)
 	adminProj.Get("/cancel-request", handler.GetPendingCancel)
@@ -276,6 +277,20 @@ func (h *ProjectHandler) RejectCancel(ctx fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, "reject project cancelled successfully", nil)
+}
+
+func (h *ProjectHandler) GetCancelPreview(ctx fiber.Ctx) error {
+	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil || id <= 0 {
+		return rest.BadRequestError(ctx, "invalid project id")
+	}
+
+	preview, err := h.svc.GetCancelPreview(uint(id))
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "success", preview)
 }
 
 // AttachProjectMedia godoc
