@@ -18,6 +18,7 @@ const (
 	StateClosed        ProjectState = "closed"
 	StateCancelled     ProjectState = "cancelled"
 	StatePendingCancel ProjectState = "pending_cancel"
+	StateSuspended     ProjectState = "suspended"
 )
 
 const (
@@ -27,6 +28,7 @@ const (
 	StatusRejected  ProjectStatus = "rejected"
 	StatusCompleted ProjectStatus = "completed"
 	StatusCancelled ProjectStatus = "cancelled"
+	StatusSuspended ProjectStatus = "suspended"
 )
 
 const (

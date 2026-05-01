@@ -172,13 +172,20 @@ var stateTransitions = map[domain.ProjectState][]domain.ProjectState{
 		domain.StateExecuting,
 		domain.StateClosed,
 		domain.StateCancelled,
+		domain.StateSuspended,
 	},
 	domain.StateExecuting: {
 		domain.StateClosed,
 		domain.StateCancelled,
+		domain.StateSuspended,
 	},
 	domain.StateClosed:    {},
 	domain.StateCancelled: {},
+	// suspended สามารถ restore กลับได้โดย admin เท่านั้น
+	domain.StateSuspended: {
+		domain.StateFunding,
+		domain.StateExecuting,
+	},
 }
 
 func IsValidStateTransition(oldState, newState domain.ProjectState) bool {

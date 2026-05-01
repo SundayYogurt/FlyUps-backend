@@ -40,6 +40,7 @@ func SetupComplaintRoutes(rh *rest.RestHandler) {
 	// Admin
 	admin := rh.App.Group("/admin/complaints", rh.Middlewares.AuthorizeAdmin)
 	admin.Get("/", h.AdminList)
+	admin.Get("/project-stats/:project_id", h.AdminProjectStats)
 	admin.Get("/:id", h.AdminGet)
 	admin.Patch("/:id/resolve", h.AdminResolve)
 	admin.Patch("/:id/reject", h.AdminReject)
@@ -174,6 +175,21 @@ func (h *ComplaintHandler) AdminResolve(ctx fiber.Ctx) error {
 // @Router       /admin/complaints/{id}/reject [patch]
 func (h *ComplaintHandler) AdminReject(ctx fiber.Ctx) error {
 	return h.adminClose(ctx, false)
+}
+
+func (h *ComplaintHandler) AdminProjectStats(ctx fiber.Ctx) error {
+	projectID, err := strconv.ParseUint(ctx.Params("project_id"), 10, 32)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid project id")
+	}
+	stats, err := h.svc.GetProjectStats(uint(projectID))
+	if err != nil {
+		if err.Error() == "project not found" {
+			return ctx.Status(http.StatusNotFound).JSON(fiber.Map{"message": err.Error()})
+		}
+		return rest.InternalError(ctx, err)
+	}
+	return rest.SuccessResponse(ctx, "success", stats)
 }
 
 func (h *ComplaintHandler) adminClose(ctx fiber.Ctx, resolve bool) error {

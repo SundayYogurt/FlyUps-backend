@@ -14,6 +14,8 @@ type ComplaintRepository interface {
 	ListAll(status *domain.ComplaintStatus) ([]domain.Complaint, error)
 	ListByUser(userID uint) ([]domain.Complaint, error)
 	Update(c *domain.Complaint) error
+	CountByProjectID(projectID uint) (int64, error)
+	CountResolvedByProjectID(projectID uint) (int64, error)
 }
 
 type complaintRepository struct {
@@ -82,4 +84,18 @@ func (r *complaintRepository) ListByUser(userID uint) ([]domain.Complaint, error
 
 func (r *complaintRepository) Update(c *domain.Complaint) error {
 	return r.db.Save(c).Error
+}
+
+func (r *complaintRepository) CountByProjectID(projectID uint) (int64, error) {
+	var count int64
+	err := r.db.Model(&domain.Complaint{}).Where("project_id = ?", projectID).Count(&count).Error
+	return count, err
+}
+
+func (r *complaintRepository) CountResolvedByProjectID(projectID uint) (int64, error) {
+	var count int64
+	err := r.db.Model(&domain.Complaint{}).
+		Where("project_id = ? AND status = ?", projectID, domain.ComplaintResolved).
+		Count(&count).Error
+	return count, err
 }
