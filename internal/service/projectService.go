@@ -2071,9 +2071,7 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 				m.Link,                // *string
 				m.Place,               // *string
 				m.Description,
-			)
-
-			if err != nil {
+			); err != nil {
 				log.Printf("send meeting email error: %v", err)
 			}
 		}(*meeting, email)
