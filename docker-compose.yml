@@ -45,7 +45,7 @@ services:
   redis:
     image: redis:7
     env_file:
-      - /etc/flyup/.env
+      - /etc/flyup/.env:/app/.env:ro
     container_name: flyup-redis
     restart: always
     ports:
