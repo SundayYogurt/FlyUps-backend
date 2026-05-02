@@ -35,6 +35,14 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
 
+  redis:
+    image: redis:7
+    container_name: flyup-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+
 volumes:
   pgdata:
   n8n_data:

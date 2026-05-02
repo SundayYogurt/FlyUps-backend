@@ -9,6 +9,7 @@ import (
 	"flyup/internal/repository"
 	"flyup/internal/service"
 	"flyup/pkg/notification"
+	"flyup/pkg/redis"
 	"log"
 	"time"
 
@@ -121,7 +122,6 @@ func StartServer(cfg config.AppConfig) {
 	notifSvc := service.NewNotificationService(repository.NewNotificationRepository(db))
 	auth := helper.SetupAuth(cfg.AppSecret)
 	userRepo := repository.NewUserRepository(db)
-
 	middleware := rest.SetupMiddleware(auth, userRepo)
 
 	cloudinarySvc, err := helper.NewCloudinary(
@@ -132,6 +132,23 @@ func StartServer(cfg config.AppConfig) {
 	if err != nil {
 		log.Fatalf("cloudinary init error %v", err)
 	}
+
+	rdb := redis.NewRedisClient(
+		cfg.RedisAddr,
+		cfg.RedisPassword,
+		cfg.RedisDB,
+	)
+
+	cacheClient := rdb
+	if cacheClient == nil {
+		log.Fatal("redis client not initialized")
+	}
+
+	if err := rdb.Ping(); err != nil {
+		log.Fatal("Redis connection failed:", err)
+	}
+
+	log.Println("Redis connected!")
 
 	validate := validator.New()
 
@@ -145,6 +162,7 @@ func StartServer(cfg config.AppConfig) {
 		Validator:    validate,
 		Cloudinary:   cloudinarySvc,
 		NotifSvc:     notifSvc,
+		Cache:        cacheClient,
 	}
 
 	// Background lifecycle job:
