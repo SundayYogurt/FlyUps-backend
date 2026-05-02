@@ -26,10 +26,10 @@ pipeline {
                 docker ps -q --filter "publish=3000" | xargs -r docker rm -f
 
                 # 🔥 ปิดของเก่า (ไม่ลบ DB)
-                docker compose -p $PROJECT_NAME down --remove-orphans
+                docker compose --env-file /etc/flyup/.env -p $PROJECT_NAME down --remove-orphans
 
                 # 🔥 build + run ใหม่
-                docker compose -p $PROJECT_NAME up -d --build
+                docker compose --env-file /etc/flyup/.env -p $PROJECT_NAME up -d --build
 
                 echo "⏳ Waiting for services to boot up..."
                 sleep 15

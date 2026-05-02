@@ -50,8 +50,6 @@ services:
     restart: always
     ports:
       - "6379:6379"
-    env_file:
-      - /etc/flyup/.env
     command: redis-server --requirepass ${REDIS_PASSWORD}
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
