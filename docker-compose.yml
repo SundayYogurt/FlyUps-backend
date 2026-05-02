@@ -6,11 +6,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    env_file:
-      - /etc/flyup/.env
     volumes:
       - /etc/flyup/.env:/app/.env:ro
-
   db:
     image: postgres:18
     restart: always
@@ -21,7 +18,7 @@ services:
     ports:
       - "5434:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U root -d flyup"]
+      test: [ "CMD-SHELL", "pg_isready -U root -d flyup" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -34,13 +31,12 @@ services:
     restart: unless-stopped
     ports:
       - "5678:5678"
-    env_file:
-      - /etc/flyup/.env
     environment:
       - N8N_SECURE_COOKIE=false
       - WEBHOOK_URL=https://n8n.flyupapi.dev/
       - N8N_HOST=n8n.flyupapi.dev
       - N8N_PROTOCOL=https
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
     volumes:
       - n8n_data:/home/node/.n8n
     depends_on:
@@ -53,8 +49,8 @@ services:
     ports:
       - "6379:6379"
     command: redis-server --requirepass ${REDIS_PASSWORD}
-    env_file:
-      - /etc/flyup/.env
+    volumes:
+      - /etc/flyup/.env:/app/.env:ro
 
 volumes:
   pgdata:
