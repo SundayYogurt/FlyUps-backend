@@ -75,6 +75,10 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	priv.Patch("/faqs/:faq_id<int>", handler.UpdateProjectFAQ)
 	priv.Delete("/faqs/:faq_id<int>", handler.DeleteProjectFAQ)
 	priv.Post("/:id<int>/threads", handler.CreateProjectThread)
+
+	// Booster (investor) threads
+	booster := app.Group("/booster/projects", rh.Middlewares.AuthorizePioneerAndBooster)
+	booster.Post("/:id<int>/threads", handler.CreateBoosterProjectThread)
 	priv.Patch("/threads/:thread_id<int>", handler.UpdateProjectThread)
 	priv.Delete("/threads/:thread_id<int>", handler.DeleteProjectThread)
 	priv.Post("/threads/:thread_id<int>/messages", handler.CreateProjectThreadMessage)
@@ -1627,6 +1631,23 @@ func (h *ProjectHandler) CreateProjectThread(ctx fiber.Ctx) error {
 	body.ProjectID = uint(id)
 	if err := h.svc.CreateProjectThread(&body, user); err != nil {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
+	}
+	return rest.SuccessResponse(ctx, "thread created successfully", body)
+}
+
+func (h *ProjectHandler) CreateBoosterProjectThread(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+	}
+	var body domain.ProjectThread
+	if err := ctx.Bind().Body(&body); err != nil {
+		return rest.BadRequestError(ctx, "invalid request body")
+	}
+	body.ProjectID = uint(id)
+	if err := h.svc.CreateBoosterThread(&body, user); err != nil {
+		return rest.ErrorMessage(ctx, http.StatusForbidden, err)
 	}
 	return rest.SuccessResponse(ctx, "thread created successfully", body)
 }

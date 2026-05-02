@@ -78,6 +78,7 @@ type ProjectService interface {
 	// THREADS & MESSAGES
 	GetProjectThreads(projectID uint) ([]domain.ProjectThread, error)
 	CreateProjectThread(thread *domain.ProjectThread, user domain.User) error
+	CreateBoosterThread(thread *domain.ProjectThread, user domain.User) error
 	UpdateProjectThread(thread *domain.ProjectThread, user domain.User) error
 	DeleteProjectThread(threadID uint, user domain.User) error
 	GetProjectThreadMessages(threadID uint) ([]domain.ProjectThreadMessage, error)
@@ -1353,6 +1354,18 @@ func (s *projectService) CreateProjectThread(thread *domain.ProjectThread, user 
 	if project.OwnerUserID != user.ID {
 		return errors.New("forbidden")
 	}
+	return s.projectRepo.CreateThread(thread)
+}
+
+func (s *projectService) CreateBoosterThread(thread *domain.ProjectThread, user domain.User) error {
+	hasInvested, err := s.projectRepo.HasVerifiedInvestment(thread.ProjectID, user.ID)
+	if err != nil {
+		return err
+	}
+	if !hasInvested {
+		return errors.New("you must have a verified investment to comment")
+	}
+	thread.CreatedBy = user.ID
 	return s.projectRepo.CreateThread(thread)
 }
 

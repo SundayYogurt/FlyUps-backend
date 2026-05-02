@@ -97,6 +97,10 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 		return nil, errors.New("admin cannot invest")
 	}
 
+	if user.IdCardVerification == nil || user.IdCardVerification.Status != domain.VerifyStatusApproved {
+		return nil, errors.New("identity verification required before investing")
+	}
+
 	project, err := s.projectRepo.FindProjectByID(req.ProjectID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
