@@ -21,9 +21,9 @@ services:
     container_name: flyup-postgres
     restart: always
     environment:
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: root
-      POSTGRES_DB: flyup
+      POSTGRES_USER: ${user}
+      POSTGRES_PASSWORD: ${password}
+      POSTGRES_DB: ${dbname}
     ports:
       - "5434:5432"
     healthcheck:
@@ -33,6 +33,14 @@ services:
       retries: 10
     volumes:
       - pgdata:/var/lib/postgresql
+
+  redis:
+    image: redis:7
+    container_name: flyup-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD}
 
 volumes:
   pgdata:

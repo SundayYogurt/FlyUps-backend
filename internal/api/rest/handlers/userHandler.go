@@ -39,6 +39,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 		rh.Auth,
 		rh.Config,
 		rh.NotifSvc,
+		rh.Cache,
 	)
 
 	// Setup Google OAuth

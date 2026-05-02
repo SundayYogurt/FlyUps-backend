@@ -3,6 +3,7 @@ package rest
 import (
 	"flyup/config"
 	"flyup/internal/helper"
+	"flyup/internal/port/cache"
 	"flyup/internal/service"
 	"flyup/pkg/notification"
 
@@ -22,4 +23,5 @@ type RestHandler struct {
 	Cloudinary    *helper.CloudinaryService
 	NotifSvc      service.NotificationService
 	InvestmentSvc service.InvestmentService
+	Cache         cache.Cache
 }

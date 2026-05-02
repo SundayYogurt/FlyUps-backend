@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -24,6 +25,9 @@ type AppConfig struct {
 	GoogleClientID      string
 	GoogleClientSecret  string
 	GoogleRedirectURI   string
+	RedisAddr           string
+	RedisPassword       string
+	RedisDB             int
 }
 
 func SetupEnv() (cfg AppConfig, err error) {
@@ -104,6 +108,22 @@ func SetupEnv() (cfg AppConfig, err error) {
 		return AppConfig{}, errors.New("google redirect url env variables not found")
 	}
 
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if len(redisAddr) < 1 {
+		return AppConfig{}, errors.New("redis addr not found")
+	}
+	redisPassword := os.Getenv("REDIS_PASSWORD")
+
+	redisDBStr := os.Getenv("REDIS_DB")
+	if len(redisDBStr) < 1 {
+		redisDBStr = "0"
+	}
+
+	redisDB, err := strconv.Atoi(redisDBStr)
+	if err != nil {
+		return AppConfig{}, errors.New("invalid redis db")
+	}
+
 	return AppConfig{
 		ServerPort:          httpPort,
 		Dsn:                 Dsn,
@@ -120,5 +140,8 @@ func SetupEnv() (cfg AppConfig, err error) {
 		GoogleClientID:      googleClientID,
 		GoogleClientSecret:  googleClientSecret,
 		GoogleRedirectURI:   googleRedirectURL,
+		RedisAddr:           redisAddr,
+		RedisPassword:       redisPassword,
+		RedisDB:             redisDB,
 	}, nil
 }

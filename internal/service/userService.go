@@ -8,6 +8,7 @@ import (
 	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/helper"
+	"flyup/internal/port/cache"
 	"flyup/internal/repository"
 	"flyup/pkg/notification"
 	"io"
@@ -66,7 +67,26 @@ type userService struct {
 	URepo    repository.UniversityRepository
 	Auth     helper.AuthService
 	Config   config.AppConfig
-	notifSvc NotificationService
+	NotifSvc NotificationService
+	cache    cache.Cache
+}
+
+func NewUserService(
+	repo repository.UserRepository,
+	urepo repository.UniversityRepository,
+	auth helper.AuthService,
+	cfg config.AppConfig,
+	NotifSvc NotificationService,
+	cache cache.Cache,
+) UserService {
+	return &userService{
+		Repo:     repo,
+		URepo:    urepo,
+		Auth:     auth,
+		Config:   cfg,
+		NotifSvc: NotifSvc,
+		cache:    cache,
+	}
 }
 
 func (s *userService) ListUser(page, limit int, role, status, search string) ([]domain.User, int64, error) {
@@ -192,22 +212,6 @@ func (s *userService) SelectRole(userID uint, newRole string) error {
 	}
 
 	return s.Repo.UpdateUser(userID, updates)
-}
-
-func NewUserService(
-	repo repository.UserRepository,
-	urepo repository.UniversityRepository,
-	auth helper.AuthService,
-	cfg config.AppConfig,
-	notifSvc NotificationService,
-) UserService {
-	return &userService{
-		Repo:     repo,
-		URepo:    urepo,
-		Auth:     auth,
-		Config:   cfg,
-		notifSvc: notifSvc,
-	}
 }
 
 func (s *userService) GetAllStudentVerifyRequest() ([]domain.StudentCardVerification, error) {
@@ -649,8 +653,8 @@ func (s *userService) RejectIdCard(userID uint, adminID uint) error {
 		return err
 	}
 
-	if s.notifSvc != nil {
-		s.notifSvc.CreateAndPush(userID, domain.NotifVerificationRejected,
+	if s.NotifSvc != nil {
+		s.NotifSvc.CreateAndPush(userID, domain.NotifVerificationRejected,
 			"บัตรประชาชนถูกปฏิเสธ",
 			"บัตรประชาชนของคุณไม่ผ่านการตรวจสอบ กรุณาอัปโหลดใหม่",
 			nil, nil,
@@ -703,8 +707,8 @@ func (s *userService) RejectStudentCard(userID uint, adminID uint) error {
 		return err
 	}
 
-	if s.notifSvc != nil {
-		s.notifSvc.CreateAndPush(userID, domain.NotifVerificationRejected,
+	if s.NotifSvc != nil {
+		s.NotifSvc.CreateAndPush(userID, domain.NotifVerificationRejected,
 			"บัตรนักศึกษาถูกปฏิเสธ",
 			"บัตรนักศึกษาของคุณไม่ผ่านการตรวจสอบ กรุณาอัปโหลดใหม่",
 			nil, nil,
@@ -760,8 +764,8 @@ func (s *userService) ApproveStudentCard(userID uint, adminID uint) error {
 		return err
 	}
 
-	if s.notifSvc != nil {
-		s.notifSvc.CreateAndPush(userID, domain.NotifVerificationApproved,
+	if s.NotifSvc != nil {
+		s.NotifSvc.CreateAndPush(userID, domain.NotifVerificationApproved,
 			"บัตรนักศึกษาอนุมัติแล้ว",
 			"บัตรนักศึกษาของคุณได้รับการอนุมัติเรียบร้อยแล้ว",
 			nil, nil,
@@ -817,8 +821,8 @@ func (s *userService) ApproveIdCard(userID uint, adminID uint) error {
 		return err
 	}
 
-	if s.notifSvc != nil {
-		s.notifSvc.CreateAndPush(userID, domain.NotifVerificationApproved,
+	if s.NotifSvc != nil {
+		s.NotifSvc.CreateAndPush(userID, domain.NotifVerificationApproved,
 			"บัตรประชาชนอนุมัติแล้ว",
 			"บัตรประชาชนของคุณได้รับการอนุมัติเรียบร้อยแล้ว",
 			nil, nil,
@@ -1243,6 +1247,18 @@ func (s *userService) SetPassword(token string, newPassword string) error {
 }
 
 func (s *userService) GetProfile(userID uint) (*domain.User, error) {
+	ctx := context.Background()                // context เปล่าๆ
+	key := "user:" + strconv.Itoa(int(userID)) // "user:" + "1" = "user:1"
+
+	val, err := s.cache.Get(ctx, key)
+	if err == nil {
+		var user domain.User                                       // เตรียม struct เปล่า
+		if err := json.Unmarshal([]byte(val), &user); err == nil { // แปลง JSON เป็น struct
+			log.Println("Cache Hit")
+			return &user, nil
+		}
+	}
+
 	if userID == 0 {
 		return nil, errors.New("invalid user id")
 	}
@@ -1265,6 +1281,13 @@ func (s *userService) GetProfile(userID uint) (*domain.User, error) {
 			user.StudentProfile.University = &uniDomain.University
 		}
 	}
+
+	data, _ := json.Marshal(user)
+	err = s.cache.Set(ctx, key, data, 5*time.Minute) // set ข้อมูลให้อยู่ 5 นาที
+	if err != nil {
+		return nil, err
+	}
+	log.Println("Cache Miss → DB")
 
 	return user, nil
 }
