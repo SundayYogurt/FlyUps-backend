@@ -1525,6 +1525,7 @@ func (s *projectService) SubmitForReview(projectID uint, user domain.User) error
 			domain.StateFunding,
 			domain.StatePendingReview,
 			domain.StateExecuting,
+			domain.StatePendingCancel,
 		},
 	)
 	if err != nil {
