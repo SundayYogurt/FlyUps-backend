@@ -960,59 +960,69 @@ func (s *userService) AddBankAccount(userID uint, input dto.BankRequest) error {
 }
 
 func (s *userService) SignUp(input dto.UserSignUp) (string, error) {
-	// ตรวจสอบ Password และ Hash
+	ctx := context.Background()
+
+	email := strings.ToLower(strings.TrimSpace(input.Email))
+	emailKey := "email:" + email
+
+	cached, err := s.cache.Get(ctx, emailKey)
+	if err == nil && cached != "" {
+		return "", errors.New("this email is already registered")
+	}
+
+	existingUser, err := s.Repo.FindUser(email)
+	if err == nil && existingUser.ID != 0 {
+		_ = s.cache.Set(ctx, emailKey, "1", 10*time.Minute)
+		return "", errors.New("this email is already registered")
+	}
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", errors.New("service temporarily unavailable")
+	}
+
 	hPassword, err := s.Auth.CreateHashedPassword(input.Password)
 	if err != nil {
 		return "", err
 	}
 
-	email := strings.ToLower(strings.TrimSpace(input.Email))
-
-	existingUser, err := s.Repo.FindUser(email)
-
-	// ถ้า err เป็น nil แปลว่า เจอข้อมูล -> แสดงว่าอีเมลซ้ำ
-	if err == nil && existingUser.ID != 0 {
-		return "", errors.New("this email is already registered")
-	}
-
-	// ถ้า error ไม่ใช่ user not found แปลว่า DB อาจจะมีปัญหา
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return "", errors.New("service temporarily unavailable")
-	}
+	var findDomain *domain.UniversityDomain
 
 	if input.Role == "pioneer" {
-		//ดึง Domain ออกจาก Emai
 		parts := strings.Split(email, "@")
 		if len(parts) < 2 {
 			return "", errors.New("invalid email format")
 		}
+
 		domainName := parts[1]
+		domainKey := "university:domain:" + domainName
 
-		findDomain, err := s.URepo.GetUniversityByDomain(domainName)
-
-		if err != nil {
-			// กรณีหา Domain ไม่พบในระบบ (ไม่ใช่ Error ของระบบ แต่เป็น Business Logic)
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return "", errors.New("sorry!, the domain doesn't exist")
+		cachedUni, err := s.cache.Get(ctx, domainKey)
+		if err == nil && cachedUni != "" {
+			_ = json.Unmarshal([]byte(cachedUni), &findDomain)
+		} else {
+			findDomain, err = s.URepo.GetUniversityByDomain(domainName)
+			if err != nil {
+				return "", errors.New("domain not found")
 			}
-			// กรณี Error อื่นๆ เช่น DB ล่ม
-			return "", errors.New("internal server error, try again later")
+
+			data, _ := json.Marshal(findDomain)
+			_ = s.cache.Set(ctx, domainKey, string(data), 24*time.Hour)
 		}
 
-		// เช็ค Status ของ Domain (ถ้าใน Domain model มี field IsActive)
 		if !findDomain.IsActive {
 			return "", errors.New("this university is not active")
 		}
 	}
 
-	token, err := s.Auth.GenerateCode() // จะได้ string ยาว 32 ตัวอักษร
+	token, err := s.Auth.GenerateCode()
 	if err != nil {
 		return "", errors.New("internal server error")
 	}
 
-	// เตรียม User Domain
+	verifyKey := "verify:token:" + token
+	_ = s.cache.Set(ctx, verifyKey, email, 24*time.Hour)
+
 	verifyToken := token
-	expireAt := time.Now().Add(time.Hour * 24)
+	expireAt := time.Now().Add(24 * time.Hour)
 
 	newUser := &domain.User{
 		Email:                      email,
@@ -1020,66 +1030,57 @@ func (s *userService) SignUp(input dto.UserSignUp) (string, error) {
 		FirstName:                  input.FirstName,
 		LastName:                   input.LastName,
 		Phone:                      input.Phone,
-		Role:                       input.Role, // pioneer หรือ booster
+		Role:                       input.Role,
 		Status:                     domain.ACTIVE,
 		VerificationToken:          &verifyToken,
 		VerificationTokenExpiresAt: &expireAt,
 	}
 
-	// สร้างก้อน Consent จาก AcceptTerms ใน DTO
 	consent := &domain.UserConsent{
 		ConsentCode: domain.ConsentTerm,
 		Accepted:    input.AcceptTerms,
 		AcceptedAt:  time.Now(),
 	}
 
-	// บันทึก Transaction (User + Consent)
-	createdUser, err := s.Repo.CreateUser(newUser, consent)
+	_, err = s.Repo.CreateUser(newUser, consent)
 	if err != nil {
-		log.Printf("CreateUser error: %v", err)
+		if strings.Contains(err.Error(), "duplicate") {
+			return "", errors.New("this email is already registered")
+		}
 		return "", errors.New("registration failed")
 	}
-	log.Printf("User created with ID: %d", createdUser.ID)
 
-	// ส่ง Email โดยใช้ Goroutine
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("email panic: %v", r)
-			}
-		}()
 		verifyLink := strings.TrimRight(s.Config.BaseURL, "/") + "/verify?token=" + token
-
 		notificationClient := notification.NewNotificationClient(s.Config)
-
-		err := notificationClient.SendVerifyEmail(email, verifyLink)
-		if err != nil {
-			log.Printf("send verify email error: %v", err)
-		}
+		_ = notificationClient.SendVerifyEmail(email, verifyLink)
 	}()
 
 	return "registration successful, please verify your email", nil
 }
 
 func (s *userService) VerifyEmail(input dto.VerifyEmailRequest) (string, error) {
+	ctx := context.Background()
 
-	user, err := s.Repo.FindUserByVerificationToken(input.Token)
+	key := "verify:token:" + input.Token
+
+	email, err := s.cache.Get(ctx, key)
+	if err != nil {
+		return "", errors.New("invalid or expired token")
+	}
+
+	_ = s.cache.Del(ctx, key)
+
+	user, err := s.Repo.FindUser(email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", errors.New("invalid or expired token")
+			return "", errors.New("user not found")
 		}
 		return "", errors.New("internal server error")
 	}
 
-	// เช็ค verify แล้วหรือยัง
 	if user.EmailVerifiedAt != nil {
 		return "", errors.New("email already verified")
-	}
-
-	// เช็ค token หมดอายุ
-	if user.VerificationTokenExpiresAt == nil ||
-		time.Now().After(*user.VerificationTokenExpiresAt) {
-		return "", errors.New("invalid or expired token")
 	}
 
 	now := time.Now()
@@ -1247,28 +1248,31 @@ func (s *userService) SetPassword(token string, newPassword string) error {
 }
 
 func (s *userService) GetProfile(userID uint) (*domain.User, error) {
-	ctx := context.Background()                // context เปล่าๆ
-	key := "user:" + strconv.Itoa(int(userID)) // "user:" + "1" = "user:1"
-
-	val, err := s.cache.Get(ctx, key)
-	if err == nil {
-		var user domain.User                                       // เตรียม struct เปล่า
-		if err := json.Unmarshal([]byte(val), &user); err == nil { // แปลง JSON เป็น struct
-			log.Println("Cache Hit")
-			return &user, nil
-		}
-	}
-
 	if userID == 0 {
 		return nil, errors.New("invalid user id")
 	}
 
+	ctx := context.Background()
+	key := "user:" + strconv.Itoa(int(userID))
+
+	// ดึงจาก DB เสมอเพื่อให้ HasPassword ถูกต้อง
 	user, err := s.Repo.FindUserById(userID)
 	if err != nil {
+		// ถ้า DB fail ลอง fallback จาก cache
+		val, cacheErr := s.cache.Get(ctx, key)
+		if cacheErr == nil {
+			var cachedUser domain.User
+			if jsonErr := json.Unmarshal([]byte(val), &cachedUser); jsonErr == nil {
+				log.Println("DB failed, Cache Fallback")
+				return &cachedUser, nil
+			}
+		}
 		return nil, err
 	}
 
-	user.HasPassword = user.PasswordHash != ""
+	// Set HasPassword จาก DB โดยตรง (ถูกต้องเสมอ)
+	hasPassword := user.PasswordHash != ""
+	user.HasPassword = &hasPassword
 
 	// ดึง university จาก university_domains ตาม email domain ของ user
 	parts := strings.Split(user.Email, "@")
@@ -1282,12 +1286,9 @@ func (s *userService) GetProfile(userID uint) (*domain.User, error) {
 		}
 	}
 
+	// Cache ไว้สำหรับ fallback (ไม่ใช้เป็น primary source)
 	data, _ := json.Marshal(user)
-	err = s.cache.Set(ctx, key, data, 5*time.Minute) // set ข้อมูลให้อยู่ 5 นาที
-	if err != nil {
-		return nil, err
-	}
-	log.Println("Cache Miss → DB")
+	s.cache.Set(ctx, key, data, 5*time.Minute)
 
 	return user, nil
 }

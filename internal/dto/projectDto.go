@@ -111,11 +111,13 @@ type CreateMilestoneRequest struct {
 }
 
 type SubmitMilestoneRequest struct {
-	// checklist or items done (e.g. mapped from acceptance criteria)
+	// สรุปสิ่งที่ทำใน phase นี้
+	Summary string `json:"summary,omitempty"`
+	// checklist items ที่ทำเสร็จแล้ว (mapped from acceptance_criteria)
 	Criteria []string `json:"criteria,omitempty"`
 	// evidence files uploaded to Cloudinary (use /upload first)
 	Attachments []string `json:"attachments,omitempty"`
-	// external links (GitHub, Figma, docs, etc.)
+	// external links (GitHub, Figma, YouTube, docs, etc.)
 	Links []string `json:"links,omitempty"`
 }
 
