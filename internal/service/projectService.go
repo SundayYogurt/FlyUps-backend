@@ -1079,6 +1079,7 @@ func (s *projectService) SubmitMilestone(milestoneID uint, input dto.SubmitMiles
 	}
 
 	now := time.Now().UTC()
+	m.SubmissionSummary = &input.Summary
 	m.SubmissionCriteria = criteria
 	m.SubmissionAttachments = attachments
 	m.SubmissionLinks = links

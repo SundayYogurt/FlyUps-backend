@@ -983,7 +983,7 @@ func (s *userService) SignUp(input dto.UserSignUp) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	var findDomain *domain.UniversityDomain
 
 	if input.Role == "pioneer" {
@@ -1248,28 +1248,31 @@ func (s *userService) SetPassword(token string, newPassword string) error {
 }
 
 func (s *userService) GetProfile(userID uint) (*domain.User, error) {
-	ctx := context.Background()                // context เปล่าๆ
-	key := "user:" + strconv.Itoa(int(userID)) // "user:" + "1" = "user:1"
-
-	val, err := s.cache.Get(ctx, key)
-	if err == nil {
-		var user domain.User                                       // เตรียม struct เปล่า
-		if err := json.Unmarshal([]byte(val), &user); err == nil { // แปลง JSON เป็น struct
-			log.Println("Cache Hit")
-			return &user, nil
-		}
-	}
-
 	if userID == 0 {
 		return nil, errors.New("invalid user id")
 	}
 
+	ctx := context.Background()
+	key := "user:" + strconv.Itoa(int(userID))
+
+	// ดึงจาก DB เสมอเพื่อให้ HasPassword ถูกต้อง
 	user, err := s.Repo.FindUserById(userID)
 	if err != nil {
+		// ถ้า DB fail ลอง fallback จาก cache
+		val, cacheErr := s.cache.Get(ctx, key)
+		if cacheErr == nil {
+			var cachedUser domain.User
+			if jsonErr := json.Unmarshal([]byte(val), &cachedUser); jsonErr == nil {
+				log.Println("DB failed, Cache Fallback")
+				return &cachedUser, nil
+			}
+		}
 		return nil, err
 	}
 
-	user.HasPassword = user.PasswordHash != ""
+	// Set HasPassword จาก DB โดยตรง (ถูกต้องเสมอ)
+	hasPassword := user.PasswordHash != ""
+	user.HasPassword = &hasPassword
 
 	// ดึง university จาก university_domains ตาม email domain ของ user
 	parts := strings.Split(user.Email, "@")
@@ -1283,12 +1286,9 @@ func (s *userService) GetProfile(userID uint) (*domain.User, error) {
 		}
 	}
 
+	// Cache ไว้สำหรับ fallback (ไม่ใช้เป็น primary source)
 	data, _ := json.Marshal(user)
-	err = s.cache.Set(ctx, key, data, 5*time.Minute) // set ข้อมูลให้อยู่ 5 นาที
-	if err != nil {
-		return nil, err
-	}
-	log.Println("Cache Miss → DB")
+	s.cache.Set(ctx, key, data, 5*time.Minute)
 
 	return user, nil
 }

@@ -19,7 +19,7 @@ type User struct {
 	Email                      string                   `json:"email"`
 	PasswordHash               string                   `json:"-"`                    // ซ่อนไว้ไม่ให้ return ออกไปทาง API
 	GoogleSub                  *string                  `json:"google_sub,omitempty"` //omitempty ละเว้นถ้ามันว่างเปล่า * pointer ทำให้เก็บค่าเป็น NULL ได้
-	HasPassword                bool                     `json:"has_password"`
+	HasPassword                *bool                    `json:"has_password" gorm:"-"` // true=มี password, false=ไม่มี (Google only)
 	FirstName                  string                   `json:"first_name"`
 	LastName                   string                   `json:"last_name"`
 	Phone                      string                   `json:"phone"`
