@@ -108,14 +108,14 @@ func (r *investmentRepository) ListInvestorsByProjectID(projectID uint) ([]dto.P
 	var result []dto.ProjectInvestorItem
 
 	err := r.db.Model(&domain.Investment{}).
-		Select(`users.id as user_id, users.first_name, users.last_name, users.picture,
+		Select(`users.id as user_id, users.first_name, users.last_name, users.email, users.picture,
             SUM(investments.principal_amount) as principal_amount,
             SUM(investments.total_amount) as total_amount,
             COUNT(investments.id) as investment_count,
             MIN(investments.paid_at) as first_invested_at`).
 		Joins("JOIN users on users.id = investments.booster_user_id").
 		Where("investments.project_id = ? AND investments.status = ?", projectID, string(domain.InvestmentVerified)).
-		Group("users.id, users.first_name, users.last_name, users.picture").
+		Group("users.id, users.first_name, users.last_name, users.email, users.picture").
 		Order("first_invested_at ASC").
 		Scan(&result).Error
 	return result, err
