@@ -224,8 +224,8 @@ type ProjectThread struct {
 	Status     ThreadStatus `json:"status"`
 	CreatedAt  time.Time    `json:"created_at"`
 	UpdatedAt  time.Time    `json:"updated_at"`
-	UserName   string       `json:"user_name" gorm:"-"`
-	UserAvatar *string      `json:"user_avatar,omitempty" gorm:"-"`
+	UserName   string       `json:"user_name" gorm:"column:user_name;<-:false"`
+	UserAvatar *string      `json:"user_avatar,omitempty" gorm:"column:user_avatar;<-:false"`
 }
 
 type MessageType string
