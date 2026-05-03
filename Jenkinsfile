@@ -8,6 +8,8 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
+                // Clean workspace ก่อน checkout เพื่อป้องกัน git directory error
+                cleanWs()
                 checkout scm
             }
         }
