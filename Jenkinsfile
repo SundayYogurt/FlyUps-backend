@@ -52,11 +52,16 @@ pipeline {
                     url: env.BUILD_URL,
                     build: env.BUILD_NUMBER
                 ]
-                httpRequest acceptType: 'APPLICATION_JSON',
-                            contentType: 'APPLICATION_JSON',
-                            httpMode: 'POST',
-                            requestBody: groovy.json.JsonOutput.toJson(payload),
-                            url: 'https://n8n.flyupapi.dev/webhook/jenkins-alert'
+                try {
+                    httpRequest acceptType: 'APPLICATION_JSON',
+                                contentType: 'APPLICATION_JSON',
+                                httpMode: 'POST',
+                                requestBody: groovy.json.JsonOutput.toJson(payload),
+                                url: 'https://n8n.flyupapi.dev/webhook/jenkins-alert',
+                                validResponseCodes: '100:599' // ไม่ fail แม้ n8n จะ 502
+                } catch (e) {
+                    echo "Webhook notification failed (non-critical): ${e.message}"
+                }
             }
         }
         failure {
@@ -68,11 +73,16 @@ pipeline {
                     url: env.BUILD_URL,
                     build: env.BUILD_NUMBER
                 ]
-                httpRequest acceptType: 'APPLICATION_JSON',
-                            contentType: 'APPLICATION_JSON',
-                            httpMode: 'POST',
-                            requestBody: groovy.json.JsonOutput.toJson(payload),
-                            url: 'https://n8n.flyupapi.dev/webhook/jenkins-alert'
+                try {
+                    httpRequest acceptType: 'APPLICATION_JSON',
+                                contentType: 'APPLICATION_JSON',
+                                httpMode: 'POST',
+                                requestBody: groovy.json.JsonOutput.toJson(payload),
+                                url: 'https://n8n.flyupapi.dev/webhook/jenkins-alert',
+                                validResponseCodes: '100:599' // ไม่ fail แม้ n8n จะ 502
+                } catch (e) {
+                    echo "Webhook notification failed (non-critical): ${e.message}"
+                }
             }
         }
     }
