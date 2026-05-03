@@ -203,6 +203,9 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 	if input.Title != nil {
 		project.Title = *input.Title
 	}
+	if input.CoverImage != nil {
+		project.CoverImage = input.CoverImage
+	}
 	if input.Description != nil {
 		project.Description = input.Description
 	}

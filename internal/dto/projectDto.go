@@ -70,6 +70,7 @@ type ProjectDetailResponse struct {
 
 type UpdateProjectRequest struct {
 	CategoryID      *uint    `json:"category_id"`
+	CoverImage      *string  `json:"cover_image"`  // URL รูปปก (upload ผ่าน /upload ก่อน)
 	Title           *string  `json:"title"`
 	Description     *string  `json:"description"`
 	Visibility      *string  `json:"visibility"`

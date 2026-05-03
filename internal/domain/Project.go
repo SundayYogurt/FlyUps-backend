@@ -43,6 +43,7 @@ type Project struct {
 	Owner             *User             `json:"owner,omitempty" gorm:"foreignKey:OwnerUserID"`
 	CategoryID        *uint             `json:"category_id,omitempty"`
 	Category          *ProjectCategory  `json:"category,omitempty"`
+	CoverImage        *string           `json:"cover_image,omitempty"` // URL รูปปกโปรเจกต์
 	Title             string            `json:"title"`
 	Description       *string           `json:"description,omitempty"`
 	Risk              *string           `json:"risk,omitempty"`
