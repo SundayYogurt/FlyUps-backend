@@ -214,15 +214,17 @@ const (
 )
 
 type ProjectThread struct {
-	ID        uint         `json:"id"`
-	ProjectID uint         `json:"project_id"`
-	Type      string       `json:"type"`
-	CreatedBy uint         `json:"created_by"`
-	Title     *string      `json:"title,omitempty"`
-	Body      string       `json:"body"`
-	Status    ThreadStatus `json:"status"`
-	CreatedAt time.Time    `json:"created_at"`
-	UpdatedAt time.Time    `json:"updated_at"`
+	ID         uint         `json:"id"`
+	ProjectID  uint         `json:"project_id"`
+	Type       string       `json:"type"`
+	CreatedBy  uint         `json:"created_by"`
+	Title      *string      `json:"title,omitempty"`
+	Body       string       `json:"body"`
+	Status     ThreadStatus `json:"status"`
+	CreatedAt  time.Time    `json:"created_at"`
+	UpdatedAt  time.Time    `json:"updated_at"`
+	UserName   string       `json:"user_name" gorm:"-"`
+	UserAvatar *string      `json:"user_avatar,omitempty" gorm:"-"`
 }
 
 type MessageType string

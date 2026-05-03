@@ -443,7 +443,15 @@ func (p *projectRepository) DeleteFAQ(faqID uint) error {
 
 func (p *projectRepository) FindThreadsByProjectID(projectID uint) ([]domain.ProjectThread, error) {
 	var threads []domain.ProjectThread
-	err := p.db.Where("project_id = ?", projectID).Find(&threads).Error
+	err := p.db.Raw(`
+		SELECT pt.*,
+		       CONCAT(u.first_name, ' ', u.last_name) AS user_name,
+		       u.picture AS user_avatar
+		FROM project_threads pt
+		LEFT JOIN users u ON u.id = pt.created_by
+		WHERE pt.project_id = ?
+		ORDER BY pt.created_at DESC
+	`, projectID).Scan(&threads).Error
 	return threads, err
 }
 
