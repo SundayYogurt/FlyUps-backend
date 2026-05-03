@@ -30,12 +30,8 @@ pipeline {
                 # 🔥 ปิดของเก่า (ไม่ลบ DB)
                 docker compose --env-file /etc/flyup/.env -p $PROJECT_NAME down --remove-orphans
 
-                # 🔥 build + run ใหม่
+                # 🔥 build + run ใหม่ (n8n อยู่ใน compose นี้แล้ว)
                 docker compose --env-file /etc/flyup/.env -p $PROJECT_NAME up -d --build
-
-                # 🔥 ensure n8n is running (แยก compose)
-                cd /root/n8n && docker compose up -d
-                cd /root/FlyUps-backend
 
                 echo "⏳ Waiting for services to boot up..."
                 sleep 15
