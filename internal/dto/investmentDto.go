@@ -75,6 +75,7 @@ type ProjectInvestorItem struct {
 	UserID          uint       `json:"user_id"`
 	FirstName       string     `json:"first_name"`
 	LastName        string     `json:"last_name"`
+	Email           string     `json:"-"`
 	Picture         *string    `json:"picture,omitempty"`
 	PrincipalAmount float64    `json:"principal_amount"`
 	TotalAmount     float64    `json:"total_amount"`
