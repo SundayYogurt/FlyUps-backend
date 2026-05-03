@@ -49,3 +49,7 @@ func (c *Client) Get(ctx context.Context, key string) (string, error) {
 func (c *Client) Del(ctx context.Context, key string) error {
 	return c.RDB.Del(ctx, key).Err()
 }
+
+func (c *Client) SetNX(ctx context.Context, key string, value interface{}, ttl time.Duration) (bool, error) {
+	return c.RDB.SetNX(ctx, key, value, ttl).Result()
+}
