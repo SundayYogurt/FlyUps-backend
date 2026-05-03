@@ -1297,8 +1297,8 @@ func (s *projectService) CreateProjectFAQ(faq *domain.ProjectFAQ, user domain.Us
 	if project.OwnerUserID != user.ID {
 		return errors.New("forbidden")
 	}
-	if project.State != domain.StateDraft {
-		return errors.New("cannot edit FAQs unless project is in draft state")
+	if !faqEditAllowed(project.State) {
+		return errors.New("cannot edit FAQs: only allowed in draft, funding, or executing state")
 	}
 	return s.projectRepo.CreateFAQ(faq)
 }
@@ -1315,8 +1315,8 @@ func (s *projectService) UpdateProjectFAQ(faq *domain.ProjectFAQ, user domain.Us
 	if project.OwnerUserID != user.ID {
 		return errors.New("forbidden")
 	}
-	if project.State != domain.StateDraft {
-		return errors.New("cannot edit FAQs unless project is in draft state")
+	if !faqEditAllowed(project.State) {
+		return errors.New("cannot edit FAQs: only allowed in draft, funding, or executing state")
 	}
 	return s.projectRepo.UpdateFAQ(faq)
 }
@@ -1333,10 +1333,19 @@ func (s *projectService) DeleteProjectFAQ(faqID uint, user domain.User) error {
 	if project.OwnerUserID != user.ID {
 		return errors.New("forbidden")
 	}
-	if project.State != domain.StateDraft {
-		return errors.New("cannot delete FAQs unless project is in draft state")
+	if !faqEditAllowed(project.State) {
+		return errors.New("cannot delete FAQs: only allowed in draft, funding, or executing state")
 	}
 	return s.projectRepo.DeleteFAQ(faqID)
+}
+
+func faqEditAllowed(state domain.ProjectState) bool {
+	switch state {
+	case domain.StateDraft, domain.StateFunding, domain.StateExecuting:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *projectService) GetProjectThreads(projectID uint) ([]domain.ProjectThread, error) {
