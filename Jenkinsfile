@@ -33,6 +33,10 @@ pipeline {
                 # 🔥 build + run ใหม่
                 docker compose --env-file /etc/flyup/.env -p $PROJECT_NAME up -d --build
 
+                # 🔥 ensure n8n is running (แยก compose)
+                cd /root/n8n && docker compose up -d
+                cd /root/FlyUps-backend
+
                 echo "⏳ Waiting for services to boot up..."
                 sleep 15
 
