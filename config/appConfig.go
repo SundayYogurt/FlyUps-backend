@@ -28,6 +28,8 @@ type AppConfig struct {
 	RedisAddr           string
 	RedisPassword       string
 	RedisDB             int
+	OpenAIAPIKey        string
+	OpenAIModel         string
 }
 
 func SetupEnv() (cfg AppConfig, err error) {
@@ -124,6 +126,9 @@ func SetupEnv() (cfg AppConfig, err error) {
 		return AppConfig{}, errors.New("invalid redis db")
 	}
 
+	openAIAPIKey := os.Getenv("OPENAI_API_KEY")
+	openAIModel := os.Getenv("OPENAI_MODEL")
+
 	return AppConfig{
 		ServerPort:          httpPort,
 		Dsn:                 Dsn,
@@ -143,5 +148,7 @@ func SetupEnv() (cfg AppConfig, err error) {
 		RedisAddr:           redisAddr,
 		RedisPassword:       redisPassword,
 		RedisDB:             redisDB,
+		OpenAIAPIKey:        openAIAPIKey,
+		OpenAIModel:         openAIModel,
 	}, nil
 }

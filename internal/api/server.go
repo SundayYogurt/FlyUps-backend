@@ -73,6 +73,14 @@ func StartServer(cfg config.AppConfig) {
 		// profit pools
 		&domain.ProfitPool{},
 		&domain.InvestorProfitPayout{},
+
+		// chat
+		&domain.ChatSession{},
+		&domain.ChatMessage{},
+		&domain.ChatAction{},
+		&domain.ChatSession{},
+		&domain.ChatMessage{},
+		&domain.ChatAction{},
 	)
 
 	if err != nil {
@@ -215,6 +223,8 @@ func setupRoutes(rh *rest.RestHandler) {
 	handlers.SetupNotificationRoutes(rh)
 	handlers.SetupComplaintRoutes(rh)
 	handlers.SetupProfitPoolRoutes(rh)
+	handlers.SetupChatRoutes(rh)
+	handlers.SetupChatRoutes(rh)
 }
 
 func HealthCheck(ctx fiber.Ctx) error {
