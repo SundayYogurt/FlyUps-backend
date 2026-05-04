@@ -88,8 +88,8 @@ type ChatAction struct {
 
 	// InvestmentID คือ investment ที่จะ refund/cancel
 	// ตั้งชื่อ column ว่า transaction_id เพื่อ backward compat กับ DB ที่สร้างไปแล้ว
-	InvestmentID *uint  `json:"investment_id" gorm:"column:transaction_id"`
-	Payload      string `json:"payload" gorm:"type:json"`
+	InvestmentID *uint   `json:"investment_id" gorm:"column:transaction_id"`
+	Payload      *string `json:"payload,omitempty" gorm:"type:text"`
 
 	gorm.Model
 }
