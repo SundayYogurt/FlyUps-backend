@@ -34,7 +34,9 @@ type ChatAIOutput struct {
 	RequiresAction bool
 	ActionType     domain.ChatActionType
 	InvestmentID   *uint
-	ExtraData      string // ข้อมูลเพิ่มเติม เช่น vote choice, complaint body
+	MilestoneID    *uint
+	ProjectID      *uint
+	ExtraData      string
 }
 
 // flyUpChatAIAdapter แปลง llm.FlyUpChatClient ให้ implement ChatAIClient
@@ -76,6 +78,8 @@ func (a *flyUpChatAIAdapter) GenerateReply(input ChatAIInput) (*ChatAIOutput, er
 		RequiresAction: out.RequiresAction,
 		ActionType:     domain.ChatActionType(out.ActionType),
 		InvestmentID:   out.InvestmentID,
+		MilestoneID:    out.MilestoneID,
+		ProjectID:      out.ProjectID,
 		ExtraData:      out.ExtraData,
 	}, nil
 }
@@ -162,7 +166,6 @@ func (s *chatService) SendMessage(userID uint, req dto.SendChatMessageRequest) (
 		return nil, errors.New("failed to update message intent")
 	}
 
-	// assistantMessage จะถูก set ใน block ด้านล่างตาม action type
 	var assistantMessage *domain.ChatMessage
 	var action *domain.ChatAction
 
@@ -181,7 +184,6 @@ func (s *chatService) SendMessage(userID uint, req dto.SendChatMessageRequest) (
 				replyContent = "ไม่สามารถดึงข้อมูลได้ในขณะนี้ครับ~ ลองใหม่อีกทีนะครับ 😅"
 			}
 
-			// save reply ที่ถูกต้องตั้งแต่แรก ไม่ต้อง update ทีหลัง
 			assistantMessage = &domain.ChatMessage{
 				SessionID: session.ID,
 				Role:      domain.ChatMessageRoleAssistant,
@@ -193,7 +195,6 @@ func (s *chatService) SendMessage(userID uint, req dto.SendChatMessageRequest) (
 			}
 		} else {
 			// refund/cancel/vote/complaint/notif — สร้าง action รอ confirm
-			// save reply ที่ AI สร้างมาก่อน (เช่น "ยืนยันไหมครับ?")
 			assistantMessage = &domain.ChatMessage{
 				SessionID: session.ID,
 				Role:      domain.ChatMessageRoleAssistant,
@@ -210,6 +211,8 @@ func (s *chatService) SendMessage(userID uint, req dto.SendChatMessageRequest) (
 				Type:         aiOutput.ActionType,
 				Status:       domain.ChatActionStatusPending,
 				InvestmentID: aiOutput.InvestmentID,
+				MilestoneID:  aiOutput.MilestoneID,
+				ProjectID:    aiOutput.ProjectID,
 			}
 			if aiOutput.ExtraData != "" {
 				action.Payload = &aiOutput.ExtraData
@@ -219,7 +222,7 @@ func (s *chatService) SendMessage(userID uint, req dto.SendChatMessageRequest) (
 			}
 		}
 	} else {
-		// text reply ปกติ — ไม่มี action
+		// text reply ปกติ
 		assistantMessage = &domain.ChatMessage{
 			SessionID: session.ID,
 			Role:      domain.ChatMessageRoleAssistant,
@@ -281,19 +284,40 @@ func (s *chatService) executeQueryAction(userID uint, aiOutput *ChatAIOutput) (s
 	switch aiOutput.ActionType {
 
 	case domain.ChatActionTypeGetInvestments:
-		investments, err := s.investmentSvc.ListInvestedProjects(userID)
+		// ใช้ ListUserInvestments เพื่อได้ investment ID ครบ
+		investments, err := s.investmentSvc.ListUserInvestments(userID)
 		if err != nil {
 			return "", err
 		}
-		if len(investments) == 0 {
-			return "ยังไม่มีรายการลงทุนเลยนะครับ~ ลองดูโปรเจกต์น่าสนใจก่อนได้เลย 🚀", nil
+		// filter เฉพาะที่ verified (คืนเงินได้)
+		var active []domain.Investment
+		for _, inv := range investments {
+			if inv.Status == domain.InvestmentVerified || inv.Status == domain.InvestmentRefundPending {
+				active = append(active, inv)
+			}
 		}
-		reply := fmt.Sprintf("รายการลงทุนของคุณทั้งหมด %d รายการครับ~ 📊\n\n", len(investments))
-		for i, inv := range investments {
-			reply += fmt.Sprintf("%d. %s\n   • ยอดลงทุน: %.2f บาท\n   • สถานะ: %s\n   • จำนวนครั้ง: %d ครั้ง\n\n",
-				i+1, inv.Title, inv.TotalAmount, inv.Status, inv.InvestmentCount)
+		if len(active) == 0 {
+			return "ยังไม่มีรายการลงทุนที่ active เลยนะครับ~ 😊", nil
 		}
-		reply += "ถ้าอยากขอคืนเงินรายการไหน บอก investment_id มาได้เลยนะครับ~ 😊"
+
+		// ดึงชื่อโปรเจกต์
+		projectNames := map[uint]string{}
+		if projects, err := s.investmentSvc.ListInvestedProjects(userID); err == nil {
+			for _, p := range projects {
+				projectNames[p.ProjectID] = p.Title
+			}
+		}
+
+		reply := fmt.Sprintf("รายการลงทุนของคุณทั้งหมด %d รายการครับ~ 📊\n\n", len(active))
+		for i, inv := range active {
+			title := projectNames[inv.ProjectID]
+			if title == "" {
+				title = fmt.Sprintf("Project #%d", inv.ProjectID)
+			}
+			reply += fmt.Sprintf("%d. %s (Investment ID: %d)\n   • ยอดลงทุน: %.2f บาท\n   • สถานะ: %s\n\n",
+				i+1, title, inv.ID, inv.TotalAmount, string(inv.Status))
+		}
+		reply += "ถ้าอยากขอคืนเงินรายการไหน บอกชื่อโปรเจกต์หรือหมายเลขในลิสต์ได้เลยนะครับ~ 😊"
 		return reply, nil
 
 	case domain.ChatActionTypeGetProjects:
@@ -317,13 +341,30 @@ func (s *chatService) executeQueryAction(userID uint, aiOutput *ChatAIOutput) (s
 		return reply, nil
 
 	case domain.ChatActionTypeGetProjectDetail:
-		if aiOutput.InvestmentID == nil {
-			return "บอก project_id มาด้วยนะครับ~ 😅", nil
+		var p *domain.Project
+		var err error
+
+		if aiOutput.ProjectID != nil && *aiOutput.ProjectID != 0 {
+			p, err = s.projectSvc.GetPublicProjectByID(*aiOutput.ProjectID)
+		} else if aiOutput.ExtraData != "" {
+			// มีแค่ชื่อ → ค้นหาจาก public projects ด้วย search
+			name := aiOutput.ExtraData
+			all, searchErr := s.projectSvc.GetPublicProjects(dto.PublicProjectFilter{Search: name})
+			if searchErr != nil {
+				return "", errors.New("ไม่สามารถค้นหาโปรเจกต์ได้ครับ~ 😅")
+			}
+			if len(all) == 0 {
+				return fmt.Sprintf("ไม่พบโปรเจกต์ชื่อ \"%s\" ครับ~ ลองพิมพ์ชื่อใหม่อีกทีนะ 🔍", name), nil
+			}
+			p = &all[0]
+		} else {
+			return "บอกชื่อหรือ ID โปรเจกต์มาด้วยนะครับ~ 😅", nil
 		}
-		p, err := s.projectSvc.GetPublicProjectByID(*aiOutput.InvestmentID)
+
 		if err != nil {
-			return "", errors.New("ไม่พบโปรเจกต์นี้ครับ~ ลองเช็ค ID อีกทีนะ 🔍")
+			return "", errors.New("ไม่พบโปรเจกต์นี้ครับ~ ลองเช็คอีกทีนะ 🔍")
 		}
+
 		progress := 0.0
 		if p.FundingGoal > 0 {
 			progress = (p.CurrentFunding / p.FundingGoal) * 100
@@ -434,14 +475,14 @@ func (s *chatService) executeAction(userID uint, action *domain.ChatAction) (str
 		), nil
 
 	case domain.ChatActionTypeVoteMilestone:
-		if action.InvestmentID == nil {
+		if action.MilestoneID == nil {
 			return "", errors.New("ไม่พบ milestone_id ครับ~ 😅")
 		}
 		choice := domain.MilestoneVoteChoice("")
 		if action.Payload != nil {
 			choice = domain.MilestoneVoteChoice(*action.Payload)
 		}
-		_, err := s.investmentSvc.VoteMilestone(userID, *action.InvestmentID, choice)
+		_, err := s.investmentSvc.VoteMilestone(userID, *action.MilestoneID, choice)
 		if err != nil {
 			return "", err
 		}
@@ -449,10 +490,10 @@ func (s *chatService) executeAction(userID uint, action *domain.ChatAction) (str
 		if choice == "reject" {
 			choiceText = "ปฏิเสธ ❌"
 		}
-		return fmt.Sprintf("โหวต%s milestone #%d เรียบร้อยแล้วครับ~ 🗳️", choiceText, *action.InvestmentID), nil
+		return fmt.Sprintf("โหวต%s milestone #%d เรียบร้อยแล้วครับ~ 🗳️", choiceText, *action.MilestoneID), nil
 
 	case domain.ChatActionTypeFileComplaint:
-		if action.InvestmentID == nil || action.Payload == nil || *action.Payload == "" {
+		if action.ProjectID == nil || action.Payload == nil || *action.Payload == "" {
 			return "", errors.New("ข้อมูลไม่ครบครับ~ 😅")
 		}
 		parts := strings.SplitN(*action.Payload, "||", 2)
@@ -460,14 +501,14 @@ func (s *chatService) executeAction(userID uint, action *domain.ChatAction) (str
 			return "", errors.New("รูปแบบข้อมูลไม่ถูกต้องครับ~")
 		}
 		_, err := s.complaintSvc.Create(userID, dto.CreateComplaintRequest{
-			ProjectID: *action.InvestmentID,
+			ProjectID: *action.ProjectID,
 			Subject:   parts[0],
 			Body:      parts[1],
 		})
 		if err != nil {
 			return "", err
 		}
-		return fmt.Sprintf("ยื่นเรื่องร้องเรียนโปรเจกต์ #%d เรียบร้อยแล้วครับ~ ทีมงานจะตรวจสอบให้เร็วๆ นี้นะ 📝", *action.InvestmentID), nil
+		return fmt.Sprintf("ยื่นเรื่องร้องเรียนโปรเจกต์ #%d เรียบร้อยแล้วครับ~ ทีมงานจะตรวจสอบให้เร็วๆ นี้นะ 📝", *action.ProjectID), nil
 
 	case domain.ChatActionTypeMarkNotifRead:
 		if err := s.notifSvc.MarkAllAsRead(userID); err != nil {

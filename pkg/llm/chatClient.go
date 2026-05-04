@@ -56,8 +56,10 @@ type ChatOutput struct {
 	Reply          string
 	RequiresAction bool
 	ActionType     ChatActionType
-	InvestmentID   *uint
-	ExtraData      string // ข้อมูลเพิ่มเติมสำหรับ action เช่น vote choice, complaint body
+	InvestmentID   *uint  // investment_id สำหรับ refund/cancel
+	MilestoneID    *uint  // milestone_id สำหรับ vote
+	ProjectID      *uint  // project_id สำหรับ get_project_detail
+	ExtraData      string // ข้อมูลเพิ่มเติม เช่น vote choice, complaint body
 }
 
 // --- Tool argument structs ---
@@ -105,6 +107,10 @@ func (c *FlyUpChatClient) GenerateReply(input ChatInput) (*ChatOutput, error) {
 		return nil, fmt.Errorf("openai chat: %w", err)
 	}
 
+	if reply == nil {
+		return nil, errors.New("openai returned empty response")
+	}
+
 	if len(reply.ToolCalls) > 0 {
 		return handleToolCall(reply.ToolCalls[0].Function.Name, reply.ToolCalls[0].Function.Arguments)
 	}
@@ -133,13 +139,14 @@ func buildTools() []OpenAITool {
 		}},
 		{Type: "function", Function: OpenAIToolDef{
 			Name:        "get_project_detail",
-			Description: "ดูรายละเอียดโปรเจกต์ เช่น milestone, เป้าหมาย, ผลตอบแทน",
+			Description: "ดูรายละเอียดโปรเจกต์ เช่น milestone, เป้าหมาย, ผลตอบแทน ใช้ project_id ถ้ามี หรือ project_name ถ้ารู้แค่ชื่อ",
 			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"project_id": map[string]any{"type": "integer", "description": "ID ของโปรเจกต์"},
+					"project_id": map[string]any{"type": "integer", "description": "ID ของโปรเจกต์ (ถ้ามี)"},
+					"project_name": map[string]any{"type": "string", "description": "ชื่อโปรเจกต์ (ถ้าไม่มี ID)"},
 				},
-				"required": []string{"project_id"},
+				"required": []string{},
 			},
 		}},
 		{Type: "function", Function: OpenAIToolDef{
@@ -297,10 +304,14 @@ func handleToolCall(name, argsJSON string) (*ChatOutput, error) {
 		return &ChatOutput{RequiresAction: true, ActionType: ChatActionTypeGetProjects}, nil
 	case "get_project_detail":
 		id := uintArg("project_id")
-		if id == 0 {
-			return nil, errors.New("project_id is required")
+		name := strArg("project_name")
+		if id == 0 && name == "" {
+			return nil, errors.New("project_id or project_name is required")
 		}
-		return &ChatOutput{RequiresAction: true, ActionType: ChatActionTypeGetProjectDetail, InvestmentID: &id}, nil
+		if id != 0 {
+			return &ChatOutput{RequiresAction: true, ActionType: ChatActionTypeGetProjectDetail, ProjectID: &id}, nil
+		}
+		return &ChatOutput{RequiresAction: true, ActionType: ChatActionTypeGetProjectDetail, ExtraData: name}, nil
 	case "get_projects_ending_soon":
 		return &ChatOutput{RequiresAction: true, ActionType: ChatActionTypeGetEndingSoon}, nil
 	case "get_new_projects":
@@ -361,7 +372,7 @@ func handleToolCall(name, argsJSON string) (*ChatOutput, error) {
 			Reply:          fmt.Sprintf("Rocket จะโหวต%s milestone #%d ให้นะครับ~ ยืนยันเลยไหมครับ? 🗳️", choiceText, milestoneID),
 			RequiresAction: true,
 			ActionType:     ChatActionTypeVoteMilestone,
-			InvestmentID:   &milestoneID, // reuse field เก็บ milestoneID
+			MilestoneID:    &milestoneID,
 			ExtraData:      choice,
 		}, nil
 
@@ -376,7 +387,7 @@ func handleToolCall(name, argsJSON string) (*ChatOutput, error) {
 			Reply:          fmt.Sprintf("Rocket จะยื่นเรื่องร้องเรียนโปรเจกต์ #%d ให้นะครับ~ เรื่อง: \"%s\" ยืนยันเลยไหมครับ? 📝", projectID, subject),
 			RequiresAction: true,
 			ActionType:     ChatActionTypeFileComplaint,
-			InvestmentID:   &projectID, // reuse field เก็บ projectID
+			ProjectID:      &projectID,
 			ExtraData:      subject + "||" + body,
 		}, nil
 
@@ -420,7 +431,7 @@ func containsAny(s string, keywords ...string) bool {
 }
 
 func systemPrompt() string {
-	return `สวัสดีครับ! ผม Rocket น้องชายสุดน่ารักกวนๆ ของแพลตฟอร์ม FlyUp
+	return `สวัสดีครับ! ผม Rocket ของแพลตฟอร์ม FlyUp
 ผมพูดภาษาไทยเสมอ มีบุคลิกสดใส ร่าเริง กวนนิดๆ แต่ให้ข้อมูลถูกต้องและเป็นประโยชน์เสมอ
 ใช้ emoji ประกอบบ้างให้ดูสนุก แต่ไม่มากเกินไปนะครับ~
 
@@ -450,7 +461,7 @@ func systemPrompt() string {
 - ชำระเงินผ่าน PromptPay เท่านั้น
 
 === วิธีสร้างโปรเจกต์ระดมทุน ===
-1. สมัครในฐานะ Pioneer (ต้องใช้อีเมลมหาวิทยาลัยที่ลงทะเบียนในระบบ)
+1. สมัครในฐานะ Pioneer (ต้องใช้อีเมลมหาวิทยาลัยที่ลงทะเบียนในระบบ) และ ต้องเป็นนักศึกษาเท่านั้น
 2. ยืนยันตัวตนด้วยบัตรนักศึกษาและบัตรประชาชน
 3. สร้างโปรเจกต์และกรอกรายละเอียดให้ครบ
 4. ส่งให้ทีมงาน FlyUp ตรวจสอบ
@@ -461,6 +472,7 @@ func systemPrompt() string {
 - ต้องมี Milestone อย่างน้อย 1 รายการ
 - ถ้าระดมทุนไม่ถึง Softcap โปรเจกต์ล้มเหลว นักลงทุนได้เงินคืนทั้งหมด
 - ถ้าโปรเจกต์ถูกยกเลิก นักลงทุนได้รับเงินคืนตามสัดส่วน
+- ต้องเป็นนักศึกษาเท่านั้น
 
 === นโยบายการคืนเงิน ===
 1. คืนได้เฉพาะ investment ที่ verified และโปรเจกต์อยู่ใน funding เท่านั้น
@@ -474,7 +486,6 @@ func systemPrompt() string {
 - ตอบเป็นภาษาไทยเสมอ พูดแบบ Rocket น่ารักกวนๆ
 - ตอบเฉพาะเรื่องที่เกี่ยวกับ FlyUp เท่านั้น ถ้าถามนอกเรื่องให้บอกว่าช่วยไม่ได้แบบน่ารักๆ
 - ถ้า user ขอคืนเงินหรือยกเลิกการลงทุน ให้เรียก get_my_investments ก่อนเสมอ เพื่อดูว่า user มีการลงทุนอะไรบ้าง แล้วค่อยเรียก refund_transaction หรือ cancel_transaction พร้อม investment_id ที่ถูกต้อง ห้ามเดา investment_id เด็ดขาด
-- ถ้า user มีการลงทุนหลายรายการและไม่ได้ระบุว่าอยากยกเลิกอันไหน ให้แสดงรายการและถามว่าอยากยกเลิกอันไหน
-- ถ้า user ขอโหวต/ร้องเรียน ให้ถามข้อมูลที่ขาดก่อน แล้วค่อยเรียก tool
+- ถ้า user มีการลงทุนหลายรายการและไม่ได้ระบุว่าอยากยกเลิกอันไหน ให้แสดงรายการและถามว่าอยากยกเลิกอันไหน- ถ้า user ขอโหวต/ร้องเรียน ให้ถามข้อมูลที่ขาดก่อน แล้วค่อยเรียก tool
 - ถ้าไม่แน่ใจ ให้แนะนำให้ติดต่อ support`
 }
