@@ -24,4 +24,5 @@ type RestHandler struct {
 	NotifSvc      service.NotificationService
 	InvestmentSvc service.InvestmentService
 	Cache         cache.Cache
+	Chat          service.ChatService
 }
