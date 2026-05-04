@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"flyup/config"
 	"flyup/internal/domain"
@@ -24,9 +25,12 @@ type mockUserRepository struct {
 	mock.Mock
 }
 
-func (m *mockUserRepository) FindUniversityByUserId(userID uint) (*domain.University, error) {
-	//TODO implement me
-	panic("implement me")
+func (m *mockUserRepository) FindUniversityByUserId(userID uint) (*domain.User, error) {
+	args := m.Called(userID)
+	if args.Get(0) != nil {
+		return args.Get(0).(*domain.User), args.Error(1)
+	}
+	return nil, args.Error(1)
 }
 
 func (m *mockUserRepository) FindAllUsers(page, limit int, role, status, search string) ([]domain.User, int64, error) {
@@ -35,11 +39,6 @@ func (m *mockUserRepository) FindAllUsers(page, limit int, role, status, search 
 		return nil, 0, args.Error(2)
 	}
 	return args.Get(0).([]domain.User), args.Get(1).(int64), args.Error(2)
-}
-
-func (m *mockUserRepository) FindUserByEmail(email string) (*domain.User, error) {
-	//TODO implement me
-	panic("implement me")
 }
 
 func (m *mockUserRepository) FindStudentRequest(status string) ([]domain.StudentCardVerification, error) {
@@ -70,11 +69,6 @@ func (m *mockUserRepository) CreateUser(usr *domain.User, consent *domain.UserCo
 		return args.Get(0).(*domain.User), args.Error(1)
 	}
 	return nil, args.Error(1)
-}
-
-func (m *mockUserRepository) UpdateUserProfile(userID uint, firstName, lastName, phone string, address *string) error {
-	args := m.Called(userID, firstName, lastName, phone, address)
-	return args.Error(0)
 }
 
 func (m *mockUserRepository) UpsertStudentProfileByUserID(profile *domain.StudentProfile) error {
@@ -193,11 +187,6 @@ func (m *mockUserRepository) FindUser(email string) (*domain.User, error) {
 	return args.Get(0).(*domain.User), args.Error(1)
 }
 
-func (m *mockUserRepository) FindUserByVerificationToken(token string) (*domain.User, error) {
-	args := m.Called(token)
-	return args.Get(0).(*domain.User), args.Error(1)
-}
-
 func (m *mockUserRepository) FindUserByResetToken(token string) (*domain.User, error) {
 	args := m.Called(token)
 	return args.Get(0).(*domain.User), args.Error(1)
@@ -254,10 +243,42 @@ type mockUniversityRepo struct {
 	mock.Mock
 }
 
+// ─── mockCache ───────────────────────────────────────────────────────────────
+
+type mockCache struct {
+	mock.Mock
+}
+
+func (m *mockCache) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
+	args := m.Called(ctx, key, value, ttl)
+	return args.Error(0)
+}
+
+func (m *mockCache) Get(ctx context.Context, key string) (string, error) {
+	args := m.Called(ctx, key)
+	return args.String(0), args.Error(1)
+}
+
+func (m *mockCache) Del(ctx context.Context, key string) error {
+	args := m.Called(ctx, key)
+	return args.Error(0)
+}
+
+func (m *mockCache) SetNX(ctx context.Context, key string, value interface{}, ttl time.Duration) (bool, error) {
+	args := m.Called(ctx, key, value, ttl)
+	return args.Bool(0), args.Error(1)
+}
+
+// newUserServiceWithCache สร้าง service พร้อม cache mock สำหรับ test
+func newUserServiceWithCache(repo *mockUserRepository, urepo *mockUniversityRepo, auth *mockAuth, cfg config.AppConfig, notif NotificationService, c *mockCache) UserService {
+	return NewUserService(repo, urepo, auth, cfg, notif, c)
+}
+
 func TestSignup_Success(t *testing.T) {
 
 	repo := new(mockUserRepository)
 	auth := new(mockAuth)
+	cache := new(mockCache)
 
 	svc := NewUserService(
 		repo,
@@ -267,6 +288,7 @@ func TestSignup_Success(t *testing.T) {
 			BaseURL: "http://localhost",
 		},
 		nil,
+		cache,
 	)
 
 	input := dto.UserSignUp{
@@ -280,6 +302,11 @@ func TestSignup_Success(t *testing.T) {
 	}
 
 	// mock behavior
+
+	// SignUp ใช้ cache.Get เช็ค email ก่อน
+	cache.On("Get", mock.Anything, "email:test@test.com").Return("", errors.New("cache miss"))
+	// cache.Set สำหรับ verify token
+	cache.On("Set", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return(nil)
 
 	repo.On("FindUser", "test@test.com").
 		Return(&domain.User{}, gorm.ErrRecordNotFound)
@@ -304,6 +331,7 @@ func TestSignup_Success(t *testing.T) {
 
 	repo.AssertExpectations(t)
 	auth.AssertExpectations(t)
+	cache.AssertExpectations(t)
 }
 
 func TestGoogleSignin_NewUser_Success(t *testing.T) {
@@ -321,7 +349,7 @@ func TestGoogleSignin_NewUser_Success(t *testing.T) {
 	repo := new(mockUserRepository)
 	auth := new(mockAuth)
 
-	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil, nil)
 	oauthConf := &oauth2.Config{
 		ClientID: "test", ClientSecret: "test", Endpoint: oauth2.Endpoint{
 			TokenURL: "https://oauth2.googleapis.com/token",
@@ -348,7 +376,7 @@ func TestGoogleSignin_NewUser_Success(t *testing.T) {
 func TestSigning_Success(t *testing.T) {
 	repo := new(mockUserRepository)
 	auth := new(mockAuth)
-	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil, nil)
 
 	existingUser := &domain.User{
 		ID:              2,
@@ -374,31 +402,77 @@ func TestSigning_Success(t *testing.T) {
 
 func TestVerifyEmail_Success(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
+	cache := new(mockCache)
+	svc := newUserServiceWithCache(repo, nil, nil, config.AppConfig{}, nil, cache)
 
+	token := "123456"
+	email := "user@test.com"
 	existingUser := &domain.User{
-		ID:                         3,
-		VerificationToken:          ptr("123456"),
-		VerificationTokenExpiresAt: ptr(time.Now().Add(1 * time.Hour)),
-		Status:                     domain.SUSPENDED,
+		ID:    3,
+		Email: email,
 	}
 
-	repo.On("FindUserByVerificationToken", "123456").Return(existingUser, nil)
-	// After verify, user becomes active and code is cleared
+	// cache มี token → return email
+	cache.On("Get", mock.Anything, "verify:token:"+token).Return(email, nil)
+	cache.On("Del", mock.Anything, "verify:token:"+token).Return(nil)
+
+	repo.On("FindUser", email).Return(existingUser, nil)
 	repo.On("UpdateUser", uint(3), mock.AnythingOfType("map[string]interface {}")).Return(nil)
 
-	msg, err := svc.VerifyEmail(dto.VerifyEmailRequest{Token: "123456"})
+	msg, err := svc.VerifyEmail(dto.VerifyEmailRequest{Token: token})
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, msg)
 
 	repo.AssertExpectations(t)
+	cache.AssertExpectations(t)
+}
+
+func TestVerifyEmail_Fail_InvalidToken(t *testing.T) {
+	repo := new(mockUserRepository)
+	cache := new(mockCache)
+	svc := newUserServiceWithCache(repo, nil, nil, config.AppConfig{}, nil, cache)
+
+	// cache ไม่มี token → error
+	cache.On("Get", mock.Anything, "verify:token:bad-token").Return("", errors.New("cache miss"))
+
+	_, err := svc.VerifyEmail(dto.VerifyEmailRequest{Token: "bad-token"})
+
+	assert.Error(t, err)
+	assert.Equal(t, "invalid or expired token", err.Error())
+	cache.AssertExpectations(t)
+}
+
+func TestVerifyEmail_Fail_AlreadyVerified(t *testing.T) {
+	repo := new(mockUserRepository)
+	cache := new(mockCache)
+	svc := newUserServiceWithCache(repo, nil, nil, config.AppConfig{}, nil, cache)
+
+	token := "abc123"
+	email := "user@test.com"
+	now := time.Now()
+	existingUser := &domain.User{
+		ID:              3,
+		Email:           email,
+		EmailVerifiedAt: &now, // already verified
+	}
+
+	cache.On("Get", mock.Anything, "verify:token:"+token).Return(email, nil)
+	cache.On("Del", mock.Anything, "verify:token:"+token).Return(nil)
+	repo.On("FindUser", email).Return(existingUser, nil)
+
+	_, err := svc.VerifyEmail(dto.VerifyEmailRequest{Token: token})
+
+	assert.Error(t, err)
+	assert.Equal(t, "email already verified", err.Error())
+	repo.AssertExpectations(t)
+	cache.AssertExpectations(t)
 }
 
 func TestForgotPassword_Success(t *testing.T) {
 	repo := new(mockUserRepository)
 	auth := new(mockAuth)
-	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil, nil)
 
 	existingUser := &domain.User{
 		ID:     4,
@@ -424,7 +498,7 @@ func TestForgotPassword_Success(t *testing.T) {
 func TestSetPassword_Success(t *testing.T) {
 	repo := new(mockUserRepository)
 	auth := new(mockAuth)
-	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil, nil)
 
 	existingUser := &domain.User{
 		ID:                  5,
@@ -447,7 +521,7 @@ func TestSetPassword_Success(t *testing.T) {
 
 func TestAddBankAccount_Success(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
 
 	userID := uint(10)
 	accNum := "123456789"
@@ -472,7 +546,7 @@ func TestAddBankAccount_Success(t *testing.T) {
 
 func TestAddBankAccount_Fail_Duplicate(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
 
 	userID := uint(10)
 	accNum := "123456789"
@@ -500,7 +574,7 @@ func TestAddBankAccount_Fail_Duplicate(t *testing.T) {
 
 func TestGetProfile_Success(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
 
 	userID := uint(7)
 	expected := &domain.User{ID: userID, Email: "user@test.com", Role: "booster"}
@@ -520,7 +594,7 @@ func TestGetProfile_Success(t *testing.T) {
 
 func TestVerifyStudent_Success_FirstTime(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
 
 	userID := uint(20)
 	cardURL := "https://res.cloudinary.com/test/student-card.jpg"
@@ -550,7 +624,7 @@ func TestVerifyStudent_Success_FirstTime(t *testing.T) {
 
 func TestVerifyStudent_Fail_AlreadyPending(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
 
 	userID := uint(20)
 	cardURL := "https://res.cloudinary.com/test/student-card.jpg"
@@ -578,7 +652,7 @@ func TestVerifyStudent_Fail_AlreadyPending(t *testing.T) {
 
 func TestVerifyStudent_Fail_NotPioneer(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
 
 	userID := uint(20)
 	cardURL := "https://res.cloudinary.com/test/student-card.jpg"
@@ -606,7 +680,7 @@ func TestVerifyStudent_Fail_NotPioneer(t *testing.T) {
 func TestVerifyID_Success_FirstTime(t *testing.T) {
 	repo := new(mockUserRepository)
 	// IApp OCR will fail → falls back to pending status (still success path)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{IAppAPIKey: ""}, nil)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{IAppAPIKey: ""}, nil, nil)
 
 	userID := uint(30)
 	idCardURL := "https://res.cloudinary.com/test/idcard.jpg"
@@ -634,7 +708,7 @@ func TestVerifyID_Success_FirstTime(t *testing.T) {
 
 func TestVerifyID_Fail_AlreadyApproved(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
 
 	userID := uint(30)
 	idCardURL := "https://res.cloudinary.com/test/idcard.jpg"
@@ -662,7 +736,7 @@ func TestVerifyID_Fail_AlreadyApproved(t *testing.T) {
 func TestChangePassword_Success(t *testing.T) {
 	repo := new(mockUserRepository)
 	auth := new(mockAuth)
-	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil, nil)
 
 	userID := uint(30)
 	oldPassword := "Oldpass1!"
@@ -696,7 +770,7 @@ func TestChangePassword_Success(t *testing.T) {
 func TestChangePassword_Fail_incorrectOldPassword(t *testing.T) {
 	repo := new(mockUserRepository)
 	auth := new(mockAuth)
-	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil, nil)
 
 	userID := uint(30)
 	oldPassword := "Oldpass11!"
@@ -730,7 +804,7 @@ func TestChangePassword_Validation(t *testing.T) {
 	repo := new(mockUserRepository)
 	auth := new(mockAuth)
 
-	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, auth, config.AppConfig{}, nil, nil)
 
 	userID := uint(1)
 
@@ -772,7 +846,7 @@ func TestChangePassword_Validation(t *testing.T) {
 
 func TestGetAllPendingStatusStudentRequests(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
 
 	// mock data
 	expected := []domain.StudentCardVerification{
@@ -796,7 +870,7 @@ func TestGetAllPendingStatusStudentRequests(t *testing.T) {
 
 func TestGetAllPendingStatusStudentRequests_Error(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
 
 	repo.On("FindStudentRequest", string(domain.VerifyStatusPending)).
 		Return(nil, errors.New("db error"))
@@ -811,7 +885,7 @@ func TestGetAllPendingStatusStudentRequests_Error(t *testing.T) {
 
 func TestGetAllPendingStatusCardIDRequests(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
 
 	// mock data
 	expected := []domain.IdCardVerification{
@@ -835,7 +909,7 @@ func TestGetAllPendingStatusCardIDRequests(t *testing.T) {
 
 func TestGetAllPendingStatusCardIDRequests_Error(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
 
 	repo.On("FindUserIDCardRequest", string(domain.VerifyStatusPending)).
 		Return(nil, errors.New("db error"))
@@ -846,4 +920,232 @@ func TestGetAllPendingStatusCardIDRequests_Error(t *testing.T) {
 	assert.Nil(t, result)
 
 	repo.AssertExpectations(t)
+}
+
+
+// ─── SuspendUser ─────────────────────────────────────────────────────────────
+
+func TestSuspendUser_Success(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
+
+	adminID := uint(1)
+	userID := uint(2)
+
+	repo.On("FindUserById", userID).Return(&domain.User{
+		ID:     userID,
+		Email:  "user@test.com",
+		Status: domain.ACTIVE,
+	}, nil)
+	repo.On("UpdateUser", userID, mock.AnythingOfType("map[string]interface {}")).Return(nil)
+
+	err := svc.SuspendUser(adminID, userID, "violates terms")
+
+	assert.NoError(t, err)
+	repo.AssertExpectations(t)
+}
+
+func TestSuspendUser_Fail_AlreadySuspended(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
+
+	adminID := uint(1)
+	userID := uint(2)
+
+	repo.On("FindUserById", userID).Return(&domain.User{
+		ID:     userID,
+		Status: domain.SUSPENDED,
+	}, nil)
+
+	err := svc.SuspendUser(adminID, userID, "violates terms")
+
+	assert.Error(t, err)
+	assert.Equal(t, "user is already suspended", err.Error())
+	repo.AssertNotCalled(t, "UpdateUser", mock.Anything, mock.Anything)
+	repo.AssertExpectations(t)
+}
+
+func TestSuspendUser_Fail_SelfSuspend(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
+
+	adminID := uint(1)
+
+	err := svc.SuspendUser(adminID, adminID, "reason")
+
+	assert.Error(t, err)
+	assert.Equal(t, "admin cannot be suspended", err.Error())
+}
+
+// ─── RollbackActiveUser ───────────────────────────────────────────────────────
+
+func TestRollbackActiveUser_Success(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
+
+	userID := uint(5)
+
+	repo.On("FindUserById", userID).Return(&domain.User{
+		ID:     userID,
+		Status: domain.SUSPENDED,
+	}, nil)
+	repo.On("UpdateUser", userID, mock.AnythingOfType("map[string]interface {}")).Return(nil)
+
+	err := svc.RollbackActiveUser(userID)
+
+	assert.NoError(t, err)
+	repo.AssertExpectations(t)
+}
+
+func TestRollbackActiveUser_Fail_NotSuspended(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
+
+	userID := uint(5)
+
+	repo.On("FindUserById", userID).Return(&domain.User{
+		ID:     userID,
+		Status: domain.ACTIVE,
+	}, nil)
+
+	err := svc.RollbackActiveUser(userID)
+
+	assert.Error(t, err)
+	assert.Equal(t, "user is not suspended", err.Error())
+	repo.AssertNotCalled(t, "UpdateUser", mock.Anything, mock.Anything)
+	repo.AssertExpectations(t)
+}
+
+// ─── ApproveIdCard ────────────────────────────────────────────────────────────
+
+func TestApproveIdCard_Success(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
+
+	userID := uint(10)
+	adminID := uint(1)
+
+	repo.On("FindUserById", userID).Return(&domain.User{ID: userID}, nil)
+	repo.On("FindIdCardStatus", userID).Return(&domain.IdCardVerification{
+		ID:     1,
+		UserID: userID,
+		Status: domain.VerifyStatusPending,
+	}, nil)
+	repo.On("UpdateIdCardVerification", mock.AnythingOfType("*domain.IdCardVerification")).Return(nil)
+
+	err := svc.ApproveIdCard(userID, adminID)
+
+	assert.NoError(t, err)
+	repo.AssertExpectations(t)
+}
+
+func TestApproveIdCard_Fail_AlreadyApproved(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
+
+	userID := uint(10)
+	adminID := uint(1)
+
+	repo.On("FindUserById", userID).Return(&domain.User{ID: userID}, nil)
+	repo.On("FindIdCardStatus", userID).Return(&domain.IdCardVerification{
+		ID:     1,
+		UserID: userID,
+		Status: domain.VerifyStatusApproved,
+	}, nil)
+
+	err := svc.ApproveIdCard(userID, adminID)
+
+	assert.Error(t, err)
+	assert.Equal(t, "student is already verified", err.Error())
+	repo.AssertNotCalled(t, "UpdateIdCardVerification", mock.Anything)
+	repo.AssertExpectations(t)
+}
+
+// ─── RejectStudentCard ────────────────────────────────────────────────────────
+
+func TestRejectStudentCard_Success(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
+
+	userID := uint(10)
+	adminID := uint(1)
+
+	repo.On("FindUserById", userID).Return(&domain.User{ID: userID}, nil)
+	repo.On("FindStudentStatus", userID).Return(&domain.StudentCardVerification{
+		ID:     2,
+		UserID: userID,
+		Status: domain.VerifyStatusPending,
+	}, nil)
+	repo.On("UpdateStudentCardVerification", mock.AnythingOfType("*domain.StudentCardVerification")).Return(nil)
+
+	err := svc.RejectStudentCard(userID, adminID)
+
+	assert.NoError(t, err)
+	repo.AssertExpectations(t)
+}
+
+func TestRejectStudentCard_Fail_NoVerification(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
+
+	userID := uint(10)
+	adminID := uint(1)
+
+	repo.On("FindUserById", userID).Return(&domain.User{ID: userID}, nil)
+	repo.On("FindStudentStatus", userID).Return((*domain.StudentCardVerification)(nil), nil)
+
+	err := svc.RejectStudentCard(userID, adminID)
+
+	assert.Error(t, err)
+	assert.Equal(t, "no student verification found", err.Error())
+	repo.AssertExpectations(t)
+}
+
+// ─── SelectRole ───────────────────────────────────────────────────────────────
+
+func TestSelectRole_Success_Booster(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
+
+	userID := uint(1)
+
+	repo.On("FindUserById", userID).Return(&domain.User{
+		ID:   userID,
+		Role: "pending",
+	}, nil)
+	repo.On("UpdateUser", userID, mock.AnythingOfType("map[string]interface {}")).Return(nil)
+
+	err := svc.SelectRole(userID, "booster")
+
+	assert.NoError(t, err)
+	repo.AssertExpectations(t)
+}
+
+func TestSelectRole_Fail_AlreadySelected(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
+
+	userID := uint(1)
+
+	repo.On("FindUserById", userID).Return(&domain.User{
+		ID:   userID,
+		Role: "booster", // ไม่ใช่ pending
+	}, nil)
+
+	err := svc.SelectRole(userID, "pioneer")
+
+	assert.Error(t, err)
+	assert.Equal(t, "user role is already selected", err.Error())
+	repo.AssertNotCalled(t, "UpdateUser", mock.Anything, mock.Anything)
+	repo.AssertExpectations(t)
+}
+
+func TestSelectRole_Fail_InvalidRole(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
+
+	err := svc.SelectRole(1, "admin")
+
+	assert.Error(t, err)
+	assert.Equal(t, "role must be either booster or pioneer", err.Error())
 }
