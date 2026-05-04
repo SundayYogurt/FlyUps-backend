@@ -8,7 +8,7 @@ RUN go mod download
 COPY . .
 
 RUN go install github.com/swaggo/swag/cmd/swag@latest && \
-    $(go env GOPATH)/bin/swag init
+    $(go env GOPATH)/bin/swag init --parseDependency --parseInternal
 RUN go build -o main .
 
 FROM alpine
