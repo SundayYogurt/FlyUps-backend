@@ -177,6 +177,18 @@ func (h *ComplaintHandler) AdminReject(ctx fiber.Ctx) error {
 	return h.adminClose(ctx, false)
 }
 
+// AdminProjectStats godoc
+// @Summary Get complaint stats for a project (admin only)
+// @Description Admin gets complaint statistics (total, open, resolved, rejected) for a specific project
+// @Tags Complaints
+// @Produce json
+// @Security BearerAuth
+// @Param project_id path int true "Project ID"
+// @Success 200 {object} map[string]interface{} "Complaint statistics"
+// @Failure 400 {object} map[string]string "Invalid project ID"
+// @Failure 404 {object} map[string]string "Project not found"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /admin/complaints/project-stats/{project_id} [get]
 func (h *ComplaintHandler) AdminProjectStats(ctx fiber.Ctx) error {
 	projectID, err := strconv.ParseUint(ctx.Params("project_id"), 10, 32)
 	if err != nil {
