@@ -136,6 +136,8 @@ func (s *chatService) SendMessage(userID uint, req dto.SendChatMessageRequest) (
 		return nil, errors.New("failed to save message")
 	}
 
+	// ดึง history ก่อน save userMessage ไม่ได้ เพราะ userMessage เพิ่งถูก save
+	// ดึงหลัง save เพื่อให้ history รวม message ปัจจุบันด้วย
 	history, err := s.chatRepo.GetMessagesBySessionID(session.ID)
 	if err != nil {
 		return nil, errors.New("failed to load chat history")
@@ -160,17 +162,8 @@ func (s *chatService) SendMessage(userID uint, req dto.SendChatMessageRequest) (
 		return nil, errors.New("failed to update message intent")
 	}
 
-	assistantMessage := &domain.ChatMessage{
-		SessionID: session.ID,
-		Role:      domain.ChatMessageRoleAssistant,
-		Content:   aiOutput.Reply,
-		Intent:    aiOutput.Intent,
-	}
-
-	if err := s.chatRepo.CreateMessage(assistantMessage); err != nil {
-		return nil, errors.New("failed to save assistant message")
-	}
-
+	// assistantMessage จะถูก set ใน block ด้านล่างตาม action type
+	var assistantMessage *domain.ChatMessage
 	var action *domain.ChatAction
 
 	if aiOutput.RequiresAction {
@@ -182,27 +175,59 @@ func (s *chatService) SendMessage(userID uint, req dto.SendChatMessageRequest) (
 			aiOutput.ActionType == domain.ChatActionTypeGetNewProjects ||
 			aiOutput.ActionType == domain.ChatActionTypeGetNotifications ||
 			aiOutput.ActionType == domain.ChatActionTypeGetDisbursements {
+
 			replyContent, err := s.executeQueryAction(userID, aiOutput)
 			if err != nil {
-				replyContent = "ไม่สามารถดึงข้อมูลได้ในขณะนี้ครับ"
+				replyContent = "ไม่สามารถดึงข้อมูลได้ในขณะนี้ครับ~ ลองใหม่อีกทีนะครับ 😅"
 			}
-			assistantMessage.Content = replyContent
-			if err := s.chatRepo.UpdateMessage(assistantMessage); err != nil {
-				return nil, errors.New("failed to update assistant message")
+
+			// save reply ที่ถูกต้องตั้งแต่แรก ไม่ต้อง update ทีหลัง
+			assistantMessage = &domain.ChatMessage{
+				SessionID: session.ID,
+				Role:      domain.ChatMessageRoleAssistant,
+				Content:   replyContent,
+				Intent:    aiOutput.Intent,
+			}
+			if err := s.chatRepo.CreateMessage(assistantMessage); err != nil {
+				return nil, errors.New("failed to save assistant message")
 			}
 		} else {
 			// refund/cancel/vote/complaint/notif — สร้าง action รอ confirm
+			// save reply ที่ AI สร้างมาก่อน (เช่น "ยืนยันไหมครับ?")
+			assistantMessage = &domain.ChatMessage{
+				SessionID: session.ID,
+				Role:      domain.ChatMessageRoleAssistant,
+				Content:   aiOutput.Reply,
+				Intent:    aiOutput.Intent,
+			}
+			if err := s.chatRepo.CreateMessage(assistantMessage); err != nil {
+				return nil, errors.New("failed to save assistant message")
+			}
+
 			action = &domain.ChatAction{
 				SessionID:    session.ID,
 				UserID:       userID,
 				Type:         aiOutput.ActionType,
 				Status:       domain.ChatActionStatusPending,
 				InvestmentID: aiOutput.InvestmentID,
-				Payload:      aiOutput.ExtraData,
+			}
+			if aiOutput.ExtraData != "" {
+				action.Payload = &aiOutput.ExtraData
 			}
 			if err := s.chatRepo.CreateAction(action); err != nil {
 				return nil, errors.New("failed to create action")
 			}
+		}
+	} else {
+		// text reply ปกติ — ไม่มี action
+		assistantMessage = &domain.ChatMessage{
+			SessionID: session.ID,
+			Role:      domain.ChatMessageRoleAssistant,
+			Content:   aiOutput.Reply,
+			Intent:    aiOutput.Intent,
+		}
+		if err := s.chatRepo.CreateMessage(assistantMessage); err != nil {
+			return nil, errors.New("failed to save assistant message")
 		}
 	}
 
@@ -412,7 +437,10 @@ func (s *chatService) executeAction(userID uint, action *domain.ChatAction) (str
 		if action.InvestmentID == nil {
 			return "", errors.New("ไม่พบ milestone_id ครับ~ 😅")
 		}
-		choice := domain.MilestoneVoteChoice(action.Payload)
+		choice := domain.MilestoneVoteChoice("")
+		if action.Payload != nil {
+			choice = domain.MilestoneVoteChoice(*action.Payload)
+		}
 		_, err := s.investmentSvc.VoteMilestone(userID, *action.InvestmentID, choice)
 		if err != nil {
 			return "", err
@@ -424,10 +452,10 @@ func (s *chatService) executeAction(userID uint, action *domain.ChatAction) (str
 		return fmt.Sprintf("โหวต%s milestone #%d เรียบร้อยแล้วครับ~ 🗳️", choiceText, *action.InvestmentID), nil
 
 	case domain.ChatActionTypeFileComplaint:
-		if action.InvestmentID == nil || action.Payload == "" {
+		if action.InvestmentID == nil || action.Payload == nil || *action.Payload == "" {
 			return "", errors.New("ข้อมูลไม่ครบครับ~ 😅")
 		}
-		parts := strings.SplitN(action.Payload, "||", 2)
+		parts := strings.SplitN(*action.Payload, "||", 2)
 		if len(parts) != 2 {
 			return "", errors.New("รูปแบบข้อมูลไม่ถูกต้องครับ~")
 		}

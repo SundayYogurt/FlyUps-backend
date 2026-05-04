@@ -165,13 +165,47 @@ func buildTools() []OpenAITool {
 		// --- Action tools ---
 		{Type: "function", Function: OpenAIToolDef{
 			Name:        "refund_transaction",
-			Description: "ขอคืนเงินสำหรับการลงทุน",
-			Parameters:  investmentToolParams("คืนเงิน"),
+			Description: "ขอคืนเงินการลงทุน ต้องเรียก get_my_investments ก่อนเสมอเพื่อหา investment_id ห้ามเดา investment_id เอง",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"investment_id": map[string]any{
+						"type":        "integer",
+						"description": "ID ของการลงทุน ต้องได้มาจาก get_my_investments เท่านั้น",
+					},
+					"project_title": map[string]any{
+						"type":        "string",
+						"description": "ชื่อโปรเจกต์ที่ต้องการคืนเงิน เพื่อยืนยันกับ user",
+					},
+					"reason": map[string]any{
+						"type":        "string",
+						"description": "เหตุผลในการขอคืนเงิน",
+					},
+				},
+				"required": []string{"investment_id", "project_title", "reason"},
+			},
 		}},
 		{Type: "function", Function: OpenAIToolDef{
 			Name:        "cancel_transaction",
-			Description: "ยกเลิกการลงทุน",
-			Parameters:  investmentToolParams("ยกเลิก"),
+			Description: "ยกเลิกการลงทุน ต้องเรียก get_my_investments ก่อนเสมอเพื่อหา investment_id ห้ามเดา investment_id เอง",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"investment_id": map[string]any{
+						"type":        "integer",
+						"description": "ID ของการลงทุน ต้องได้มาจาก get_my_investments เท่านั้น",
+					},
+					"project_title": map[string]any{
+						"type":        "string",
+						"description": "ชื่อโปรเจกต์ที่ต้องการยกเลิก เพื่อยืนยันกับ user",
+					},
+					"reason": map[string]any{
+						"type":        "string",
+						"description": "เหตุผลในการยกเลิก",
+					},
+				},
+				"required": []string{"investment_id", "project_title", "reason"},
+			},
 		}},
 		{Type: "function", Function: OpenAIToolDef{
 			Name:        "vote_milestone",
@@ -282,9 +316,14 @@ func handleToolCall(name, argsJSON string) (*ChatOutput, error) {
 		if id == 0 {
 			return nil, errors.New("investment_id is required for refund")
 		}
+		title := strArg("project_title")
+		displayName := fmt.Sprintf("#%d", id)
+		if title != "" {
+			displayName = fmt.Sprintf("\"%s\"", title)
+		}
 		return &ChatOutput{
 			Intent:         ChatIntentRefundRequest,
-			Reply:          fmt.Sprintf("Rocket ขอยืนยันนะครับ~ ต้องการขอคืนเงินสำหรับการลงทุน #%d ใช่ป่าวครับ? 🚀", id),
+			Reply:          fmt.Sprintf("Rocket ขอยืนยันนะครับ~ ต้องการขอคืนเงินสำหรับโปรเจกต์ %s ใช่ป่าวครับ? 🚀", displayName),
 			RequiresAction: true,
 			ActionType:     ChatActionTypeRefund,
 			InvestmentID:   &id,
@@ -295,9 +334,14 @@ func handleToolCall(name, argsJSON string) (*ChatOutput, error) {
 		if id == 0 {
 			return nil, errors.New("investment_id is required for cancel")
 		}
+		title := strArg("project_title")
+		displayName := fmt.Sprintf("#%d", id)
+		if title != "" {
+			displayName = fmt.Sprintf("\"%s\"", title)
+		}
 		return &ChatOutput{
 			Intent:         ChatIntentCancelTransaction,
-			Reply:          fmt.Sprintf("เดี๋ยวนะครับ~ ต้องการยกเลิกการลงทุน #%d จริงๆ เหรอครับ? คิดดีๆ ก่อนนะ 👀", id),
+			Reply:          fmt.Sprintf("เดี๋ยวนะครับ~ ต้องการยกเลิกการลงทุนในโปรเจกต์ %s จริงๆ เหรอครับ? คิดดีๆ ก่อนนะ 👀", displayName),
 			RequiresAction: true,
 			ActionType:     ChatActionTypeCancel,
 			InvestmentID:   &id,
@@ -429,6 +473,8 @@ func systemPrompt() string {
 กฎสำคัญ:
 - ตอบเป็นภาษาไทยเสมอ พูดแบบ Rocket น่ารักกวนๆ
 - ตอบเฉพาะเรื่องที่เกี่ยวกับ FlyUp เท่านั้น ถ้าถามนอกเรื่องให้บอกว่าช่วยไม่ได้แบบน่ารักๆ
-- ถ้า user ขอคืนเงิน/ยกเลิก/โหวต/ร้องเรียน ให้ถามข้อมูลที่ขาดก่อน แล้วค่อยเรียก tool
+- ถ้า user ขอคืนเงินหรือยกเลิกการลงทุน ให้เรียก get_my_investments ก่อนเสมอ เพื่อดูว่า user มีการลงทุนอะไรบ้าง แล้วค่อยเรียก refund_transaction หรือ cancel_transaction พร้อม investment_id ที่ถูกต้อง ห้ามเดา investment_id เด็ดขาด
+- ถ้า user มีการลงทุนหลายรายการและไม่ได้ระบุว่าอยากยกเลิกอันไหน ให้แสดงรายการและถามว่าอยากยกเลิกอันไหน
+- ถ้า user ขอโหวต/ร้องเรียน ให้ถามข้อมูลที่ขาดก่อน แล้วค่อยเรียก tool
 - ถ้าไม่แน่ใจ ให้แนะนำให้ติดต่อ support`
 }
