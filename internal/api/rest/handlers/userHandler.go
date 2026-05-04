@@ -75,6 +75,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	privateRoutes.Put("/change-password", handler.ChangePassword)
 	privateRoutes.Put("/add-password", handler.AddPassword)
 	privateRoutes.Patch("/role", handler.SelectRole)
+	privateRoutes.Patch("/notification-preferences", handler.UpdateNotificationPreferences)
 
 	//admin route
 	adminRoutes := app.Group("/admin", rh.Middlewares.AuthorizeAdmin)
@@ -1197,6 +1198,36 @@ func (h *UserHandler) DeleteUniversityDomain(ctx fiber.Ctx) error {
 		"message": "delete university domain success",
 	})
 
+}
+
+// UpdateNotificationPreferences godoc
+// @Summary Update notification preferences
+// @Description Update the current user's notification preferences
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.UpdateNotificationPrefsRequest true "Notification preferences"
+// @Success 200 {object} object "preferences updated"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /user/notification-preferences [patch]
+func (h *UserHandler) UpdateNotificationPreferences(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.UnauthorizedError(ctx, "unauthorized")
+	}
+
+	var req dto.UpdateNotificationPrefsRequest
+	if err := ctx.Bind().Body(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid body")
+	}
+
+	if err := h.svc.UpdateNotificationPreferences(user.ID, req.Preferences); err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "preferences updated", nil)
 }
 
 // ChangePassword godoc
