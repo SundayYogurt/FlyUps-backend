@@ -11,11 +11,9 @@ import (
 type UserRepository interface {
 	CreateUser(usr *domain.User, consent *domain.UserConsent) (*domain.User, error)
 	FindUser(email string) (*domain.User, error)
-	FindUserByVerificationToken(token string) (*domain.User, error)
 	FindUserByResetToken(token string) (*domain.User, error)
 	FindUserById(id uint) (*domain.User, error)
 	UpdateUser(userID uint, updates map[string]interface{}) error
-	UpdateUserProfile(userID uint, firstName, lastName, phone string, address *string) error
 	UpsertStudentProfileByUserID(profile *domain.StudentProfile) error
 	CreateBankAccount(bank *domain.BankAccount) error
 	UpdateBankAccount(bank *domain.BankAccount) error
@@ -255,34 +253,10 @@ func (r *userRepository) FindLatestIdVerification(userID uint) (*domain.IdCardVe
 	}
 	return &v, err
 }
-func (r *userRepository) FindUserByVerificationToken(token string) (*domain.User, error) {
-	var user domain.User
-
-	err := r.db.Where("verification_token = ?", token).First(&user).Error
-	if err != nil {
-		return nil, err
-	}
-
-	return &user, nil
-}
-
 func (r *userRepository) UpdateUser(userID uint, updates map[string]interface{}) error {
 	return r.db.Model(&domain.User{}).
 		Where("id = ?", userID).
 		Updates(updates).Error
-}
-
-func (r *userRepository) UpdateUserProfile(userID uint, firstName, lastName, phone string, address *string) error {
-	updates := map[string]any{
-		"first_name": firstName,
-		"last_name":  lastName,
-		"phone":      phone,
-	}
-	if address != nil {
-		updates["address"] = address
-	}
-
-	return r.db.Model(&domain.User{}).Where("id = ?", userID).Updates(updates).Error
 }
 
 func (r *userRepository) UpsertStudentProfileByUserID(profile *domain.StudentProfile) error {

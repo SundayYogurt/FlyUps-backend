@@ -89,6 +89,82 @@ func NewUserService(
 	}
 }
 
+// validatePassword ตรวจสอบ password policy และ hash ให้พร้อมใช้
+func validatePassword(password string) error {
+	if len(password) < 8 {
+		return errors.New("password must be at least 8 characters")
+	}
+	if !regexp.MustCompile(`[A-Z]`).MatchString(password) {
+		return errors.New("password must contain at least one uppercase letter")
+	}
+	if !regexp.MustCompile(`[a-z]`).MatchString(password) {
+		return errors.New("password must contain at least one lowercase letter")
+	}
+	if !regexp.MustCompile(`[0-9]`).MatchString(password) {
+		return errors.New("password must contain at least one number")
+	}
+	if !regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]`).MatchString(password) {
+		return errors.New("password must contain at least one special character")
+	}
+	return nil
+}
+
+// hashPassword hash password ด้วย bcrypt
+func hashPassword(password string) (string, error) {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", errors.New("fail to hash password")
+	}
+	return string(hashed), nil
+}
+
+// validateAndHashPassword รวม validate + hash ในขั้นตอนเดียว
+func validateAndHashPassword(password string) (string, error) {
+	if err := validatePassword(password); err != nil {
+		return "", err
+	}
+	return hashPassword(password)
+}
+
+// extractDomainFromEmail แยก domain จาก email
+func extractDomainFromEmail(email string) (string, error) {
+	parts := strings.Split(email, "@")
+	if len(parts) < 2 || parts[1] == "" {
+		return "", errors.New("invalid email format")
+	}
+	return parts[1], nil
+}
+
+// validatePioneerDomain ตรวจสอบว่า email domain ลงทะเบียนเป็นมหาวิทยาลัยและ active
+func (s *userService) validatePioneerDomain(email string) error {
+	domainName, err := extractDomainFromEmail(email)
+	if err != nil {
+		return err
+	}
+	findDomain, err := s.URepo.GetUniversityByDomain(domainName)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("sorry, this email domain is not registered as a university")
+		}
+		return errors.New("internal server error, try again later")
+	}
+	if !findDomain.IsActive {
+		return errors.New("this university is not active")
+	}
+	return nil
+}
+
+// checkVerificationStatus ตรวจสอบ state ของ verification ว่าสามารถดำเนินการได้หรือไม่
+func checkVerificationStatus(status domain.VerifyStatus) error {
+	switch status {
+	case domain.VerifyStatusApproved:
+		return errors.New("student is already verified")
+	case domain.VerifyStatusRejected:
+		return errors.New("verification was rejected, user must resubmit")
+	}
+	return nil
+}
+
 func (s *userService) ListUser(page, limit int, role, status, search string) ([]domain.User, int64, error) {
 	users, total, err := s.Repo.FindAllUsers(page, limit, role, status, search)
 	if err != nil {
@@ -106,7 +182,7 @@ func (s *userService) AddPasswordForGoogle(userID uint, newPassword string) erro
 
 	user, err := s.Repo.FindUserById(userID)
 	if err != nil {
-		return err
+		return errors.New("user not found")
 	}
 
 	// normal user
@@ -127,43 +203,13 @@ func (s *userService) AddPasswordForGoogle(userID uint, newPassword string) erro
 		return errors.New("user id not match cannot change password")
 	}
 
-	if len(newPassword) < 8 {
-		return errors.New("password must be at least 8 characters")
-	}
-
-	//check ตัวใหญ่ (A-Z)
-	upper := regexp.MustCompile(`[A-Z]`)
-	if !upper.MatchString(newPassword) {
-		return errors.New("password must contain at least one uppercase letter")
-	}
-
-	//check ตัวใหญ่ (A-Z)
-	lower := regexp.MustCompile(`[a-z]`)
-	if !lower.MatchString(newPassword) {
-		return errors.New("password must contain at least one lowercase letter")
-	}
-
-	//check ตัวเลข
-	digit := regexp.MustCompile(`[0-9]`)
-	if !digit.MatchString(newPassword) {
-		return errors.New("password must contain at least one number")
-	}
-
-	//check อักขระพิเศษ
-	special := regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]`)
-	if !special.MatchString(newPassword) {
-		return errors.New("password must contain at least one special character")
-	}
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	hashedPassword, err := validateAndHashPassword(newPassword)
 	if err != nil {
-		return errors.New("fail to hash password")
+		return err
 	}
-
-	user.PasswordHash = string(hashedPassword)
 
 	updates := map[string]interface{}{
-		"password_hash": string(hashedPassword),
+		"password_hash": hashedPassword,
 	}
 
 	return s.Repo.UpdateUser(user.ID, updates)
@@ -181,7 +227,7 @@ func (s *userService) SelectRole(userID uint, newRole string) error {
 
 	user, err := s.Repo.FindUserById(userID)
 	if err != nil {
-		return err
+		return errors.New("user not found")
 	}
 
 	if user.Role != "pending" {
@@ -189,21 +235,8 @@ func (s *userService) SelectRole(userID uint, newRole string) error {
 	}
 
 	if newRole == "pioneer" {
-		parts := strings.Split(user.Email, "@")
-		if len(parts) < 2 {
-			return errors.New("invalid email format")
-		}
-		domainName := parts[1]
-
-		findDomain, err := s.URepo.GetUniversityByDomain(domainName)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.New("sorry, this email domain is not registered as a university")
-			}
-			return errors.New("internal server error, try again later")
-		}
-		if !findDomain.IsActive {
-			return errors.New("this university is not active")
+		if err := s.validatePioneerDomain(user.Email); err != nil {
+			return err
 		}
 	}
 
@@ -233,7 +266,7 @@ func (s *userService) ChangePassword(userID uint, password string, newPassword s
 
 	user, err := s.Repo.FindUserById(userID)
 	if err != nil {
-		return err
+		return errors.New("user not found")
 	}
 
 	if password == "" {
@@ -258,43 +291,13 @@ func (s *userService) ChangePassword(userID uint, password string, newPassword s
 		return errors.New("user id not match cannot change password")
 	}
 
-	if len(newPassword) < 8 {
-		return errors.New("password must be at least 8 characters")
-	}
-
-	//check ตัวใหญ่ (A-Z)
-	upper := regexp.MustCompile(`[A-Z]`)
-	if !upper.MatchString(newPassword) {
-		return errors.New("password must contain at least one uppercase letter")
-	}
-
-	//check ตัวใหญ่ (A-Z)
-	lower := regexp.MustCompile(`[a-z]`)
-	if !lower.MatchString(newPassword) {
-		return errors.New("password must contain at least one lowercase letter")
-	}
-
-	//check ตัวเลข
-	digit := regexp.MustCompile(`[0-9]`)
-	if !digit.MatchString(newPassword) {
-		return errors.New("password must contain at least one number")
-	}
-
-	//check อักขระพิเศษ
-	special := regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]`)
-	if !special.MatchString(newPassword) {
-		return errors.New("password must contain at least one special character")
-	}
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	hashedPassword, err := validateAndHashPassword(newPassword)
 	if err != nil {
-		return errors.New("fail to hash password")
+		return err
 	}
-
-	user.PasswordHash = string(hashedPassword)
 
 	updates := map[string]interface{}{
-		"password_hash": string(hashedPassword),
+		"password_hash": hashedPassword,
 	}
 
 	return s.Repo.UpdateUser(user.ID, updates)
@@ -312,7 +315,7 @@ func (s *userService) UpdateDomain(id uint, req dto.UpdateDomainRequest) (*domai
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("domain not found")
 		}
-		return nil, err
+		return nil, errors.New("failed to fetch domain")
 	}
 
 	// update domain
@@ -347,7 +350,7 @@ func (s *userService) UpdateDomain(id uint, req dto.UpdateDomainRequest) (*domai
 	}
 
 	if err := s.URepo.UpdateDomain(d); err != nil {
-		return nil, err
+		return nil, errors.New("failed to update domain")
 	}
 
 	return d, nil
@@ -369,7 +372,7 @@ func (s *userService) CreateUniversity(req dto.CreateUniversityRequest) (*domain
 
 	// ถ้า error ที่ไม่ใช่ not found
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, err
+		return nil, errors.New("failed to check existing university")
 	}
 
 	u := domain.University{
@@ -379,7 +382,7 @@ func (s *userService) CreateUniversity(req dto.CreateUniversityRequest) (*domain
 	}
 
 	if err := s.URepo.Create(&u); err != nil {
-		return nil, err
+		return nil, errors.New("failed to create university")
 	}
 
 	return &u, nil
@@ -400,7 +403,7 @@ func (s *userService) GetUniversityByID(id uint) (*domain.University, error) {
 func (s *userService) UpdateUniversity(id uint, req dto.CreateUniversityRequest) (*domain.University, error) {
 	u, err := s.URepo.FindByID(id)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("university not found")
 	}
 
 	if req.NameTH != nil {
@@ -446,7 +449,7 @@ func (s *userService) UpdateUniversity(id uint, req dto.CreateUniversityRequest)
 	}
 
 	if err := s.URepo.Update(u); err != nil {
-		return nil, err
+		return nil, errors.New("failed to update university")
 	}
 
 	return u, nil
@@ -473,7 +476,7 @@ func (s *userService) CreateDomain(id uint, req dto.CreateDomainRequest) (*domai
 	// เช็คว่ามี domain อยู่แล้วหรือไม่
 	existing, err := s.URepo.GetUniversityByDomain(domainStr)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, err
+		return nil, errors.New("failed to check existing domain")
 	}
 	if existing != nil {
 		return nil, errors.New("domain is already used")
@@ -485,7 +488,7 @@ func (s *userService) CreateDomain(id uint, req dto.CreateDomainRequest) (*domai
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("university not found")
 		}
-		return nil, err
+		return nil, errors.New("failed to fetch university")
 	}
 
 	// สร้าง domain ใหม่
@@ -496,7 +499,7 @@ func (s *userService) CreateDomain(id uint, req dto.CreateDomainRequest) (*domai
 	}
 
 	if err := s.URepo.CreateDomain(&d); err != nil {
-		return nil, err
+		return nil, errors.New("failed to create domain")
 	}
 
 	return &d, nil
@@ -524,7 +527,7 @@ func (s *userService) DeleteDomain(id uint) error {
 
 	_, err := s.URepo.FindDomainByID(id)
 	if err != nil {
-		return err
+		return errors.New("domain not found")
 	}
 
 	return s.URepo.DeleteDomain(id)
@@ -537,11 +540,11 @@ func (s *userService) RollbackActiveUser(userID uint) error {
 
 	user, err := s.Repo.FindUserById(userID)
 	if err != nil {
-		return err
+		return errors.New("user not found")
 	}
 
 	if user.Status == domain.ACTIVE {
-		return errors.New("user is already suspended")
+		return errors.New("user is not suspended")
 	}
 
 	updates := map[string]interface{}{
@@ -573,7 +576,7 @@ func (s *userService) SuspendUser(adminID uint, userID uint, reason string) erro
 
 	user, err := s.Repo.FindUserById(userID)
 	if err != nil {
-		return err
+		return errors.New("user not found")
 	}
 
 	if user.Status == domain.SUSPENDED {
@@ -591,7 +594,7 @@ func (s *userService) SuspendUser(adminID uint, userID uint, reason string) erro
 
 	email := user.Email
 
-	go func() {
+	go func(email, reason string) {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Printf("email panic: %v", r)
@@ -604,7 +607,7 @@ func (s *userService) SuspendUser(adminID uint, userID uint, reason string) erro
 		if err != nil {
 			log.Printf("send verify email error: %v", err)
 		}
-	}()
+	}(email, reason)
 
 	return s.Repo.UpdateUser(userID, updates)
 
@@ -621,26 +624,20 @@ func (s *userService) RejectIdCard(userID uint, adminID uint) error {
 
 	_, err := s.Repo.FindUserById(userID)
 	if err != nil {
-		return err
+		return errors.New("user not found")
 	}
 
 	student, err := s.Repo.FindIdCardStatus(userID)
 	if err != nil {
-		return err
+		return errors.New("failed to fetch id card verification")
 	}
 
 	if student == nil {
 		return errors.New("no student verification found")
 	}
 
-	switch student.Status {
-	case domain.VerifyStatusPending:
-
-	case domain.VerifyStatusApproved:
-		return errors.New("student is already verified")
-
-	case domain.VerifyStatusRejected:
-		return errors.New("verification was rejected, user must resubmit")
+	if err := checkVerificationStatus(student.Status); err != nil {
+		return err
 	}
 
 	v := &domain.IdCardVerification{
@@ -650,7 +647,7 @@ func (s *userService) RejectIdCard(userID uint, adminID uint) error {
 	}
 
 	if err := s.Repo.UpdateIdCardVerification(v); err != nil {
-		return err
+		return errors.New("failed to update id card verification")
 	}
 
 	if s.NotifSvc != nil {
@@ -675,26 +672,20 @@ func (s *userService) RejectStudentCard(userID uint, adminID uint) error {
 
 	_, err := s.Repo.FindUserById(userID)
 	if err != nil {
-		return err
+		return errors.New("user not found")
 	}
 
 	student, err := s.Repo.FindStudentStatus(userID)
 	if err != nil {
-		return err
+		return errors.New("failed to fetch student card verification")
 	}
 
 	if student == nil {
 		return errors.New("no student verification found")
 	}
 
-	switch student.Status {
-	case domain.VerifyStatusPending:
-
-	case domain.VerifyStatusApproved:
-		return errors.New("student is already verified")
-
-	case domain.VerifyStatusRejected:
-		return errors.New("verification was rejected, user must resubmit")
+	if err := checkVerificationStatus(student.Status); err != nil {
+		return err
 	}
 
 	v := &domain.StudentCardVerification{
@@ -704,7 +695,7 @@ func (s *userService) RejectStudentCard(userID uint, adminID uint) error {
 	}
 
 	if err := s.Repo.UpdateStudentCardVerification(v); err != nil {
-		return err
+		return errors.New("failed to update student card verification")
 	}
 
 	if s.NotifSvc != nil {
@@ -729,26 +720,20 @@ func (s *userService) ApproveStudentCard(userID uint, adminID uint) error {
 
 	_, err := s.Repo.FindUserById(userID)
 	if err != nil {
-		return err
+		return errors.New("user not found")
 	}
 
 	student, err := s.Repo.FindStudentStatus(userID)
 	if err != nil {
-		return err
+		return errors.New("failed to fetch student card verification")
 	}
 
 	if student == nil {
 		return errors.New("no student verification found")
 	}
 
-	switch student.Status {
-	case domain.VerifyStatusPending:
-
-	case domain.VerifyStatusApproved:
-		return errors.New("student is already verified")
-
-	case domain.VerifyStatusRejected:
-		return errors.New("verification was rejected, user must resubmit")
+	if err := checkVerificationStatus(student.Status); err != nil {
+		return err
 	}
 
 	now := time.Now()
@@ -761,7 +746,7 @@ func (s *userService) ApproveStudentCard(userID uint, adminID uint) error {
 	}
 
 	if err := s.Repo.UpdateStudentCardVerification(v); err != nil {
-		return err
+		return errors.New("failed to update student card verification")
 	}
 
 	if s.NotifSvc != nil {
@@ -786,26 +771,20 @@ func (s *userService) ApproveIdCard(userID uint, adminID uint) error {
 
 	_, err := s.Repo.FindUserById(userID)
 	if err != nil {
-		return err
+		return errors.New("user not found")
 	}
 
 	student, err := s.Repo.FindIdCardStatus(userID)
 	if err != nil {
-		return err
+		return errors.New("failed to fetch id card verification")
 	}
 
 	if student == nil {
 		return errors.New("no student verification found")
 	}
 
-	switch student.Status {
-	case domain.VerifyStatusPending:
-
-	case domain.VerifyStatusApproved:
-		return errors.New("student is already verified")
-
-	case domain.VerifyStatusRejected:
-		return errors.New("verification was rejected, user must resubmit")
+	if err := checkVerificationStatus(student.Status); err != nil {
+		return err
 	}
 
 	now := time.Now()
@@ -818,7 +797,7 @@ func (s *userService) ApproveIdCard(userID uint, adminID uint) error {
 	}
 
 	if err := s.Repo.UpdateIdCardVerification(v); err != nil {
-		return err
+		return errors.New("failed to update id card verification")
 	}
 
 	if s.NotifSvc != nil {
@@ -839,7 +818,7 @@ func (s *userService) FindBankByUserID(userID uint) ([]domain.BankAccount, error
 
 	userBank, err := s.Repo.FindBankByUserId(userID)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("failed to fetch bank accounts")
 	}
 
 	if len(userBank) == 0 {
@@ -856,7 +835,7 @@ func (s *userService) UpdateBankAccount(userID uint, bankID uint, input dto.Bank
 	// 1. หา bank
 	bank, err := s.Repo.FindBankById(bankID)
 	if err != nil {
-		return err
+		return errors.New("bank not found")
 	}
 	if bank == nil {
 		return errors.New("bank not found")
@@ -913,7 +892,7 @@ func (s *userService) AddBankAccount(userID uint, input dto.BankRequest) error {
 
 	user, err := s.Repo.FindUserById(userID)
 	if err != nil {
-		return err
+		return errors.New("user not found")
 	}
 	if user == nil {
 		return errors.New("user not found")
@@ -941,7 +920,7 @@ func (s *userService) AddBankAccount(userID uint, input dto.BankRequest) error {
 
 	existing, err := s.Repo.FindBankByAccountNumber(*input.AccountNumber)
 	if err != nil {
-		return err
+		return errors.New("failed to check existing account number")
 	}
 
 	if existing != nil {
@@ -1192,32 +1171,9 @@ func (s *userService) SetPassword(token string, newPassword string) error {
 		return errors.New("invalid input")
 	}
 
-	if len(newPassword) < 8 {
-		return errors.New("password must be at least 8 characters")
-	}
-
-	//check ตัวใหญ่ (A-Z)
-	upper := regexp.MustCompile(`[A-Z]`)
-	if !upper.MatchString(newPassword) {
-		return errors.New("password must contain at least one uppercase letter")
-	}
-
-	//check ตัวใหญ่ (A-Z)
-	lower := regexp.MustCompile(`[a-z]`)
-	if !lower.MatchString(newPassword) {
-		return errors.New("password must contain at least one lowercase letter")
-	}
-
-	//check ตัวเลข
-	digit := regexp.MustCompile(`[0-9]`)
-	if !digit.MatchString(newPassword) {
-		return errors.New("password must contain at least one number")
-	}
-
-	//check อักขระพิเศษ
-	special := regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]`)
-	if !special.MatchString(newPassword) {
-		return errors.New("password must contain at least one special character")
+	hashedPassword, err := validateAndHashPassword(newPassword)
+	if err != nil {
+		return err
 	}
 
 	hash := helper.Sha256Hex(token)
@@ -1231,15 +1187,8 @@ func (s *userService) SetPassword(token string, newPassword string) error {
 		return errors.New("invalid or expired token")
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
-	if err != nil {
-		return errors.New("fail to hash password")
-	}
-
-	user.PasswordHash = string(hashedPassword)
-
 	updates := map[string]interface{}{
-		"password_hash":          string(hashedPassword),
+		"password_hash":          hashedPassword,
 		"reset_token_hash":       nil,
 		"reset_token_expires_at": nil,
 	}
@@ -1267,7 +1216,7 @@ func (s *userService) GetProfile(userID uint) (*domain.User, error) {
 				return &cachedUser, nil
 			}
 		}
-		return nil, err
+		return nil, errors.New("failed to fetch user")
 	}
 
 	// Set HasPassword จาก DB โดยตรง (ถูกต้องเสมอ)
@@ -1327,21 +1276,8 @@ func (s *userService) GoogleSigning(code string, role string, oauthConfig *oauth
 
 	// 3. Validate Pioneer Email Domain BEFORE checking if user exists
 	if role == "pioneer" {
-		parts := strings.Split(googleUser.Email, "@")
-		if len(parts) < 2 {
-			return "", errors.New("invalid email format")
-		}
-		domainName := parts[1]
-
-		findDomain, err := s.URepo.GetUniversityByDomain(domainName)
-		if err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return "", errors.New("sorry, this email domain is not registered as a university")
-			}
-			return "", errors.New("internal server error, try again later")
-		}
-		if !findDomain.IsActive {
-			return "", errors.New("this university is not active")
+		if err := s.validatePioneerDomain(googleUser.Email); err != nil {
+			return "", err
 		}
 	}
 
@@ -1485,12 +1421,12 @@ func (s *userService) UpdateProfile(userID uint, input dto.ProfileInput) error {
 	log.Printf("[UpdateProfile] applying explicit profile update (user_id=%d)", userID)
 	if len(updates) > 0 {
 		if err := s.Repo.UpdateUser(userID, updates); err != nil {
-			return err
+			return errors.New("failed to update profile")
 		}
 	}
 	if studentProfile != nil {
 		if err := s.Repo.UpsertStudentProfileByUserID(studentProfile); err != nil {
-			return err
+			return errors.New("failed to update student profile")
 		}
 	}
 	return nil
@@ -1526,7 +1462,7 @@ func (s *userService) VerifyStudent(userID uint, input dto.VerifyStudentInput) e
 	// หา record ล่าสุด
 	existing, err := s.Repo.FindLatestStudentVerification(userID)
 	if err != nil {
-		return err
+		return errors.New("failed to fetch student verification")
 	}
 
 	// กัน state
@@ -1565,13 +1501,13 @@ func (s *userService) VerifyStudent(userID uint, input dto.VerifyStudentInput) e
 	if existing == nil {
 		// ครั้งแรก
 		if err := s.Repo.CreateStudentVerification(verify); err != nil {
-			return err
+			return errors.New("failed to create student verification")
 		}
 	} else {
 		// rejected → update
 		verify.ID = existing.ID
 		if err := s.Repo.UpdateStudentVerification(verify); err != nil {
-			return err
+			return errors.New("failed to update student verification")
 		}
 	}
 
@@ -1599,7 +1535,7 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 	// หา record ล่าสุด
 	existing, err := s.Repo.FindLatestIdVerification(userID)
 	if err != nil {
-		return err
+		return errors.New("failed to fetch id verification")
 	}
 
 	// กัน state
@@ -1663,13 +1599,13 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 	if existing == nil {
 		// create ครั้งแรก
 		if err := s.Repo.CreateIdVerification(verify); err != nil {
-			return err
+			return errors.New("failed to create id verification")
 		}
 	} else {
 		// ejected → update
 		verify.ID = existing.ID
 		if err := s.Repo.UpdateIdVerification(verify); err != nil {
-			return err
+			return errors.New("failed to update id verification")
 		}
 	}
 
