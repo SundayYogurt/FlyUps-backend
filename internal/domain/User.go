@@ -39,6 +39,7 @@ type User struct {
 	SuspendReason              *string                  `json:"suspend_reason,omitempty"`
 	SuspendedBy                *uint                    `json:"suspended_by,omitempty"`
 	SuspendedAt                *time.Time               `json:"suspended_at,omitempty"`
+	NotificationPreferences    string                   `json:"notification_preferences" gorm:"type:json;default:'{}'"`
 	gorm.Model
 }
 

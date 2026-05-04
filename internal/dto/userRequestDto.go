@@ -103,3 +103,7 @@ type ChangePasswordRequest struct {
 type AddPasswordRequest struct {
 	NewPassword string `json:"new_password" validate:"required,min=8"`
 }
+
+type UpdateNotificationPrefsRequest struct {
+	Preferences map[string]bool `json:"preferences" validate:"required"`
+}
