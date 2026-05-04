@@ -42,6 +42,16 @@ func SetupDisbursementRoutes(rh *rest.RestHandler) {
 	pioneer.Get("/", h.ListMyPayouts)
 }
 
+// ListMyPayouts godoc
+// @Summary List my payouts
+// @Description Pioneer gets all their disbursement records (pending + confirmed)
+// @Tags Disbursements
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "List of pioneer payouts"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Router /pioneer/payouts [get]
 func (h *DisbursementHandler) ListMyPayouts(ctx fiber.Ctx) error {
 	currentUser := h.auth.GetCurrentUser(ctx)
 	if currentUser.ID == 0 {

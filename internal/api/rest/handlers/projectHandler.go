@@ -222,6 +222,20 @@ func (h *ProjectHandler) CancelProject(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "cancelled successfully", nil)
 }
 
+// SubmitCancelProject godoc
+// @Summary Submit cancel request
+// @Description Pioneer submits a cancellation request for admin review
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Param request body dto.CancelProjectRequest true "Cancel request payload"
+// @Success 200 {object} object "submit cancel successfully"
+// @Failure 400 {object} object "Invalid request body or project ID"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /pioneer/projects/{id}/submit-cancel [patch]
 func (h *ProjectHandler) SubmitCancelProject(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -246,6 +260,18 @@ func (h *ProjectHandler) SubmitCancelProject(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "submit cancel successfully", nil)
 }
 
+// ApproveCancel godoc
+// @Summary Approve project cancellation
+// @Description Admin approves a pioneer's cancellation request and refunds all investors
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "project cancelled successfully"
+// @Failure 400 {object} object "Invalid project ID or business rule violation"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /admin/projects/{id}/approve-cancel [patch]
 func (h *ProjectHandler) ApproveCancel(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -265,6 +291,18 @@ func (h *ProjectHandler) ApproveCancel(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "project cancelled successfully", nil)
 }
 
+// RejectCancel godoc
+// @Summary Reject project cancellation
+// @Description Admin rejects a pioneer's cancellation request and keeps the project active
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "reject project cancelled successfully"
+// @Failure 400 {object} object "Invalid project ID or business rule violation"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /admin/projects/{id}/reject-cancel [patch]
 func (h *ProjectHandler) RejectCancel(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
@@ -284,6 +322,17 @@ func (h *ProjectHandler) RejectCancel(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "reject project cancelled successfully", nil)
 }
 
+// GetCancelPreview godoc
+// @Summary Preview project cancellation impact
+// @Description Admin previews the cancellation impact (refund amounts, investors affected) before approving
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "Cancel preview data"
+// @Failure 400 {object} object "Invalid project ID"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /admin/projects/{id}/cancel-preview [get]
 func (h *ProjectHandler) GetCancelPreview(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil || id <= 0 {
@@ -1635,6 +1684,20 @@ func (h *ProjectHandler) CreateProjectThread(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "thread created successfully", body)
 }
 
+// CreateBoosterProjectThread godoc
+// @Summary Create thread as booster
+// @Description Booster (investor) creates a discussion thread on a project they have invested in
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Param request body object true "Thread Data"
+// @Success 200 {object} object "thread created successfully"
+// @Failure 400 {object} object "Invalid request body or project ID"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 403 {object} object "Forbidden - not an investor of this project"
+// @Router /booster/projects/{id}/threads [post]
 func (h *ProjectHandler) CreateBoosterProjectThread(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	id, err := strconv.Atoi(ctx.Params("id"))
@@ -2168,6 +2231,16 @@ func (h *ProjectHandler) GetMyMeetings(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", meetings)
 }
 
+// GetPendingCancel godoc
+// @Summary List pending cancellation requests
+// @Description Admin gets all projects with a pending cancellation request waiting for review
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} object "List of projects pending cancellation"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /admin/projects/cancel-request [get]
 func (h *ProjectHandler) GetPendingCancel(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	if user.ID == 0 {
