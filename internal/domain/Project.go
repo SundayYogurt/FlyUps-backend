@@ -217,6 +217,7 @@ const (
 type ProjectThread struct {
 	ID         uint         `json:"id"`
 	ProjectID  uint         `json:"project_id"`
+	UpdateID   *uint        `json:"update_id,omitempty"`
 	Type       string       `json:"type"`
 	CreatedBy  uint         `json:"created_by"`
 	Title      *string      `json:"title,omitempty"`
@@ -237,15 +238,17 @@ const (
 )
 
 type ProjectThreadMessage struct {
-	ID        uint         `json:"id"`
-	ProjectID uint         `json:"project_id"`
-	ThreadID  uint         `json:"thread_id"`
-	Type      string       `json:"type"`
-	CreatedBy uint         `json:"created_by"`
-	Body      string       `json:"body"`
-	Status    ThreadStatus `json:"status"`
-	CreatedAt time.Time    `json:"created_at"`
-	UpdatedAt time.Time    `json:"updated_at"`
+	ID         uint         `json:"id"`
+	ProjectID  uint         `json:"project_id"`
+	ThreadID   uint         `json:"thread_id"`
+	Type       string       `json:"type"`
+	CreatedBy  uint         `json:"created_by"`
+	Body       string       `json:"body"`
+	Status     ThreadStatus `json:"status"`
+	CreatedAt  time.Time    `json:"created_at"`
+	UpdatedAt  time.Time    `json:"updated_at"`
+	UserName   string       `json:"user_name" gorm:"column:user_name;<-:false"`
+	UserAvatar *string      `json:"user_avatar,omitempty" gorm:"column:user_avatar;<-:false"`
 }
 type MeetingType string
 

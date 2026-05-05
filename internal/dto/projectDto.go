@@ -47,6 +47,7 @@ type ProjectResponse struct {
 	MinInvestAmount float64              `json:"min_invest_amount"`
 	MaxInvestAmount float64              `json:"max_invest_amount"`
 	PlatformFee     float64              `json:"platform_fee"`
+	CoverImage      *string              `json:"cover_image,omitempty"`
 	OwnerProfile    *ProjectOwnerProfile `json:"owner_profile,omitempty"`
 }
 
@@ -58,6 +59,8 @@ type ProjectOwnerProfile struct {
 	Major        *string `json:"major"`
 	Bio          *string `json:"bio"`
 	ProjectCount int     `json:"project_count"`
+	Picture      *string `json:"picture,omitempty"`
+	VerifyStatus string  `json:"verify_status"`
 }
 
 type ProjectDetailResponse struct {

@@ -53,6 +53,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	pub.Get("/:id<int>/updates", handler.GetProjectUpdates)
 	pub.Get("/:id<int>/faqs", handler.GetProjectFAQs)
 	pub.Get("/:id<int>/threads", handler.GetProjectThreads)
+	pub.Get("/:id<int>/updates/:update_id<int>/threads", handler.GetProjectUpdateThreads)
 	pub.Get("/threads/:thread_id<int>/messages", handler.GetProjectThreadMessages)
 
 	// Categories
@@ -75,10 +76,12 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	priv.Patch("/faqs/:faq_id<int>", handler.UpdateProjectFAQ)
 	priv.Delete("/faqs/:faq_id<int>", handler.DeleteProjectFAQ)
 	priv.Post("/:id<int>/threads", handler.CreateProjectThread)
+	priv.Post("/:id<int>/updates/:update_id<int>/threads", handler.CreateProjectUpdateThread)
 
 	// Booster (investor) threads
 	booster := app.Group("/booster/projects", rh.Middlewares.AuthorizePioneerAndBooster)
 	booster.Post("/:id<int>/threads", handler.CreateBoosterProjectThread)
+	booster.Post("/:id<int>/updates/:update_id<int>/threads", handler.CreateBoosterProjectUpdateThread)
 	booster.Post("/threads/:thread_id<int>/messages", handler.CreateProjectThreadMessage)
 	priv.Patch("/threads/:thread_id<int>", handler.UpdateProjectThread)
 	priv.Delete("/threads/:thread_id<int>", handler.DeleteProjectThread)
@@ -777,10 +780,27 @@ func (h *ProjectHandler) toProjectResponse(proj *domain.Project) dto.ProjectResp
 	if proj.Owner != nil {
 		ownerProjects, _ := h.svc.GetMyProjects(proj.OwnerUserID)
 
+		// นับเฉพาะโปรเจกต์ที่ผ่านกระบวนการทั้งหมด (executing หรือ closed)
+		successCount := 0
+		for _, p := range ownerProjects {
+			if p.State == domain.StateExecuting || p.State == domain.StateClosed {
+				successCount++
+			}
+		}
+
+		verifyStatus := "pending"
+		if proj.Owner.IdCardVerification != nil && proj.Owner.IdCardVerification.Status == domain.VerifyStatusApproved {
+			verifyStatus = "verified"
+		} else if proj.Owner.StudentCardVerification != nil && proj.Owner.StudentCardVerification.Status == domain.VerifyStatusApproved {
+			verifyStatus = "verified"
+		}
+
 		ownerProfile = &dto.ProjectOwnerProfile{
 			FirstName:    proj.Owner.FirstName,
 			LastName:     proj.Owner.LastName,
-			ProjectCount: len(ownerProjects),
+			Picture:      proj.Owner.Picture,
+			VerifyStatus: verifyStatus,
+			ProjectCount: successCount,
 		}
 		if proj.Owner.StudentProfile != nil {
 			sp := proj.Owner.StudentProfile
@@ -816,6 +836,7 @@ func (h *ProjectHandler) toProjectResponse(proj *domain.Project) dto.ProjectResp
 		MaxInvestAmount: proj.MaxInvestAmount,
 		CreatedAt:       proj.CreatedAt.Format(time.RFC3339),
 		UpdatedAt:       proj.UpdatedAt.Format(time.RFC3339),
+		CoverImage:      proj.CoverImage,
 		OwnerProfile:    ownerProfile,
 	}
 }
@@ -1655,6 +1676,68 @@ func (h *ProjectHandler) GetProjectThreads(ctx fiber.Ctx) error {
 		return rest.InternalError(ctx, err)
 	}
 	return rest.SuccessResponse(ctx, "success", threads)
+}
+
+func (h *ProjectHandler) GetProjectUpdateThreads(ctx fiber.Ctx) error {
+	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+	}
+	updateID, err := strconv.Atoi(ctx.Params("update_id"))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid update id"))
+	}
+	threads, err := h.svc.GetProjectUpdateThreads(uint(id), uint(updateID))
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+	return rest.SuccessResponse(ctx, "success", threads)
+}
+
+func (h *ProjectHandler) CreateProjectUpdateThread(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+	}
+	updateID, err := strconv.Atoi(ctx.Params("update_id"))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid update id"))
+	}
+	var body domain.ProjectThread
+	if err := ctx.Bind().Body(&body); err != nil {
+		return rest.BadRequestError(ctx, "invalid request body")
+	}
+	body.ProjectID = uint(id)
+	uid := uint(updateID)
+	body.UpdateID = &uid
+	if err := h.svc.CreateUpdateThread(&body, user); err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
+	}
+	return rest.SuccessResponse(ctx, "thread created successfully", body)
+}
+
+func (h *ProjectHandler) CreateBoosterProjectUpdateThread(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+	}
+	updateID, err := strconv.Atoi(ctx.Params("update_id"))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid update id"))
+	}
+	var body domain.ProjectThread
+	if err := ctx.Bind().Body(&body); err != nil {
+		return rest.BadRequestError(ctx, "invalid request body")
+	}
+	body.ProjectID = uint(id)
+	uid := uint(updateID)
+	body.UpdateID = &uid
+	if err := h.svc.CreateBoosterUpdateThread(&body, user); err != nil {
+		return rest.ErrorMessage(ctx, http.StatusForbidden, err)
+	}
+	return rest.SuccessResponse(ctx, "thread created successfully", body)
 }
 
 // CreateProjectThread godoc
