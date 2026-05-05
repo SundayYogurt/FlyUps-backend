@@ -79,6 +79,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	// Booster (investor) threads
 	booster := app.Group("/booster/projects", rh.Middlewares.AuthorizePioneerAndBooster)
 	booster.Post("/:id<int>/threads", handler.CreateBoosterProjectThread)
+	booster.Post("/threads/:thread_id<int>/messages", handler.CreateProjectThreadMessage)
 	priv.Patch("/threads/:thread_id<int>", handler.UpdateProjectThread)
 	priv.Delete("/threads/:thread_id<int>", handler.DeleteProjectThread)
 	priv.Post("/threads/:thread_id<int>/messages", handler.CreateProjectThreadMessage)
