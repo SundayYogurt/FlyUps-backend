@@ -105,5 +105,5 @@ type AddPasswordRequest struct {
 }
 
 type UpdateNotificationPrefsRequest struct {
-	Preferences map[string]bool `json:"preferences" validate:"required"`
+	Preferences map[string]bool `json:"notification_preferences" validate:"required"`
 }

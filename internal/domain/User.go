@@ -6,6 +6,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// notificationPrefs is a GORM-serializable map for notification preferences.
+type NotificationPrefsMap map[string]bool
+
 type UserStatus string
 
 const (
@@ -39,7 +42,7 @@ type User struct {
 	SuspendReason              *string                  `json:"suspend_reason,omitempty"`
 	SuspendedBy                *uint                    `json:"suspended_by,omitempty"`
 	SuspendedAt                *time.Time               `json:"suspended_at,omitempty"`
-	NotificationPreferences    string                   `json:"notification_preferences" gorm:"type:json;default:'{}'"`
+	NotificationPreferences    NotificationPrefsMap     `json:"notification_preferences" gorm:"serializer:json;type:json;default:'{}'"`
 	gorm.Model
 }
 
