@@ -48,6 +48,7 @@ type UserService interface {
 	RejectStudentCard(userID uint, adminID uint) error
 	SuspendUser(adminID uint, userID uint, reason string) error
 	RollbackActiveUser(userID uint) error
+	GetNotificationPreferences(userID uint) (map[string]bool, error)
 	UpdateNotificationPreferences(userID uint, prefs map[string]bool) error
 	ListUser(page, limit int, role, status, search string) ([]domain.User, int64, error)
 	CreateUniversity(req dto.CreateUniversityRequest) (*domain.University, error)
@@ -556,6 +557,17 @@ func (s *userService) RollbackActiveUser(userID uint) error {
 	}
 
 	return s.Repo.UpdateUser(userID, updates)
+}
+
+func (s *userService) GetNotificationPreferences(userID uint) (map[string]bool, error) {
+	user, err := s.Repo.FindUserById(userID)
+	if err != nil {
+		return nil, err
+	}
+	if user.NotificationPreferences == nil {
+		return map[string]bool{}, nil
+	}
+	return map[string]bool(user.NotificationPreferences), nil
 }
 
 func (s *userService) UpdateNotificationPreferences(userID uint, prefs map[string]bool) error {
