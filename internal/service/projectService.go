@@ -77,8 +77,11 @@ type ProjectService interface {
 
 	// THREADS & MESSAGES
 	GetProjectThreads(projectID uint) ([]domain.ProjectThread, error)
+	GetProjectUpdateThreads(projectID, updateID uint) ([]domain.ProjectThread, error)
 	CreateProjectThread(thread *domain.ProjectThread, user domain.User) error
 	CreateBoosterThread(thread *domain.ProjectThread, user domain.User) error
+	CreateUpdateThread(thread *domain.ProjectThread, user domain.User) error
+	CreateBoosterUpdateThread(thread *domain.ProjectThread, user domain.User) error
 	UpdateProjectThread(thread *domain.ProjectThread, user domain.User) error
 	DeleteProjectThread(threadID uint, user domain.User) error
 	GetProjectThreadMessages(threadID uint) ([]domain.ProjectThreadMessage, error)
@@ -195,6 +198,20 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 		return nil, errors.New("forbidden")
 	}
 
+	// cover_image สามารถอัปเดตได้ทุก state
+	if input.CoverImage != nil {
+		project.CoverImage = input.CoverImage
+		// ถ้า request มีแค่ cover_image อย่างเดียว save แล้ว return ทันที
+		onlyCoverImage := input.Title == nil && input.Description == nil && input.CategoryID == nil &&
+			input.Risk == nil && input.FundingGoal == nil && input.Softcap == nil &&
+			input.DurationDays == nil && input.DurationMonths == nil && input.ProfitSharePct == nil &&
+			input.MinInvestAmount == nil && input.MaxInvestAmount == nil
+		if onlyCoverImage {
+			updated, err := s.projectRepo.UpdateProject(project)
+			return updated, err
+		}
+	}
+
 	// เช็คสถานะ: หากโปรเจกต์ถูกอนุมัติหรือไม่อยู่ใน Draft แล้ว จะไม่อนุญาตให้แก้ไขข้อมูลหลัก
 	if project.State != domain.StateDraft {
 		return nil, errors.New("cannot update project: only projects in draft state can be edited")
@@ -202,9 +219,6 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 
 	if input.Title != nil {
 		project.Title = *input.Title
-	}
-	if input.CoverImage != nil {
-		project.CoverImage = input.CoverImage
 	}
 	if input.Description != nil {
 		project.Description = input.Description
@@ -1367,10 +1381,43 @@ func (s *projectService) CreateProjectThread(thread *domain.ProjectThread, user 
 	if project.OwnerUserID != user.ID {
 		return errors.New("forbidden")
 	}
+	thread.CreatedBy = user.ID
 	return s.projectRepo.CreateThread(thread)
 }
 
 func (s *projectService) CreateBoosterThread(thread *domain.ProjectThread, user domain.User) error {
+	hasInvested, err := s.projectRepo.HasVerifiedInvestment(thread.ProjectID, user.ID)
+	if err != nil {
+		return err
+	}
+	if !hasInvested {
+		return errors.New("you must have a verified investment to comment")
+	}
+	thread.CreatedBy = user.ID
+	return s.projectRepo.CreateThread(thread)
+}
+
+func (s *projectService) GetProjectUpdateThreads(projectID, updateID uint) ([]domain.ProjectThread, error) {
+	threads, err := s.projectRepo.FindThreadsByUpdateID(projectID, updateID)
+	if err != nil {
+		return nil, errors.New("failed to retrieve update threads")
+	}
+	return threads, nil
+}
+
+func (s *projectService) CreateUpdateThread(thread *domain.ProjectThread, user domain.User) error {
+	project, err := s.projectRepo.FindProjectByID(thread.ProjectID)
+	if err != nil {
+		return err
+	}
+	if project.OwnerUserID != user.ID {
+		return errors.New("forbidden")
+	}
+	thread.CreatedBy = user.ID
+	return s.projectRepo.CreateThread(thread)
+}
+
+func (s *projectService) CreateBoosterUpdateThread(thread *domain.ProjectThread, user domain.User) error {
 	hasInvested, err := s.projectRepo.HasVerifiedInvestment(thread.ProjectID, user.ID)
 	if err != nil {
 		return err
@@ -1432,9 +1479,15 @@ func (s *projectService) CreateProjectThreadMessage(msg *domain.ProjectThreadMes
 	if err != nil {
 		return err
 	}
-	if project.OwnerUserID != user.ID {
-		return errors.New("forbidden")
+	isOwner := project.OwnerUserID == user.ID
+	if !isOwner {
+		hasInvested, err := s.projectRepo.HasVerifiedInvestment(thread.ProjectID, user.ID)
+		if err != nil || !hasInvested {
+			return errors.New("forbidden")
+		}
 	}
+	msg.ProjectID = thread.ProjectID
+	msg.CreatedBy = user.ID
 	return s.projectRepo.CreateThreadMessage(msg)
 }
 

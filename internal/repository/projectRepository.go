@@ -86,6 +86,7 @@ type ProjectRepository interface {
 
 	// Threads
 	FindThreadsByProjectID(projectID uint) ([]domain.ProjectThread, error)
+	FindThreadsByUpdateID(projectID uint, updateID uint) ([]domain.ProjectThread, error)
 	FindThreadByID(threadID uint) (*domain.ProjectThread, error)
 	CreateThread(thread *domain.ProjectThread) error
 	UpdateThread(thread *domain.ProjectThread) error
@@ -444,14 +445,30 @@ func (p *projectRepository) DeleteFAQ(faqID uint) error {
 func (p *projectRepository) FindThreadsByProjectID(projectID uint) ([]domain.ProjectThread, error) {
 	var threads []domain.ProjectThread
 	err := p.db.Raw(`
-		SELECT pt.*,
+		SELECT pt.id, pt.project_id, pt.update_id, pt.type, pt.created_by,
+		       pt.title, pt.body, pt.status, pt.created_at, pt.updated_at,
 		       CONCAT(u.first_name, ' ', u.last_name) AS user_name,
 		       u.picture AS user_avatar
 		FROM project_threads pt
 		LEFT JOIN users u ON u.id = pt.created_by
-		WHERE pt.project_id = ?
+		WHERE pt.project_id = ? AND pt.update_id IS NULL
 		ORDER BY pt.created_at DESC
 	`, projectID).Scan(&threads).Error
+	return threads, err
+}
+
+func (p *projectRepository) FindThreadsByUpdateID(projectID uint, updateID uint) ([]domain.ProjectThread, error) {
+	var threads []domain.ProjectThread
+	err := p.db.Raw(`
+		SELECT pt.id, pt.project_id, pt.update_id, pt.type, pt.created_by,
+		       pt.title, pt.body, pt.status, pt.created_at, pt.updated_at,
+		       CONCAT(u.first_name, ' ', u.last_name) AS user_name,
+		       u.picture AS user_avatar
+		FROM project_threads pt
+		LEFT JOIN users u ON u.id = pt.created_by
+		WHERE pt.project_id = ? AND pt.update_id = ?
+		ORDER BY pt.created_at DESC
+	`, projectID, updateID).Scan(&threads).Error
 	return threads, err
 }
 
@@ -475,7 +492,16 @@ func (p *projectRepository) DeleteThread(threadID uint) error {
 
 func (p *projectRepository) FindMessagesByThreadID(threadID uint) ([]domain.ProjectThreadMessage, error) {
 	var msgs []domain.ProjectThreadMessage
-	err := p.db.Where("thread_id = ?", threadID).Find(&msgs).Error
+	err := p.db.Raw(`
+		SELECT pm.id, pm.project_id, pm.thread_id, pm.type, pm.created_by,
+		       pm.body, pm.status, pm.created_at, pm.updated_at,
+		       CONCAT(u.first_name, ' ', u.last_name) AS user_name,
+		       u.picture AS user_avatar
+		FROM project_thread_messages pm
+		LEFT JOIN users u ON u.id = pm.created_by
+		WHERE pm.thread_id = ?
+		ORDER BY pm.created_at ASC
+	`, threadID).Scan(&msgs).Error
 	return msgs, err
 }
 
@@ -653,7 +679,10 @@ func (p *projectRepository) FindProjectDetailByID(id uint, state *domain.Project
 
 	query := p.db.Model(&domain.Project{}).
 		Preload("Category").
+		Preload("Owner").
 		Preload("Owner.StudentProfile.University").
+		Preload("Owner.IdCardVerification").
+		Preload("Owner.StudentCardVerification").
 		Preload("Media", func(db *gorm.DB) *gorm.DB {
 			return db.Order("sort_order ASC")
 		}).
