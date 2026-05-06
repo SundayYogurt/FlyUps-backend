@@ -146,7 +146,7 @@ func (r *investmentRepository) ListInvestedProjectsByUserID(boosterUserID uint) 
                 COUNT(investments.id) as investment_count,
                 MIN(investments.paid_at) as first_invested_at`).
 		Joins("JOIN projects on projects.id = investments.project_id").
-		Where("investments.booster_user_id = ? AND investments.status = ?", boosterUserID, string(domain.InvestmentVerified)).
+		Where("investments.booster_user_id = ?", boosterUserID).
 		Group("projects.id, projects.title, projects.state, projects.cover_image, projects.profit_share_pct").
 		Order("first_invested_at DESC").
 		Scan(&result).Error
