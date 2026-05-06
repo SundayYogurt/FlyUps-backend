@@ -24,6 +24,10 @@ func (m *mockInvestmentRepo) FindByID(id uint) (*domain.Investment, error) {
 	args := m.Called(id)
 	return args.Get(0).(*domain.Investment), args.Error(1)
 }
+func (m *mockInvestmentRepo) FindByIDWithProject(id uint) (*domain.Investment, error) {
+	args := m.Called(id)
+	return args.Get(0).(*domain.Investment), args.Error(1)
+}
 func (m *mockInvestmentRepo) FindByReferenceNumber(ref string) (*domain.Investment, error) {
 	args := m.Called(ref)
 	return args.Get(0).(*domain.Investment), args.Error(1)
@@ -114,7 +118,7 @@ func TestGetInvestment_Success(t *testing.T) {
 	inv := &domain.Investment{ID: 1, BoosterUserID: 10}
 	txn := &domain.Transaction{ID: 5, InvestmentID: 1}
 
-	investRepo.On("FindByID", uint(1)).Return(inv, nil)
+	investRepo.On("FindByIDWithProject", uint(1)).Return(inv, nil)
 	txnRepo.On("FindByInvestmentID", uint(1)).Return(txn, nil)
 
 	gotInv, gotTxn, err := svc.GetInvestment(10, 1)
@@ -134,7 +138,7 @@ func TestGetInvestment_NotFound(t *testing.T) {
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
-	investRepo.On("FindByID", uint(99)).Return(&domain.Investment{}, gorm.ErrRecordNotFound)
+	investRepo.On("FindByIDWithProject", uint(99)).Return(&domain.Investment{}, gorm.ErrRecordNotFound)
 
 	_, _, err := svc.GetInvestment(10, 99)
 
@@ -149,7 +153,7 @@ func TestGetInvestment_DBError(t *testing.T) {
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
-	investRepo.On("FindByID", uint(1)).Return(&domain.Investment{}, errors.New("db error"))
+	investRepo.On("FindByIDWithProject", uint(1)).Return(&domain.Investment{}, errors.New("db error"))
 
 	_, _, err := svc.GetInvestment(10, 1)
 
@@ -165,7 +169,7 @@ func TestGetInvestment_WrongOwner(t *testing.T) {
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
 	inv := &domain.Investment{ID: 1, BoosterUserID: 99} // owned by user 99
-	investRepo.On("FindByID", uint(1)).Return(inv, nil)
+	investRepo.On("FindByIDWithProject", uint(1)).Return(inv, nil)
 
 	_, _, err := svc.GetInvestment(10, 1) // request as user 10
 
@@ -181,7 +185,7 @@ func TestGetInvestment_NoTransaction(t *testing.T) {
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
 	inv := &domain.Investment{ID: 1, BoosterUserID: 10}
-	investRepo.On("FindByID", uint(1)).Return(inv, nil)
+	investRepo.On("FindByIDWithProject", uint(1)).Return(inv, nil)
 	txnRepo.On("FindByInvestmentID", uint(1)).Return(&domain.Transaction{}, gorm.ErrRecordNotFound)
 
 	gotInv, gotTxn, err := svc.GetInvestment(10, 1)

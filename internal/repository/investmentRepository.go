@@ -10,6 +10,7 @@ import (
 type InvestmentRepository interface {
 	Create(investment *domain.Investment) error
 	FindByID(id uint) (*domain.Investment, error)
+	FindByIDWithProject(id uint) (*domain.Investment, error)
 	FindByReferenceNumber(ref string) (*domain.Investment, error)
 	FindVerifiedByProjectID(projectID uint) ([]domain.Investment, error)
 	UpdateStatus(id uint, status domain.InvestmentStatus) error
@@ -37,8 +38,21 @@ func (r *investmentRepository) Create(investment *domain.Investment) error {
 
 func (r *investmentRepository) FindByID(id uint) (*domain.Investment, error) {
 	inv := &domain.Investment{}
-
 	err := r.db.First(inv, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return inv, nil
+}
+
+func (r *investmentRepository) FindByIDWithProject(id uint) (*domain.Investment, error) {
+	inv := &domain.Investment{}
+	err := r.db.
+		Preload("Project").
+		Preload("Project.Media").
+		Preload("Project.Milestones").
+		Preload("Project.Stories").
+		First(inv, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -125,6 +139,7 @@ func (r *investmentRepository) ListInvestedProjectsByUserID(boosterUserID uint) 
 	var result []dto.InvestedProjectItem
 	err := r.db.Model(&domain.Investment{}).
 		Select(`projects.id as project_id, projects.title, projects.state,
+                projects.cover_image,
                 projects.profit_share_pct,
                 SUM(investments.total_amount) as total_amount,
                 SUM(investments.principal_amount) as principal_amount,
@@ -132,7 +147,7 @@ func (r *investmentRepository) ListInvestedProjectsByUserID(boosterUserID uint) 
                 MIN(investments.paid_at) as first_invested_at`).
 		Joins("JOIN projects on projects.id = investments.project_id").
 		Where("investments.booster_user_id = ? AND investments.status = ?", boosterUserID, string(domain.InvestmentVerified)).
-		Group("projects.id, projects.title, projects.state, projects.profit_share_pct").
+		Group("projects.id, projects.title, projects.state, projects.cover_image, projects.profit_share_pct").
 		Order("first_invested_at DESC").
 		Scan(&result).Error
 	return result, err

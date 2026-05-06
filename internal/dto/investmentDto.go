@@ -87,6 +87,7 @@ type InvestedProjectItem struct {
 	ProjectID       uint       `json:"project_id"`
 	Title           string     `json:"title"`
 	Status          string     `json:"state"`
+	CoverImage      *string    `json:"cover_image"`
 	ProfitSharePct  float64    `json:"profit_share_pct"`
 	TotalAmount     float64    `json:"total_amount"`
 	PrincipalAmount float64    `json:"principal_amount"`
