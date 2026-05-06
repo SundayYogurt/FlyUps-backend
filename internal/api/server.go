@@ -224,7 +224,7 @@ func setupRoutes(rh *rest.RestHandler) {
 	handlers.SetupComplaintRoutes(rh)
 	handlers.SetupProfitPoolRoutes(rh)
 	handlers.SetupChatRoutes(rh)
-	handlers.SetupChatRoutes(rh)
+	handlers.SetupAdminBadgeRoutes(rh)
 }
 
 func HealthCheck(ctx fiber.Ctx) error {

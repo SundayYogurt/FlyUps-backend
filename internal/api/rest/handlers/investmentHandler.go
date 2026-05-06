@@ -47,6 +47,7 @@ func SetupInvestmentRoutes(rh *rest.RestHandler) {
 	priv.Get("/", h.ListMyInvestments)
 	priv.Get("/my-projects", h.ListMyInvestedProjects)
 	priv.Get("/:id", h.GetInvestment)
+	priv.Get("/:id/contract", h.DownloadContract)
 	priv.Post("/:id/refund", h.RefundInvestment)
 	priv.Post("/milestones/:milestone_id/vote", h.VoteMilestone)
 
@@ -251,6 +252,40 @@ func (h *InvestmentHandler) ApproveRefund(ctx fiber.Ctx) error {
 // @Failure      400   {object}  map[string]string            "invalid id, missing note, or business rule violation"
 // @Failure      401   {object}  map[string]string            "unauthorized"
 // @Failure      404   {object}  map[string]string            "investment not found"
+// DownloadContract godoc
+// @Summary      Download investment contract
+// @Description  Generate and download an HTML contract for a specific investment
+// @Tags         Investments
+// @Produce      text/html
+// @Security     BearerAuth
+// @Param        id   path  int  true  "Investment ID"
+// @Success      200  {string}  string  "HTML contract file"
+// @Router       /investments/{id}/contract [get]
+func (h *InvestmentHandler) DownloadContract(ctx fiber.Ctx) error {
+	currentUser := h.auth.GetCurrentUser(ctx)
+	if currentUser.ID == 0 {
+		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
+	}
+
+	id, err := strconv.ParseUint(ctx.Params("id"), 10, 32)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid investment id")
+	}
+
+	html, err := h.svc.GenerateContractHTML(currentUser.ID, uint(id))
+	if err != nil {
+		if err.Error() == "investment not found" {
+			return ctx.Status(http.StatusNotFound).JSON(fiber.Map{"message": err.Error()})
+		}
+		return rest.InternalError(ctx, err)
+	}
+
+	filename := "contract-INV-" + ctx.Params("id") + ".html"
+	ctx.Set("Content-Type", "text/html; charset=utf-8")
+	ctx.Set("Content-Disposition", "attachment; filename=\""+filename+"\"")
+	return ctx.Send(html)
+}
+
 // @Router       /investments/{id}/refund [post]
 func (h *InvestmentHandler) RefundInvestment(ctx fiber.Ctx) error {
 	currentUser := h.auth.GetCurrentUser(ctx)
