@@ -48,6 +48,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	pub.Get("/recommend", handler.GetRecommendationProjects)
 	pub.Get("/new", handler.GetNewProjects)
 	pub.Get("/ending", handler.GetEndingSoonProjects)
+	pub.Get("/executing", handler.GetExecutingProjects)
 	pub.Get("/:id<int>", handler.GetPublicProjectByID)
 	pub.Get("/category/:category_id<int>", handler.GetProjectsByCategory)
 	pub.Get("/:id<int>/updates", handler.GetProjectUpdates)
@@ -191,6 +192,22 @@ func (h *ProjectHandler) GetNewProjects(ctx fiber.Ctx) error {
 // @Router /projects/ending [get]
 func (h *ProjectHandler) GetEndingSoonProjects(ctx fiber.Ctx) error {
 	projects, err := h.svc.GetProjectEndingSoon()
+	if err != nil {
+		return err
+	}
+	return rest.SuccessResponse(ctx, "success", projects)
+}
+
+// GetExecutingProjects godoc
+// @Summary Get Executing / Completed Projects
+// @Description Get projects that are in executing or closed (completed) state
+// @Tags Projects
+// @Produce json
+// @Success 200 {object} object "List of executing/completed projects"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /projects/executing [get]
+func (h *ProjectHandler) GetExecutingProjects(ctx fiber.Ctx) error {
+	projects, err := h.svc.GetExecutingProjects()
 	if err != nil {
 		return err
 	}
