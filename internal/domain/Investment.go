@@ -10,6 +10,7 @@ type Investment struct {
 	ID              uint             `json:"id"`
 	ReferenceNumber string           `json:"reference_number" gorm:"uniqueIndex"`
 	ProjectID       uint             `json:"project_id"`
+	Project         *Project         `json:"project,omitempty" gorm:"foreignKey:ProjectID"`
 	BoosterUserID   uint             `json:"booster_user_id"`
 	TotalAmount     float64          `json:"total_amount"`
 	PlatformFee     float64          `json:"platform_fee"`

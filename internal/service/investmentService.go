@@ -64,7 +64,7 @@ func NewInvestmentService(projectRepo repository.ProjectRepository, investmentRe
 }
 
 func (s *investmentService) GetInvestment(boosterUserID uint, investmentID uint) (*domain.Investment, *domain.Transaction, error) {
-	investment, err := s.investmentRepo.FindByID(investmentID)
+	investment, err := s.investmentRepo.FindByIDWithProject(investmentID)
 
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
