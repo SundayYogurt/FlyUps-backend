@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"crypto/rand"
 	"errors"
 	"flyup/internal/domain"
@@ -8,6 +9,7 @@ import (
 	"flyup/internal/helper"
 	"flyup/internal/repository"
 	"fmt"
+	"html/template"
 	"log"
 	"math"
 	"math/big"
@@ -33,6 +35,7 @@ const MaxInvestmentPerTransaction = 500_000.0
 
 type InvestmentService interface {
 	GetInvestment(boosterUserID uint, investmentID uint) (*domain.Investment, *domain.Transaction, error)
+	GenerateContractHTML(boosterUserID uint, investmentID uint) ([]byte, error)
 	CreateInvestment(boosterUserID uint, boosterEmail string, req dto.CreateInvestmentRequest) (*dto.InvestmentResponse, error)
 	ListUserInvestments(boosterUserID uint) ([]domain.Investment, error)
 	HandleStripeWebhook(payload []byte, sigHeader string) error
@@ -86,6 +89,136 @@ func (s *investmentService) GetInvestment(boosterUserID uint, investmentID uint)
 	}
 
 	return investment, txn, nil
+}
+
+func (s *investmentService) GenerateContractHTML(boosterUserID uint, investmentID uint) ([]byte, error) {
+	investment, err := s.investmentRepo.FindByIDWithProject(investmentID)
+	if err != nil || investment.BoosterUserID != boosterUserID {
+		return nil, errors.New("investment not found")
+	}
+
+	user, err := s.userRepo.FindUserById(boosterUserID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	projectTitle := "—"
+	if investment.Project != nil {
+		projectTitle = investment.Project.Title
+	}
+
+	paidAt := "ยังไม่ชำระ"
+	if investment.PaidAt != nil {
+		paidAt = investment.PaidAt.Format("02 January 2006")
+	}
+
+	type contractData struct {
+		RefNumber    string
+		BoosterName  string
+		BoosterEmail string
+		ProjectTitle string
+		Amount       float64
+		PlatformFee  float64
+		VAT          float64
+		NetAmount    float64
+		ProfitShare  float64
+		PaidAt       string
+		GeneratedAt  string
+	}
+
+	data := contractData{
+		RefNumber:    investment.ReferenceNumber,
+		BoosterName:  user.FirstName + " " + user.LastName,
+		BoosterEmail: user.Email,
+		ProjectTitle: projectTitle,
+		Amount:       investment.TotalAmount,
+		PlatformFee:  investment.PlatformFee,
+		VAT:          investment.VATAmount,
+		NetAmount:    investment.PrincipalAmount,
+		ProfitShare:  investment.ProfitSharePct,
+		PaidAt:       paidAt,
+		GeneratedAt:  time.Now().Format("02 January 2006 15:04"),
+	}
+
+	const tmpl = `<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<title>สัญญาการลงทุน - {{.RefNumber}}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Sarabun', 'Helvetica Neue', Arial, sans-serif; font-size: 14px; color: #1a1a1a; background: #fff; padding: 40px; max-width: 800px; margin: auto; }
+  .header { text-align: center; border-bottom: 3px solid #7c3aed; padding-bottom: 20px; margin-bottom: 32px; }
+  .logo { font-size: 28px; font-weight: 900; color: #7c3aed; letter-spacing: -1px; margin-bottom: 4px; }
+  .title { font-size: 20px; font-weight: 700; color: #111; margin-bottom: 4px; }
+  .ref { font-size: 13px; color: #6b7280; }
+  .section { margin-bottom: 28px; }
+  .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #7c3aed; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; margin-bottom: 14px; }
+  .row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dashed #f3f4f6; }
+  .row:last-child { border-bottom: none; }
+  .label { color: #6b7280; }
+  .value { font-weight: 600; }
+  .total-row { display: flex; justify-content: space-between; padding: 12px 16px; background: #f5f3ff; border-radius: 8px; margin-top: 10px; }
+  .total-label { font-weight: 700; color: #7c3aed; }
+  .total-value { font-weight: 800; font-size: 16px; color: #7c3aed; }
+  .terms { font-size: 12px; color: #9ca3af; line-height: 1.7; background: #f9fafb; border-radius: 8px; padding: 16px; }
+  .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af; }
+  @media print { body { padding: 20px; } }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">FlyUp</div>
+    <div class="title">สัญญาการลงทุนโปรเจกต์นักศึกษา</div>
+    <div class="ref">เลขอ้างอิง: {{.RefNumber}}</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">ข้อมูลผู้ลงทุน (Booster)</div>
+    <div class="row"><span class="label">ชื่อ-นามสกุล</span><span class="value">{{.BoosterName}}</span></div>
+    <div class="row"><span class="label">อีเมล</span><span class="value">{{.BoosterEmail}}</span></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">ข้อมูลโปรเจกต์</div>
+    <div class="row"><span class="label">ชื่อโปรเจกต์</span><span class="value">{{.ProjectTitle}}</span></div>
+    <div class="row"><span class="label">ส่วนแบ่งกำไร</span><span class="value">{{.ProfitShare}}%</span></div>
+    <div class="row"><span class="label">วันที่ชำระเงิน</span><span class="value">{{.PaidAt}}</span></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">รายละเอียดการชำระเงิน</div>
+    <div class="row"><span class="label">ยอดลงทุน</span><span class="value">฿{{printf "%.2f" .Amount}}</span></div>
+    <div class="row"><span class="label">ค่าธรรมเนียมแพลตฟอร์ม</span><span class="value">฿{{printf "%.2f" .PlatformFee}}</span></div>
+    <div class="row"><span class="label">VAT (7%)</span><span class="value">฿{{printf "%.2f" .VAT}}</span></div>
+    <div class="total-row"><span class="total-label">ยอดชำระสุทธิ</span><span class="total-value">฿{{printf "%.2f" .NetAmount}}</span></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">เงื่อนไขและข้อตกลง</div>
+    <div class="terms">
+      1. ผู้ลงทุนรับทราบว่าการลงทุนนี้มีความเสี่ยง และไม่ได้รับประกันผลตอบแทน<br/>
+      2. ส่วนแบ่งกำไรจะคำนวณตามผลประกอบการจริงของโปรเจกต์<br/>
+      3. FlyUp ทำหน้าที่เป็นตัวกลางในการระดมทุนเท่านั้น ไม่ได้ค้ำประกันความสำเร็จของโปรเจกต์<br/>
+      4. ในกรณีที่โปรเจกต์ถูกยกเลิก ผู้ลงทุนจะได้รับเงินคืนตามนโยบายของแพลตฟอร์ม<br/>
+      5. เอกสารนี้ออกโดยระบบอัตโนมัติ ณ วันที่ {{.GeneratedAt}}
+    </div>
+  </div>
+
+  <div class="footer">FlyUp Platform · fly-up.app · เอกสารนี้สร้างโดยระบบอัตโนมัติ</div>
+</body>
+</html>`
+
+	t, err := template.New("contract").Parse(tmpl)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	if err := t.Execute(&buf, data); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail string, req dto.CreateInvestmentRequest) (*dto.InvestmentResponse, error) {
@@ -815,16 +948,25 @@ func (s *investmentService) handlePaymentSucceeded(intentID string) {
 		log.Printf("[Webhook] update project current_funding error: %v", err)
 	}
 
+	// ตรวจสอบว่าถึงเป้าหมายหรือยัง → เปลี่ยน state เป็น executing อัตโนมัติ
+	project, projErr := s.projectRepo.FindProjectByID(investment.ProjectID)
+	if projErr == nil && project.State == domain.StateFunding && project.CurrentFunding >= project.FundingGoal {
+		project.State = domain.StateExecuting
+		project.Status = domain.StatusActive
+		if _, err := s.projectRepo.UpdateProject(project); err != nil {
+			log.Printf("[Webhook] auto-transition to executing error: %v", err)
+		} else {
+			log.Printf("[Webhook] project %d reached funding goal → state=executing", project.ID)
+		}
+	}
+
 	// notify pioneer ที่เป็นเจ้าของโปรเจกต์
-	if s.notifSvc != nil {
-		project, err := s.projectRepo.FindProjectByID(investment.ProjectID)
-		if err == nil {
-			relatedID := investment.ProjectID
-			relatedType := "project"
-			body := fmt.Sprintf("มีการลงทุนใหม่ในโปรเจกต์ %s จำนวน %.2f บาท", project.Title, investment.TotalAmount)
-			if err := s.notifSvc.CreateAndPush(project.OwnerUserID, domain.NotifNewInvestment, "มีการลงทุนใหม่", body, &relatedID, &relatedType); err != nil {
-				log.Printf("[Webhook] send notification error: %v", err)
-			}
+	if s.notifSvc != nil && projErr == nil {
+		relatedID := investment.ProjectID
+		relatedType := "project"
+		body := fmt.Sprintf("มีการลงทุนใหม่ในโปรเจกต์ %s จำนวน %.2f บาท", project.Title, investment.TotalAmount)
+		if err := s.notifSvc.CreateAndPush(project.OwnerUserID, domain.NotifNewInvestment, "มีการลงทุนใหม่", body, &relatedID, &relatedType); err != nil {
+			log.Printf("[Webhook] send notification error: %v", err)
 		}
 	}
 }
