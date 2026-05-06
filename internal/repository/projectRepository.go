@@ -34,6 +34,7 @@ type ProjectRepository interface {
 	FindProjectRecommendations() ([]domain.Project, error)
 	FindNewProjects() ([]domain.Project, error)
 	FindProjectEndingSoon() ([]domain.Project, error)
+	FindExecutingProjects() ([]domain.Project, error)
 	SaveMeeting(meeting *domain.Meeting) error
 	FindInvestorsEmailByProjectID(projectID uint) ([]string, error)
 	FindInvestorIDsByProjectID(projectID uint) ([]uint, error)
@@ -314,6 +315,21 @@ func (p *projectRepository) FindProjectEndingSoon() ([]domain.Project, error) {
 		Order("end_date ASC").
 		Find(&projects).Error
 
+	if err != nil {
+		return nil, err
+	}
+	return projects, nil
+}
+
+func (p *projectRepository) FindExecutingProjects() ([]domain.Project, error) {
+	var projects []domain.Project
+	err := p.db.
+		Where("state IN ? AND visibility = ?",
+			[]string{string(domain.StateExecuting), string(domain.StateClosed)},
+			domain.VisibilityPublic).
+		Order("current_funding DESC").
+		Limit(6).
+		Find(&projects).Error
 	if err != nil {
 		return nil, err
 	}

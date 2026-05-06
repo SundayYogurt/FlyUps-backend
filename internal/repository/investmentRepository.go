@@ -49,6 +49,7 @@ func (r *investmentRepository) FindByIDWithProject(id uint) (*domain.Investment,
 	inv := &domain.Investment{}
 	err := r.db.
 		Preload("Project").
+		Preload("Project.Category").
 		Preload("Project.Media").
 		Preload("Project.Milestones").
 		Preload("Project.Stories").
