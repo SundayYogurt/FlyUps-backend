@@ -225,6 +225,8 @@ func setupRoutes(rh *rest.RestHandler) {
 	handlers.SetupProfitPoolRoutes(rh)
 	handlers.SetupChatRoutes(rh)
 	handlers.SetupAdminBadgeRoutes(rh)
+	handlers.SetupFinancialRoutes(rh)
+	handlers.SetupProjectFinancialRoutes(rh)
 }
 
 func HealthCheck(ctx fiber.Ctx) error {
