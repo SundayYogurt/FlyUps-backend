@@ -154,11 +154,13 @@ func (m Middleware) AuthorizeAdmin(ctx fiber.Ctx) error {
 }
 
 func (m Middleware) extractToken(ctx fiber.Ctx) string {
-
 	authHeader := ctx.Get("Authorization")
-
 	if authHeader != "" {
 		return strings.TrimPrefix(authHeader, "Bearer ")
+	}
+
+	if q := ctx.Query("token"); q != "" {
+		return q
 	}
 
 	return ctx.Cookies("auth_token")

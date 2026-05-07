@@ -144,6 +144,7 @@ type Milestone struct {
 	AcceptanceCriteria *string     `json:"acceptance_criteria"`
 	Type               []MediaType `json:"type" gorm:"type:json;serializer:json"`
 	URLs               []string    `json:"urls" gorm:"type:json;serializer:json"`
+	AdminNote             *string    `json:"admin_note,omitempty"`
 	// Submission (what was done in this phase + evidence)
 	SubmissionSummary     *string    `json:"submission_summary,omitempty"`
 	SubmissionCriteria    []string   `json:"submission_criteria,omitempty" gorm:"type:json;serializer:json"`
