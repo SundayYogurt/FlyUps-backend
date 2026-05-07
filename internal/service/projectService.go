@@ -717,9 +717,9 @@ func (s *projectService) AdminApproveMilestoneSubmission(milestoneID uint) (*dom
 
 	if s.notifSvc != nil {
 		if p, err := s.projectRepo.FindProjectByID(m.ProjectID); err == nil {
-			relatedID := m.ID
-			relatedType := "milestone"
-			body := fmt.Sprintf("Milstone Phase %d: %s ได้รับการอนุมัติแล้ว", m.PhaseNo, m.Title)
+			relatedID := p.ID
+			relatedType := "project"
+			body := fmt.Sprintf("Milestone Phase %d: %s ได้รับการอนุมัติแล้ว", m.PhaseNo, m.Title)
 			_ = s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifMilestone, "Milestone อนุมัติแล้ว", body, &relatedID, &relatedType)
 		}
 	}
@@ -752,8 +752,8 @@ func (s *projectService) AdminRejectMilestoneSubmission(milestoneID uint, reason
 
 	if s.notifSvc != nil {
 		if p, err := s.projectRepo.FindProjectByID(m.ProjectID); err == nil {
-			relatedID := m.ID
-			relatedType := "milestone"
+			relatedID := p.ID
+			relatedType := "project"
 			body := fmt.Sprintf("Milestone Phase %d: %s ถูกปฏิเสธ กรุณาแก้ไขและส่งใหม่", m.PhaseNo, m.Title)
 			if m.AdminNote != nil && *m.AdminNote != "" {
 				body += fmt.Sprintf("\nเหตุผล: %s", *m.AdminNote)
@@ -1113,6 +1113,21 @@ func (s *projectService) SubmitMilestone(milestoneID uint, input dto.SubmitMiles
 	if err := s.projectRepo.UpdateMilestone(m); err != nil {
 		return nil, err
 	}
+
+	if s.notifSvc != nil {
+		if p, err := s.projectRepo.FindProjectByID(m.ProjectID); err == nil {
+			admins, aErr := s.userRepo.FindAllByRole("admin")
+			if aErr == nil {
+				relatedID := m.ID
+				relatedType := "milestone"
+				body := fmt.Sprintf("Phase %d: %s ส่งหลักฐานรอตรวจสอบ", m.PhaseNo, m.Title)
+				for _, admin := range admins {
+					_ = s.notifSvc.CreateAndPush(admin.ID, domain.NotifMilestoneSubmitted, p.Title, body, &relatedID, &relatedType)
+				}
+			}
+		}
+	}
+
 	return m, nil
 }
 

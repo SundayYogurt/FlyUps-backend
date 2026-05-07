@@ -7,6 +7,7 @@ type NotificationType string
 const (
 	NotifNewInvestment          NotificationType = "new_investment"
 	NotifMilestone              NotificationType = "milestone"
+	NotifMilestoneSubmitted     NotificationType = "milestone_submitted"
 	NotifMilestoneRejected      NotificationType = "milestone_rejected"
 	NotifVote                   NotificationType = "vote"
 	NotifProjectStatus          NotificationType = "project_status"
