@@ -604,6 +604,7 @@ func (p *projectRepository) FindMilestoneByID(id uint) (*domain.Milestone, error
 func (p *projectRepository) FindMilestonesByProjectID(projectID uint) ([]domain.Milestone, error) {
 	var list []domain.Milestone
 	err := p.db.
+		Preload("Meetings", "deleted_at IS NULL").
 		Where("project_id = ?", projectID).
 		Order("phase_no ASC").
 		Find(&list).Error
