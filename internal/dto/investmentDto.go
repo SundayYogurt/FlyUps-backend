@@ -65,8 +65,11 @@ type RefundRequestItem struct {
 	ReferenceNumber string             `json:"reference_number"`
 	BoosterUserID   uint               `json:"booster_user_id"`
 	BoosterName     string             `json:"booster_name"`
+	BoosterEmail    string             `json:"booster_email"`
+	ProjectTitle    string             `json:"project_title"`
 	RefundAmount    float64            `json:"refund_amount"`
 	TotalPaid       float64            `json:"total_paid"`
+	Status          string             `json:"status"`
 	RequestedAt     string             `json:"requested_at"`
 	BankAccount     *RefundBankAccount `json:"bank_account"`
 }

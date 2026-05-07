@@ -735,16 +735,10 @@ func (s *projectService) AdminRejectMilestoneSubmission(milestoneID uint, reason
 		return nil, errors.New("milestone is not submitted")
 	}
 
-	// store reason in submission summary tail if provided (minimal change without new column)
 	if reason != nil {
 		r := strings.TrimSpace(*reason)
 		if r != "" {
-			if m.SubmissionSummary == nil {
-				m.SubmissionSummary = &r
-			} else {
-				merged := strings.TrimSpace(*m.SubmissionSummary) + "\n\nReject reason: " + r
-				m.SubmissionSummary = &merged
-			}
+			m.AdminNote = &r
 		}
 	}
 
@@ -760,8 +754,11 @@ func (s *projectService) AdminRejectMilestoneSubmission(milestoneID uint, reason
 		if p, err := s.projectRepo.FindProjectByID(m.ProjectID); err == nil {
 			relatedID := m.ID
 			relatedType := "milestone"
-			body := fmt.Sprintf("Milstone Phase %d: %s ถูกปฏิเสธ กรุณาแก้ไขและส่งใหม่", m.PhaseNo, m.Title)
-			_ = s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifMilestone, "Milestone ถูกปฏิเสธคำขอ", body, &relatedID, &relatedType)
+			body := fmt.Sprintf("Milestone Phase %d: %s ถูกปฏิเสธ กรุณาแก้ไขและส่งใหม่", m.PhaseNo, m.Title)
+			if m.AdminNote != nil && *m.AdminNote != "" {
+				body += fmt.Sprintf("\nเหตุผล: %s", *m.AdminNote)
+			}
+			_ = s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifMilestoneRejected, "Milestone ถูกปฏิเสธคำขอ", body, &relatedID, &relatedType)
 		}
 	}
 
@@ -935,6 +932,7 @@ func (s *projectService) GetAdminMilestoneDetail(milestoneID uint) (*dto.AdminMi
 		EvidenceLinks:   evidenceLinks,
 		CheckedCriteria: checkedCriteria,
 		FundingGoal:     fundingGoal,
+		StartDate:       m.CreatedAt,
 		EndDate:         m.DueDate,
 		ProgressPct:     m.PercentRelease,
 	}, nil

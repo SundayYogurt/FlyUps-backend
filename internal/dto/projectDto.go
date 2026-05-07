@@ -167,6 +167,7 @@ type AdminMilestoneDetailResponse struct {
 	EvidenceLinks   []EvidenceLink       `json:"evidence_links"`
 	CheckedCriteria []bool               `json:"checked_criteria"`
 	FundingGoal     float64              `json:"funding_goal"`
+	StartDate       time.Time            `json:"start_date"`
 	EndDate         *time.Time           `json:"end_date"`
 	ProgressPct     int                  `json:"progress_pct"`
 }

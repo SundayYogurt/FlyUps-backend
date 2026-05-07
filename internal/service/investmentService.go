@@ -395,15 +395,21 @@ func (s *investmentService) ListRefundRequests() ([]dto.RefundRequestItem, error
 			BoosterUserID:   inv.BoosterUserID,
 			RefundAmount:    inv.RefundAmount,
 			TotalPaid:       inv.TotalAmount,
+			Status:          string(inv.Status),
 		}
 
 		if inv.RefundedAt != nil {
 			item.RequestedAt = inv.RefundedAt.Format(time.RFC3339)
 		}
 
+		if p, err := s.projectRepo.FindProjectByID(inv.ProjectID); err == nil {
+			item.ProjectTitle = p.Title
+		}
+
 		user, err := s.userRepo.FindUserById(inv.BoosterUserID)
 		if err == nil {
 			item.BoosterName = user.FirstName + " " + user.LastName
+			item.BoosterEmail = user.Email
 			if user.BankAccount != nil {
 				item.BankAccount = &dto.RefundBankAccount{
 					BankName:      user.BankAccount.BankName,
