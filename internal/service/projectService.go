@@ -2110,9 +2110,12 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 		return nil, errors.New("description is required")
 	}
 
-	existing, err := s.projectRepo.FindMeetingByMilestoneID(input.MilestoneID)
-	if err == nil && existing != nil && existing.Status != domain.MeetingCancelled {
-		return nil, errors.New("meeting already exists for this milestone")
+	// บล็อกถ้ามี meeting ที่ยัง open อยู่ (ยกเว้น milestone ถูก reject จาก vote → นัดใหม่ได้)
+	if milestone.Status != domain.MilestoneRejected {
+		existing, err := s.projectRepo.FindMeetingByMilestoneID(input.MilestoneID)
+		if err == nil && existing != nil {
+			return nil, errors.New("meeting already exists for this milestone")
+		}
 	}
 
 	user, err := s.userRepo.FindUniversityByUserId(userID)

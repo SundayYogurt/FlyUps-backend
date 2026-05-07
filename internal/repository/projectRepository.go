@@ -148,7 +148,8 @@ func (p *projectRepository) ExistsProjectByOwnerAndStates(userID uint, states []
 }
 func (p *projectRepository) FindMeetingByMilestoneID(milestoneID uint) (*domain.Meeting, error) {
 	var meeting domain.Meeting
-	err := p.db.Where("milestone_id = ?", milestoneID).First(&meeting).Error
+	err := p.db.Where("milestone_id = ? AND status = ?", milestoneID, domain.MeetingOpen).
+		Order("id DESC").First(&meeting).Error
 
 	if err != nil {
 		return nil, err
@@ -220,13 +221,13 @@ func (p *projectRepository) FindMeetingsByMilestone(milestoneID uint, filter str
 
 	switch filter {
 	case "upcoming":
-		db = db.Where("meetings.time >= ? AND meetings.status != ?", now, domain.MeetingCancelled).Order("meetings.time ASC")
+		db = db.Where("(meetings.date::date + meetings.time::time) >= ? AND meetings.status != ?", now, domain.MeetingCancelled).Order("meetings.date ASC, meetings.time ASC")
 
 	case "past":
-		db = db.Where("meetings.time < ?", now).Order("meetings.time DESC")
+		db = db.Where("(meetings.date::date + meetings.time::time) < ?", now).Order("meetings.date DESC, meetings.time DESC")
 
 	default: // all
-		db = db.Order("date ASC, time ASC")
+		db = db.Order("meetings.date ASC, meetings.time ASC")
 	}
 
 	err := db.Find(&meetings).Error
@@ -246,15 +247,15 @@ func (p *projectRepository) FindMeetingsByProject(projectID uint, filter string)
 
 	switch filter {
 	case "upcoming":
-		db = db.Where("meetings.time >= ? AND meetings.status != ?", now, domain.MeetingCancelled).
-			Order("meetings.time ASC")
+		db = db.Where("(meetings.date::date + meetings.time::time) >= ? AND meetings.status != ?", now, domain.MeetingCancelled).
+			Order("meetings.date ASC, meetings.time ASC")
 
 	case "past":
-		db = db.Where("meetings.time < ?", now).
-			Order("meetings.time DESC")
+		db = db.Where("(meetings.date::date + meetings.time::time) < ?", now).
+			Order("meetings.date DESC, meetings.time DESC")
 
 	default: // all
-		db = db.Order("meetings.time ASC")
+		db = db.Order("meetings.date ASC, meetings.time ASC")
 	}
 
 	err := db.Find(&meetings).Error
