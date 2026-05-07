@@ -2124,7 +2124,10 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 		return nil, errors.New("user has no student profile")
 	}
 
-	place := user.StudentProfile.University.NameTH
+	var place *string
+	if user.StudentProfile.University != nil {
+		place = user.StudentProfile.University.NameTH
+	}
 
 	meeting := &domain.Meeting{
 		MilestoneID: input.MilestoneID,
