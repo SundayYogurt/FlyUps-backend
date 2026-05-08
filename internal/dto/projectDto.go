@@ -197,6 +197,30 @@ type CancelProjectRequest struct {
 	CancelDescription string `json:"description,omitempty"`
 }
 
+type InvestorMeetingItem struct {
+	ID          uint      `json:"id"`
+	MilestoneID uint      `json:"milestone_id"`
+	Date        time.Time `json:"date"`
+	Time        time.Time `json:"time"`
+	MeetingType string    `json:"meeting_type"`
+	Link        *string   `json:"link,omitempty"`
+	Place       *string   `json:"place,omitempty"`
+	About       string    `json:"about"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+	Milestone   struct {
+		ID        uint   `json:"id"`
+		Title     string `json:"title"`
+		PhaseNo   int    `json:"phase_no"`
+		ProjectID uint   `json:"project_id"`
+	} `json:"milestone"`
+	Project struct {
+		ID         uint    `json:"id"`
+		Title      string  `json:"title"`
+		CoverImage *string `json:"cover_image,omitempty"`
+	} `json:"project"`
+}
+
 type CancelPreviewMilestone struct {
 	PhaseNo         int     `json:"phase_no"`
 	Title           string  `json:"title"`

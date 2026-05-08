@@ -114,6 +114,7 @@ type ProjectService interface {
 	GetMyMeetings(userID uint) ([]domain.Meeting, error)
 	GetMyMeetingsByMilestone(userID uint, milestoneID uint, filter string) ([]domain.Meeting, error)
 	GetMyMeetingsByProject(userID uint, projectID uint, filter string) ([]domain.Meeting, error)
+	GetMyMeetingsAsBooster(userID uint) ([]dto.InvestorMeetingItem, error)
 }
 
 type projectService struct {
@@ -2283,6 +2284,62 @@ func (s *projectService) GetMyMeetingsByProject(userID uint, projectID uint, fil
 	}
 
 	return s.projectRepo.FindMeetingsByProject(projectID, filter)
+}
+
+func (s *projectService) GetMyMeetingsAsBooster(userID uint) ([]dto.InvestorMeetingItem, error) {
+	if userID == 0 {
+		return nil, errors.New("userID is required")
+	}
+
+	meetings, err := s.projectRepo.FindMeetingsByInvestorID(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Collect unique project IDs
+	projectIDSet := make(map[uint]bool)
+	for _, m := range meetings {
+		projectIDSet[m.Milestone.ProjectID] = true
+	}
+
+	// Batch load projects
+	projectMap := make(map[uint]*domain.Project)
+	for pid := range projectIDSet {
+		p, err := s.projectRepo.FindProjectByID(pid)
+		if err == nil && p != nil {
+			projectMap[pid] = p
+		}
+	}
+
+	result := make([]dto.InvestorMeetingItem, 0, len(meetings))
+	for _, m := range meetings {
+		item := dto.InvestorMeetingItem{
+			ID:          m.ID,
+			MilestoneID: m.MilestoneID,
+			Date:        m.Date,
+			Time:        m.Time,
+			MeetingType: string(m.MeetingType),
+			Link:        m.Link,
+			Place:       m.Place,
+			About:       m.About,
+			Status:      string(m.Status),
+			CreatedAt:   m.CreatedAt,
+		}
+		item.Milestone.ID = m.Milestone.ID
+		item.Milestone.Title = m.Milestone.Title
+		item.Milestone.PhaseNo = m.Milestone.PhaseNo
+		item.Milestone.ProjectID = m.Milestone.ProjectID
+
+		if p, ok := projectMap[m.Milestone.ProjectID]; ok {
+			item.Project.ID = p.ID
+			item.Project.Title = p.Title
+			item.Project.CoverImage = p.CoverImage
+		}
+
+		result = append(result, item)
+	}
+
+	return result, nil
 }
 
 func (s *projectService) EditMeeting(meetingID uint, input dto.UpdateMeetingRequest, userID uint) (*domain.Meeting, error) {

@@ -50,6 +50,10 @@ func SetupInvestmentRoutes(rh *rest.RestHandler) {
 	priv.Get("/:id/contract", h.DownloadContract)
 	priv.Post("/:id/refund", h.RefundInvestment)
 	priv.Post("/milestones/:milestone_id/vote", h.VoteMilestone)
+	priv.Get("/milestones/:milestone_id/my-vote", h.GetMyMilestoneVote)
+
+	pioneer := rh.App.Group("/pioneer/investments", rh.Middlewares.AuthorizePioneer)
+	pioneer.Get("/milestones/:milestone_id/voters", h.GetMilestoneVoters)
 
 	admin := rh.App.Group("/admin/investments", rh.Middlewares.AuthorizeAdmin)
 	admin.Get("/refund-requests", h.ListRefundRequests)
@@ -96,6 +100,45 @@ func (h *InvestmentHandler) VoteMilestone(ctx fiber.Ctx) error {
 
 	return rest.SuccessResponse(ctx, "vote saved", v)
 }
+
+func (h *InvestmentHandler) GetMyMilestoneVote(ctx fiber.Ctx) error {
+	currentUser := h.auth.GetCurrentUser(ctx)
+	if currentUser.ID == 0 {
+		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
+	}
+
+	milestoneID, err := strconv.Atoi(ctx.Params("milestone_id"))
+	if err != nil || milestoneID <= 0 {
+		return rest.BadRequestError(ctx, "invalid milestone id")
+	}
+
+	vote, err := h.svc.GetMyVote(currentUser.ID, uint(milestoneID))
+	if err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "ok", vote)
+}
+
+func (h *InvestmentHandler) GetMilestoneVoters(ctx fiber.Ctx) error {
+	currentUser := h.auth.GetCurrentUser(ctx)
+	if currentUser.ID == 0 {
+		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
+	}
+
+	milestoneID, err := strconv.Atoi(ctx.Params("milestone_id"))
+	if err != nil || milestoneID <= 0 {
+		return rest.BadRequestError(ctx, "invalid milestone id")
+	}
+
+	voters, err := h.svc.GetMilestoneVoters(currentUser.ID, uint(milestoneID))
+	if err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "ok", voters)
+}
+
 // GetInvestment godoc
 // @Summary      Get investment detail
 // @Description  Get a specific investment and its transaction by investment ID (booster only)

@@ -111,6 +111,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	Me := app.Group("/me", rh.Middlewares.Authorize)
 
 	Me.Get("/meetings", handler.GetMyMeetings)
+	Me.Get("/investor-meetings", handler.GetMyInvestorMeetings)
 	Me.Get("/meeting/:id", handler.GetMyMeeting)
 	Me.Get("/projects/:id/meetings", handler.GetMyProjectMeetings)
 	Me.Get("/milestones/:id/meetings", handler.GetMyMilestoneMeetings)
@@ -2325,6 +2326,20 @@ func (h *ProjectHandler) GetMyMeetings(ctx fiber.Ctx) error {
 
 	meetings, err := h.svc.GetMyMeetings(user.ID)
 
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "success", meetings)
+}
+
+func (h *ProjectHandler) GetMyInvestorMeetings(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.UnauthorizedError(ctx, "unauthorized")
+	}
+
+	meetings, err := h.svc.GetMyMeetingsAsBooster(user.ID)
 	if err != nil {
 		return rest.InternalError(ctx, err)
 	}

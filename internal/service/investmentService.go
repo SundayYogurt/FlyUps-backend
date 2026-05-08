@@ -45,6 +45,8 @@ type InvestmentService interface {
 	GetProjectInvestors(projectID uint) ([]dto.ProjectInvestorItem, error)
 	ListInvestedProjects(boosterUserID uint) ([]dto.InvestedProjectItem, error)
 	VoteMilestone(boosterUserID uint, milestoneID uint, choice domain.MilestoneVoteChoice) (*domain.MilestoneVote, error)
+	GetMyVote(boosterUserID uint, milestoneID uint) (*domain.MilestoneVote, error)
+	GetMilestoneVoters(pioneerUserID uint, milestoneID uint) ([]dto.MilestoneVoterItem, error)
 	// RefundProjectInvestments คืนเงินนักลงทุนทุกคนเมื่อโปรเจกต์ถูก cancel
 	RefundProjectInvestments(project domain.Project)
 	GetCancelPreview(projectID uint) (*dto.CancelPreviewResponse, error)
@@ -838,6 +840,60 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 	}
 
 	return vote, nil
+}
+
+func (s *investmentService) GetMyVote(boosterUserID uint, milestoneID uint) (*domain.MilestoneVote, error) {
+	if boosterUserID == 0 {
+		return nil, errors.New("unauthorized")
+	}
+	return s.projectRepo.FindVote(milestoneID, boosterUserID)
+}
+
+func (s *investmentService) GetMilestoneVoters(pioneerUserID uint, milestoneID uint) ([]dto.MilestoneVoterItem, error) {
+	milestone, err := s.projectRepo.FindMilestoneByID(milestoneID)
+	if err != nil || milestone == nil {
+		return nil, errors.New("milestone not found")
+	}
+
+	project, err := s.projectRepo.FindProjectByID(milestone.ProjectID)
+	if err != nil || project == nil {
+		return nil, errors.New("project not found")
+	}
+
+	if project.OwnerUserID != pioneerUserID {
+		return nil, errors.New("forbidden")
+	}
+
+	investors, err := s.investmentRepo.ListInvestorsByProjectID(project.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	votes, err := s.projectRepo.ListVotesByMilestoneID(milestoneID)
+	if err != nil {
+		return nil, err
+	}
+
+	voteMap := make(map[uint]domain.MilestoneVoteChoice, len(votes))
+	for _, v := range votes {
+		voteMap[v.BoosterUserID] = v.Choice
+	}
+
+	result := make([]dto.MilestoneVoterItem, 0, len(investors))
+	for _, inv := range investors {
+		item := dto.MilestoneVoterItem{
+			UserID:    inv.UserID,
+			FirstName: inv.FirstName,
+			LastName:  inv.LastName,
+			Picture:   inv.Picture,
+		}
+		if choice, voted := voteMap[inv.UserID]; voted {
+			item.Voted = true
+			item.Choice = string(choice)
+		}
+		result = append(result, item)
+	}
+	return result, nil
 }
 
 // // private methods
