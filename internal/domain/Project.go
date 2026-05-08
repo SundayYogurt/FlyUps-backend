@@ -140,7 +140,10 @@ type Milestone struct {
 	Title              string      `json:"title"`
 	Description        *string     `json:"description"`
 	Duration           *int        `json:"duration,omitempty"`
+	OriginalDueDate    *time.Time  `json:"original_due_date,omitempty"`
 	DueDate            *time.Time  `json:"due_date,omitempty"`
+	RetryCount         int         `json:"retry_count" gorm:"default:0"`
+	RetryDeadline      *time.Time  `json:"retry_deadline,omitempty"`
 	AcceptanceCriteria *string     `json:"acceptance_criteria"`
 	Type               []MediaType `json:"type" gorm:"type:json;serializer:json"`
 	URLs               []string    `json:"urls" gorm:"type:json;serializer:json"`

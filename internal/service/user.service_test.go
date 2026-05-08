@@ -243,6 +243,70 @@ type mockUniversityRepo struct {
 	mock.Mock
 }
 
+func (m *mockUniversityRepo) Create(u *domain.University) error {
+	args := m.Called(u)
+	return args.Error(0)
+}
+
+func (m *mockUniversityRepo) FindAll() ([]domain.University, error) {
+	args := m.Called()
+	return args.Get(0).([]domain.University), args.Error(1)
+}
+
+func (m *mockUniversityRepo) FindByID(id uint) (*domain.University, error) {
+	args := m.Called(id)
+	return args.Get(0).(*domain.University), args.Error(1)
+}
+
+func (m *mockUniversityRepo) Update(u *domain.University) error {
+	args := m.Called(u)
+	return args.Error(0)
+}
+
+func (m *mockUniversityRepo) Delete(id uint) error {
+	args := m.Called(id)
+	return args.Error(0)
+}
+
+func (m *mockUniversityRepo) FindByName(nameTH *string, nameEN *string) (*domain.University, error) {
+	args := m.Called(nameTH, nameEN)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.University), args.Error(1)
+}
+
+func (m *mockUniversityRepo) CreateDomain(d *domain.UniversityDomain) error {
+	args := m.Called(d)
+	return args.Error(0)
+}
+
+func (m *mockUniversityRepo) DeleteDomain(id uint) error {
+	args := m.Called(id)
+	return args.Error(0)
+}
+
+func (m *mockUniversityRepo) GetUniversityByDomain(domainStr string) (*domain.UniversityDomain, error) {
+	args := m.Called(domainStr)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.UniversityDomain), args.Error(1)
+}
+
+func (m *mockUniversityRepo) FindDomainByID(ID uint) (*domain.UniversityDomain, error) {
+	args := m.Called(ID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.UniversityDomain), args.Error(1)
+}
+
+func (m *mockUniversityRepo) UpdateDomain(d *domain.UniversityDomain) error {
+	args := m.Called(d)
+	return args.Error(0)
+}
+
 // ─── mockCache ───────────────────────────────────────────────────────────────
 
 type mockCache struct {
@@ -574,12 +638,14 @@ func TestAddBankAccount_Fail_Duplicate(t *testing.T) {
 
 func TestGetProfile_Success(t *testing.T) {
 	repo := new(mockUserRepository)
-	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
+	cache := new(mockCache)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, cache)
 
 	userID := uint(7)
 	expected := &domain.User{ID: userID, Email: "user@test.com", Role: "booster"}
 
 	repo.On("FindUserById", userID).Return(expected, nil)
+	cache.On("Set", mock.Anything, "user:7", mock.Anything, 5*time.Minute).Return(nil)
 
 	result, err := svc.GetProfile(userID)
 

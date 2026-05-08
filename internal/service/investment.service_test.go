@@ -56,6 +56,10 @@ func (m *mockInvestmentRepo) SumActiveByProjectID(projectID uint) (float64, erro
 	args := m.Called(projectID)
 	return args.Get(0).(float64), args.Error(1)
 }
+func (m *mockInvestmentRepo) FindVerifiedByProjectID(projectID uint) ([]domain.Investment, error) {
+	args := m.Called(projectID)
+	return args.Get(0).([]domain.Investment), args.Error(1)
+}
 func (m *mockInvestmentRepo) IncrementProjectFunding(projectID uint, amount float64) error {
 	args := m.Called(projectID, amount)
 	return args.Error(0)
@@ -239,7 +243,11 @@ func TestCreateInvestment_ProjectNotFound(t *testing.T) {
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
-	userRepo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10, Role: "booster"}, nil)
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
+		ID: 10,
+		Role: "booster",
+		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
+	}, nil)
 	projectRepo.On("FindProjectByID", uint(1)).Return(&domain.Project{}, gorm.ErrRecordNotFound)
 
 	_, err := svc.CreateInvestment(10, "user@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 1000})
@@ -271,7 +279,11 @@ func TestCreateInvestment_OwnerCannotInvestSelf(t *testing.T) {
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
-	userRepo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10, Role: "pioneer"}, nil)
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
+		ID: 10,
+		Role: "pioneer",
+		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
+	}, nil)
 	project := &domain.Project{ID: 1, OwnerUserID: 10, State: domain.StateFunding}
 	projectRepo.On("FindProjectByID", uint(1)).Return(project, nil)
 
@@ -288,7 +300,11 @@ func TestCreateInvestment_ProjectNotInFunding(t *testing.T) {
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
-	userRepo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10, Role: "booster"}, nil)
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
+		ID: 10,
+		Role: "booster",
+		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
+	}, nil)
 	project := &domain.Project{ID: 1, State: domain.StateDraft}
 	projectRepo.On("FindProjectByID", uint(1)).Return(project, nil)
 
@@ -305,7 +321,11 @@ func TestCreateInvestment_AmountBelowMin(t *testing.T) {
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
-	userRepo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10, Role: "booster"}, nil)
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
+		ID: 10,
+		Role: "booster",
+		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
+	}, nil)
 	project := &domain.Project{
 		ID:              1,
 		State:           domain.StateFunding,
@@ -330,7 +350,11 @@ func TestCreateInvestment_AmountAboveMax(t *testing.T) {
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
-	userRepo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10, Role: "booster"}, nil)
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
+		ID: 10,
+		Role: "booster",
+		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
+	}, nil)
 	project := &domain.Project{
 		ID:              1,
 		State:           domain.StateFunding,
@@ -354,7 +378,11 @@ func TestCreateInvestment_ExceedsMaxPerTransaction(t *testing.T) {
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
-	userRepo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10, Role: "booster"}, nil)
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
+		ID: 10,
+		Role: "booster",
+		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
+	}, nil)
 	project := &domain.Project{
 		ID:              1,
 		State:           domain.StateFunding,
@@ -380,7 +408,11 @@ func TestCreateInvestment_ExceedsFundingGoal(t *testing.T) {
 
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
-	userRepo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10, Role: "booster"}, nil)
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
+		ID: 10,
+		Role: "booster",
+		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
+	}, nil)
 	project := &domain.Project{
 		ID:              1,
 		State:           domain.StateFunding,
@@ -580,7 +612,7 @@ func TestListRefundRequests_Success(t *testing.T) {
 
 	now := time.Now()
 	investments := []domain.Investment{
-		{ID: 1, BoosterUserID: 10, ReferenceNumber: "INV-AAA", RefundAmount: 900, TotalAmount: 1000, RefundedAt: &now},
+		{ID: 1, ProjectID: 5, BoosterUserID: 10, ReferenceNumber: "INV-AAA", RefundAmount: 900, TotalAmount: 1000, RefundedAt: &now},
 	}
 	user := &domain.User{
 		ID:        10,
@@ -594,6 +626,7 @@ func TestListRefundRequests_Success(t *testing.T) {
 	}
 
 	investRepo.On("ListRefundPending").Return(investments, nil)
+	projectRepo.On("FindProjectByID", uint(5)).Return(&domain.Project{ID: 5, Title: "Test Project"}, nil)
 	userRepo.On("FindUserById", uint(10)).Return(user, nil)
 
 	result, err := svc.ListRefundRequests()

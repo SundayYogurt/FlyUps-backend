@@ -67,6 +67,8 @@ type ProjectRepository interface {
 	UpsertMilestoneVote(vote *domain.MilestoneVote) error
 	CountVerifiedBoostersByProjectID(projectID uint) (int64, error)
 	CountMilestoneVotes(milestoneID uint, choice domain.MilestoneVoteChoice) (int64, error)
+	SumVerifiedInvestmentByProjectID(projectID uint) (float64, error)
+	SumMilestoneVotes(milestoneID uint, choice domain.MilestoneVoteChoice) (float64, error)
 	HasVerifiedInvestment(projectID uint, boosterUserID uint) (bool, error)
 	CloseMeetingsByMilestoneID(milestoneID uint) error
 	FindMeetingByID(id uint) (*domain.Meeting, error)
@@ -687,6 +689,25 @@ func (p *projectRepository) CountMilestoneVotes(milestoneID uint, choice domain.
 		Where("milestone_id = ? AND choice = ?", milestoneID, choice).
 		Count(&count).Error
 	return count, err
+}
+
+func (p *projectRepository) SumVerifiedInvestmentByProjectID(projectID uint) (float64, error) {
+	var sum float64
+	err := p.db.Model(&domain.Investment{}).
+		Where("project_id = ? AND status = ?", projectID, string(domain.InvestmentVerified)).
+		Select("COALESCE(SUM(principal_amount), 0)").
+		Scan(&sum).Error
+	return sum, err
+}
+
+func (p *projectRepository) SumMilestoneVotes(milestoneID uint, choice domain.MilestoneVoteChoice) (float64, error) {
+	var sum float64
+	err := p.db.Model(&domain.MilestoneVote{}).
+		Joins("JOIN investments ON investments.booster_user_id = milestone_votes.booster_user_id AND investments.project_id = milestone_votes.project_id").
+		Where("milestone_votes.milestone_id = ? AND milestone_votes.choice = ? AND investments.status = ?", milestoneID, choice, string(domain.InvestmentVerified)).
+		Select("COALESCE(SUM(investments.principal_amount), 0)").
+		Scan(&sum).Error
+	return sum, err
 }
 
 func (p *projectRepository) HasVerifiedInvestment(projectID uint, boosterUserID uint) (bool, error) {

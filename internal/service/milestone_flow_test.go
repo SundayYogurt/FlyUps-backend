@@ -48,6 +48,7 @@ func TestOpenMilestoneVoting_Success(t *testing.T) {
 
 	projRepo.On("FindMilestoneByID", milestoneID).Return(m, nil)
 	projRepo.On("FindProjectByID", projectID).Return(p, nil)
+	projRepo.On("FindMeetingByMilestoneID", milestoneID).Return(&domain.Meeting{ID: 1, MilestoneID: milestoneID}, nil)
 	projRepo.On("UpdateMilestone", mock.AnythingOfType("*domain.Milestone")).Return(nil)
 
 	res, err := svc.OpenMilestoneVoting(milestoneID, user)
@@ -133,12 +134,13 @@ func TestVoteMilestone_AutoPaidOnMajorityApprove(t *testing.T) {
 	projRepo.On("HasVerifiedInvestment", projectID, boosterID).Return(true, nil)
 	projRepo.On("FindVote", milestoneID, boosterID).Return((*domain.MilestoneVote)(nil), errors.New("not found"))
 	projRepo.On("UpsertMilestoneVote", mock.AnythingOfType("*domain.MilestoneVote")).Return(nil)
-	projRepo.On("CountVerifiedBoostersByProjectID", projectID).Return(int64(3), nil)
-	projRepo.On("CountMilestoneVotes", milestoneID, domain.MilestoneVoteApprove).Return(int64(2), nil)
+	projRepo.On("SumVerifiedInvestmentByProjectID", projectID).Return(float64(10000), nil)
+	projRepo.On("SumMilestoneVotes", milestoneID, domain.MilestoneVoteApprove).Return(float64(6000), nil)
 	projRepo.On("UpdateMilestone", mock.AnythingOfType("*domain.Milestone")).Return(nil)
 	projRepo.On("CloseMeetingsByMilestoneID", milestoneID).Return(nil)
-	// reject count still queried
-	projRepo.On("CountMilestoneVotes", milestoneID, domain.MilestoneVoteReject).Return(int64(1), nil)
+	// reject count still queried if majority approve not met, but here it is met (6000*2 > 10000)
+	//projRepo.On("SumMilestoneVotes", milestoneID, domain.MilestoneVoteReject).Return(float64(0), nil) 
+	
 	// disbursement creation path invoked after majority approve
 	disbRepo.On("FindByMilestoneID", milestoneID).Return(nil, gorm.ErrRecordNotFound)
 	projRepo.On("FindProjectByID", projectID).Return(project, nil)

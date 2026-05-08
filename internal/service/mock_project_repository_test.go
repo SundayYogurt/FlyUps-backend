@@ -4,6 +4,7 @@ package service
 
 import (
 	domain "flyup/internal/domain"
+	dto "flyup/internal/dto"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -55,6 +56,84 @@ func (_m *ProjectRepository) FindProjectsState(state string) ([]domain.Project, 
 		return nil, args.Error(1)
 	}
 
+	return args.Get(0).([]domain.Project), args.Error(1)
+}
+
+func (_m *ProjectRepository) ExistsProjectByOwnerAndStates(userID uint, states []domain.ProjectState) (bool, error) {
+	args := _m.Called(userID, states)
+	return args.Bool(0), args.Error(1)
+}
+
+func (_m *ProjectRepository) FindExecutingProjects() ([]domain.Project, error) {
+	args := _m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Project), args.Error(1)
+}
+
+func (_m *ProjectRepository) FindInvestorIDsByProjectID(projectID uint) ([]uint, error) {
+	args := _m.Called(projectID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]uint), args.Error(1)
+}
+
+func (_m *ProjectRepository) FindMeetingsByInvestorID(investorUserID uint) ([]domain.Meeting, error) {
+	args := _m.Called(investorUserID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Meeting), args.Error(1)
+}
+
+func (_m *ProjectRepository) FindProjectsCancelRequest() ([]domain.Project, error) {
+	args := _m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Project), args.Error(1)
+}
+
+func (_m *ProjectRepository) SumMilestoneVotes(milestoneID uint, choice domain.MilestoneVoteChoice) (float64, error) {
+	args := _m.Called(milestoneID, choice)
+	return args.Get(0).(float64), args.Error(1)
+}
+
+func (_m *ProjectRepository) SumVerifiedInvestmentByProjectID(projectID uint) (float64, error) {
+	args := _m.Called(projectID)
+	return args.Get(0).(float64), args.Error(1)
+}
+
+
+
+func (_m *ProjectRepository) ListVotesByMilestoneID(milestoneID uint) ([]domain.MilestoneVote, error) {
+	args := _m.Called(milestoneID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.MilestoneVote), args.Error(1)
+}
+
+func (_m *ProjectRepository) HasCompletedMeeting(milestoneID uint) (bool, error) {
+	args := _m.Called(milestoneID)
+	return args.Bool(0), args.Error(1)
+}
+
+func (_m *ProjectRepository) FindThreadsByUpdateID(projectID uint, updateID uint) ([]domain.ProjectThread, error) {
+	args := _m.Called(projectID, updateID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.ProjectThread), args.Error(1)
+}
+
+func (_m *ProjectRepository) FindPublicProjects(filter dto.PublicProjectFilter) ([]domain.Project, error) {
+	args := _m.Called(filter)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).([]domain.Project), args.Error(1)
 }
 

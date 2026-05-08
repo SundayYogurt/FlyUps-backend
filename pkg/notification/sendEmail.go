@@ -14,6 +14,7 @@ type NotificationClient interface {
 	SendUpdateMeetingEmail(to string, title string, date string, time string, meetingType string, link *string, place *string, status string) error
 	SendMilestoneVoteResultEmail(to, projectTitle string, phaseNo int, phaseTitle string, approved bool) error
 	SendUserSuspendedEmail(to string, reason string) error
+	SendMilestoneReminderEmail(to string, projectTitle string, phaseNo int, dueDate string, daysLeft int) error
 }
 
 type notificationClient struct {
@@ -512,6 +513,41 @@ func (n notificationClient) SendUserSuspendedEmail(to string, reason string) err
 </body>
 </html>
 `,
+	}
+
+	_, err := n.client.Emails.Send(params)
+	return err
+}
+
+func (n notificationClient) SendMilestoneReminderEmail(to string, projectTitle string, phaseNo int, dueDate string, daysLeft int) error {
+	params := &resend.SendEmailRequest{
+		From:    n.config.EmailFrom,
+		To:      []string{to},
+		Subject: fmt.Sprintf("เตือนความจำ: กำหนดส่ง Milestone Phase %d — %s", phaseNo, projectTitle),
+		Html: fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f6f9fc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f6f9fc;padding:40px 0;">
+    <tr><td align="center">
+      <table width="500" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;padding:40px;text-align:center;">
+        <tr><td style="padding-bottom:20px;">
+          <img src="https://drive.google.com/uc?export=view&id=1yVzLRSBcGAG0c2eLfaSFNOd9MmLFUKUP">
+        </td></tr>
+        <tr><td style="font-size:22px;font-weight:bold;color:#333;padding-bottom:8px;">แจ้งเตือนกำหนดส่ง Milestone</td></tr>
+        <tr><td style="font-size:15px;color:#555;padding-bottom:20px;">
+          โปรเจกต์ <b>%s</b> — Milestone Phase %d ใกล้ถึงกำหนดส่งแล้ว
+        </td></tr>
+        <tr><td style="font-size:18px;font-weight:bold;color:#7c3aed;padding:16px 24px;border-radius:8px;background:#f5f3ff;display:inline-block;">
+          เหลือเวลาอีก %d วัน (กำหนดส่ง: %s)
+        </td></tr>
+        <tr><td style="font-size:14px;color:#666;padding-top:24px;padding-bottom:8px;">กรุณาส่งหลักฐานการดำเนินงานให้ทันตามกำหนดเพื่อหลีกเลี่ยงการระงับโครงการ</td></tr>
+        <tr><td style="font-size:12px;color:#aaa;padding-top:24px;">© 2026 FlyUp. All rights reserved.</td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`, projectTitle, phaseNo, daysLeft, dueDate),
 	}
 
 	_, err := n.client.Emails.Send(params)
