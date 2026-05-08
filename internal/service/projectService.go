@@ -10,6 +10,7 @@ import (
 	"flyup/pkg/notification"
 	"fmt"
 	"log"
+	"math"
 	"net/url"
 	"strings"
 	"time"
@@ -566,6 +567,7 @@ func (s *projectService) CreateMilestone(projectID uint, input dto.CreateMilesto
 		PercentRelease: percent,
 		Status:         domain.MilestoneDraft,
 		DueDate:        input.DueDate,
+		OriginalDueDate: input.DueDate,
 	}
 
 	return milestone, s.projectRepo.CreateMilestone(milestone)
@@ -614,6 +616,7 @@ func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMiles
 
 	if input.DueDate != nil {
 		m.DueDate = input.DueDate
+		m.OriginalDueDate = input.DueDate
 	}
 
 	if input.AcceptanceCriteria != nil {
@@ -2005,39 +2008,78 @@ func (s *projectService) AutoProjectLifecycleTick(now time.Time) error {
 	for i := range executingProjects {
 		p := &executingProjects[i]
 
-		// milestone due date timeout:
-		// if an active milestone is overdue and not submitted -> mark milestone failed and suspend project.
+		// milestone due date timeout and voting timeout:
 		milestones, err := s.projectRepo.FindMilestonesByProjectID(p.ID)
 		if err != nil {
 			return err
 		}
+		
 		overdue := false
 		for j := range milestones {
 			m := &milestones[j]
-			if m.Status != domain.MilestoneActive {
-				continue
+
+			// Handle voting expiration
+			if m.Status == domain.MilestoneApproved && m.VotingOpen {
+				_ = s.investmentSvc.FinalizeVotingIfExpired(m.ID)
+				// Fetch the updated milestone
+				mUpdated, _ := s.projectRepo.FindMilestoneByID(m.ID)
+				if mUpdated != nil {
+					m = mUpdated
+				}
 			}
-			if m.DueDate == nil {
-				continue
-			}
-			if now.Before((*m.DueDate).UTC()) {
+
+			if m.Status != domain.MilestoneActive && m.Status != domain.MilestoneRejected {
 				continue
 			}
 
-			// overdue while still active => fail
-			m.Status = domain.MilestoneFailed
-			m.VotingOpen = false
-			m.VotingOpenedAt = nil
-			m.VotingClosedAt = nil
-			_ = s.projectRepo.UpdateMilestone(m)
-			overdue = true
-			break
+			// Handle RetryDeadline expiration
+			if m.RetryDeadline != nil {
+				if now.After((*m.RetryDeadline).UTC()) {
+					m.Status = domain.MilestoneFailed
+					m.VotingOpen = false
+					_ = s.projectRepo.UpdateMilestone(m)
+					overdue = true
+					break
+				}
+				continue
+			}
+
+			if m.DueDate == nil {
+				continue
+			}
+
+			dueDate := (*m.DueDate).UTC()
+			daysLeft := int(math.Ceil(dueDate.Sub(now).Hours() / 24))
+
+			// Warn 7 days and 3 days before DueDate (Email only, no status change)
+			if (daysLeft == 7 || daysLeft == 3) && s.emailClient != nil {
+				if owner, err := s.userRepo.FindUserById(p.OwnerUserID); err == nil {
+					_ = s.emailClient.SendMilestoneReminderEmail(owner.Email, p.Title, m.PhaseNo, dueDate.Format("02 Jan 2006"), daysLeft)
+				}
+			}
+
+			if now.After(dueDate) {
+				// overdue while still active => fail (strict, no grace period)
+				m.Status = domain.MilestoneFailed
+				m.VotingOpen = false
+				_ = s.projectRepo.UpdateMilestone(m)
+				overdue = true
+				break
+			}
 		}
+
 		if overdue {
-			p.State = domain.StateClosed
+			p.State = domain.StateSuspended
 			p.Status = domain.StatusFailed
 			if _, err := s.projectRepo.UpdateProject(p); err != nil {
 				return err
+			}
+			
+			if s.notifSvc != nil {
+				relatedID := p.ID
+				relatedType := "project"
+				body := fmt.Sprintf("โปรเจกต์ %s ถูกระงับเนื่องจากส่ง Milestone ไม่ทันตามกำหนดเวลา", p.Title)
+				_ = s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifProjectStatus, "โปรเจกต์ถูกระงับ", body, &relatedID, &relatedType)
 			}
 			continue
 		}
@@ -2111,12 +2153,10 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 		return nil, errors.New("description is required")
 	}
 
-	// บล็อกถ้ามี meeting ที่ยัง open อยู่ (ยกเว้น milestone ถูก reject จาก vote → นัดใหม่ได้)
-	if milestone.Status != domain.MilestoneRejected {
-		existing, err := s.projectRepo.FindMeetingByMilestoneID(input.MilestoneID)
-		if err == nil && existing != nil {
-			return nil, errors.New("meeting already exists for this milestone")
-		}
+	// บล็อกถ้ามี meeting ที่ยัง open อยู่
+	existing, err := s.projectRepo.FindMeetingByMilestoneID(input.MilestoneID)
+	if err == nil && existing != nil {
+		return nil, errors.New("meeting already exists for this milestone")
 	}
 
 	user, err := s.userRepo.FindUniversityByUserId(userID)

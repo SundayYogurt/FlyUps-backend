@@ -50,6 +50,7 @@ type InvestmentService interface {
 	// RefundProjectInvestments คืนเงินนักลงทุนทุกคนเมื่อโปรเจกต์ถูก cancel
 	RefundProjectInvestments(project domain.Project)
 	GetCancelPreview(projectID uint) (*dto.CancelPreviewResponse, error)
+	FinalizeVotingIfExpired(milestoneID uint) error
 }
 
 type investmentService struct {
@@ -747,26 +748,43 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 		return vote, nil // voting already closed
 	}
 
-	// auto-finalize: if approval reaches strict majority of eligible verified investors -> paid
-	eligible, err := s.projectRepo.CountVerifiedBoostersByProjectID(m.ProjectID)
-	if err == nil && eligible > 0 {
-		approveCount, err2 := s.projectRepo.CountMilestoneVotes(milestoneID, domain.MilestoneVoteApprove)
-		if err2 == nil && approveCount*2 > eligible {
+	// auto-finalize: if approval reaches strict majority of eligible verified investment -> paid
+	eligibleAmount, err := s.projectRepo.SumVerifiedInvestmentByProjectID(m.ProjectID)
+	if err == nil && eligibleAmount > 0 {
+		approveAmount, err2 := s.projectRepo.SumMilestoneVotes(milestoneID, domain.MilestoneVoteApprove)
+		if err2 == nil && approveAmount*2 > eligibleAmount {
 			now := time.Now().UTC()
 			m.Status = domain.MilestonePaid
 			m.VotingOpen = false
 			m.VotingClosedAt = &now
+			
+			// Calculate delay to shift upcoming milestones
+			var delay time.Duration
+			if m.OriginalDueDate != nil && now.After(*m.OriginalDueDate) {
+				delay = now.Sub(*m.OriginalDueDate)
+			}
+
 			_ = s.projectRepo.UpdateMilestone(m)
 			_ = s.projectRepo.CloseMeetingsByMilestoneID(m.ID)
 			s.createDisbursementForMilestone(m)
 
-			// activate next phase
+			// activate next phase and shift deadlines
 			if allMs, err := s.projectRepo.FindMilestonesByProjectID(m.ProjectID); err == nil {
 				for i := range allMs {
+					needsUpdate := false
+					if allMs[i].PhaseNo > m.PhaseNo {
+						if delay > 0 && allMs[i].DueDate != nil {
+							newDue := allMs[i].DueDate.Add(delay)
+							allMs[i].DueDate = &newDue
+							needsUpdate = true
+						}
+					}
 					if allMs[i].PhaseNo == m.PhaseNo+1 && (allMs[i].Status == domain.MilestoneWaiting || allMs[i].Status == domain.MilestoneDraft) {
 						allMs[i].Status = domain.MilestoneActive
+						needsUpdate = true
+					}
+					if needsUpdate {
 						_ = s.projectRepo.UpdateMilestone(&allMs[i])
-						break
 					}
 				}
 			}
@@ -799,20 +817,44 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 				}
 			}
 		} else {
-			rejectCount, err3 := s.projectRepo.CountMilestoneVotes(milestoneID, domain.MilestoneVoteReject)
-			if err3 == nil && rejectCount*2 > eligible {
+			rejectAmount, err3 := s.projectRepo.SumMilestoneVotes(milestoneID, domain.MilestoneVoteReject)
+			if err3 == nil && rejectAmount*2 > eligibleAmount {
 				now := time.Now().UTC()
-				m.Status = domain.MilestoneRejected
 				m.VotingOpen = false
 				m.VotingClosedAt = &now
 				_ = s.projectRepo.CloseMeetingsByMilestoneID(m.ID)
-				_ = s.projectRepo.UpdateMilestone(m)
+				
+				m.RetryCount += 1
+				if m.RetryCount > 1 {
+					m.Status = domain.MilestoneFailed
+					_ = s.projectRepo.UpdateMilestone(m)
+					
+					// Suspend project because retry failed
+					if p, pErr := s.projectRepo.FindProjectByID(m.ProjectID); pErr == nil {
+						p.State = domain.StateSuspended
+						p.Status = domain.StatusFailed
+						_, _ = s.projectRepo.UpdateProject(p)
+						
+						// Notify project suspension
+						if s.notifSvc != nil {
+							relatedID := p.ID
+							relatedType := "project"
+							body := fmt.Sprintf("โปรเจกต์ %s ถูกระงับเนื่องจาก Milestone Phase %d ไม่ผ่านการโหวตในรอบแก้ไข", p.Title, m.PhaseNo)
+							_ = s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifProjectStatus, "โปรเจกต์ถูกระงับ", body, &relatedID, &relatedType)
+						}
+					}
+				} else {
+					m.Status = domain.MilestoneRejected
+					retryDeadline := now.Add(7 * 24 * time.Hour)
+					m.RetryDeadline = &retryDeadline
+					_ = s.projectRepo.UpdateMilestone(m)
+				}
 
 				if p, pErr := s.projectRepo.FindProjectByID(m.ProjectID); pErr == nil {
-					if s.notifSvc != nil {
+					if s.notifSvc != nil && m.Status == domain.MilestoneRejected {
 						relatedID := m.ID
 						relatedType := "milestone"
-						body := fmt.Sprintf("Milestone Phase %d: %s ไม่ผ่านการโหวต กรุณาปรับปรุงและส่งใหม่", m.PhaseNo, m.Title)
+						body := fmt.Sprintf("Milestone Phase %d: %s ไม่ผ่านการโหวต คุณมีเวลาแก้ไข 7 วัน (ถึง %s)", m.PhaseNo, m.Title, m.RetryDeadline.Format("02 Jan 2006"))
 						_ = s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifMilestone, "Milestone ไม่ผ่านการโหวต", body, &relatedID, &relatedType)
 					}
 					if s.emailClient != nil {
@@ -840,6 +882,108 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 	}
 
 	return vote, nil
+}
+
+func (s *investmentService) FinalizeVotingIfExpired(milestoneID uint) error {
+	m, err := s.projectRepo.FindMilestoneByID(milestoneID)
+	if err != nil {
+		return err
+	}
+
+	if m.Status != domain.MilestoneApproved || !m.VotingOpen || m.VotingOpenedAt == nil {
+		return nil // Not in voting state
+	}
+
+	now := time.Now().UTC()
+	if !now.After(m.VotingOpenedAt.Add(7 * 24 * time.Hour)) {
+		return nil // Voting not expired yet
+	}
+
+	// Expired, tally votes
+	eligibleAmount, err := s.projectRepo.SumVerifiedInvestmentByProjectID(m.ProjectID)
+	if err != nil || eligibleAmount <= 0 {
+		return nil // No investors? Should not happen if it passed
+	}
+
+	approveAmount, _ := s.projectRepo.SumMilestoneVotes(milestoneID, domain.MilestoneVoteApprove)
+	rejectAmount, _ := s.projectRepo.SumMilestoneVotes(milestoneID, domain.MilestoneVoteReject)
+
+	// In case of a tie or no votes, default to reject (strict rule) or default to approve?
+	// Given strict rules: if approve > reject, it passes.
+	if approveAmount > rejectAmount {
+		m.Status = domain.MilestonePaid
+		m.VotingOpen = false
+		m.VotingClosedAt = &now
+
+		var delay time.Duration
+		if m.OriginalDueDate != nil && now.After(*m.OriginalDueDate) {
+			delay = now.Sub(*m.OriginalDueDate)
+		}
+
+		_ = s.projectRepo.UpdateMilestone(m)
+		_ = s.projectRepo.CloseMeetingsByMilestoneID(m.ID)
+		s.createDisbursementForMilestone(m)
+
+		if allMs, err := s.projectRepo.FindMilestonesByProjectID(m.ProjectID); err == nil {
+			for i := range allMs {
+				needsUpdate := false
+				if allMs[i].PhaseNo > m.PhaseNo {
+					if delay > 0 && allMs[i].DueDate != nil {
+						newDue := allMs[i].DueDate.Add(delay)
+						allMs[i].DueDate = &newDue
+						needsUpdate = true
+					}
+				}
+				if allMs[i].PhaseNo == m.PhaseNo+1 && (allMs[i].Status == domain.MilestoneWaiting || allMs[i].Status == domain.MilestoneDraft) {
+					allMs[i].Status = domain.MilestoneActive
+					needsUpdate = true
+				}
+				if needsUpdate {
+					_ = s.projectRepo.UpdateMilestone(&allMs[i])
+				}
+			}
+		}
+
+		if p, pErr := s.projectRepo.FindProjectByID(m.ProjectID); pErr == nil {
+			if s.notifSvc != nil {
+				relatedID := m.ID
+				relatedType := "milestone"
+				body := fmt.Sprintf("Milestone Phase %d: %s ปิดโหวตและผ่านแล้ว (มีผู้ใช้สิทธิ์โหวต %v)", m.PhaseNo, m.Title, approveAmount > 0)
+				_ = s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifMilestone, "Milestone ผ่านการโหวตอัตโนมัติ", body, &relatedID, &relatedType)
+			}
+		}
+	} else {
+		m.VotingOpen = false
+		m.VotingClosedAt = &now
+		_ = s.projectRepo.CloseMeetingsByMilestoneID(m.ID)
+
+		m.RetryCount += 1
+		if m.RetryCount > 1 {
+			m.Status = domain.MilestoneFailed
+			_ = s.projectRepo.UpdateMilestone(m)
+
+			if p, pErr := s.projectRepo.FindProjectByID(m.ProjectID); pErr == nil {
+				p.State = domain.StateSuspended
+				p.Status = domain.StatusFailed
+				_, _ = s.projectRepo.UpdateProject(p)
+			}
+		} else {
+			m.Status = domain.MilestoneRejected
+			retryDeadline := now.Add(7 * 24 * time.Hour)
+			m.RetryDeadline = &retryDeadline
+			_ = s.projectRepo.UpdateMilestone(m)
+		}
+
+		if p, pErr := s.projectRepo.FindProjectByID(m.ProjectID); pErr == nil {
+			if s.notifSvc != nil && m.Status == domain.MilestoneRejected {
+				relatedID := m.ID
+				relatedType := "milestone"
+				body := fmt.Sprintf("Milestone Phase %d: %s หมดเวลาโหวตและได้คะแนนไม่ผ่าน คุณมีเวลาแก้ไข 7 วัน (ถึง %s)", m.PhaseNo, m.Title, m.RetryDeadline.Format("02 Jan 2006"))
+				_ = s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifMilestone, "Milestone ไม่ผ่านการโหวต", body, &relatedID, &relatedType)
+			}
+		}
+	}
+	return nil
 }
 
 func (s *investmentService) GetMyVote(boosterUserID uint, milestoneID uint) (*domain.MilestoneVote, error) {

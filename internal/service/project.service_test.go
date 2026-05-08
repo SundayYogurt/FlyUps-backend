@@ -303,8 +303,8 @@ func TestAutoProjectLifecycleTick_FundingExpireToDraftFailed(t *testing.T) {
 	}
 
 	executing := domain.StateExecuting
-	projRepo.On("FindProjects", &state, &status, (*domain.ProjectVisibility)(nil)).Return([]domain.Project{expired}, nil)
-	projRepo.On("FindProjects", &executing, &status, (*domain.ProjectVisibility)(nil)).Return([]domain.Project{}, nil)
+	projRepo.On("FindProjects", &state, &status, (*domain.ProjectVisibility)(nil), (*uint)(nil), "").Return([]domain.Project{expired}, nil)
+	projRepo.On("FindProjects", &executing, &status, (*domain.ProjectVisibility)(nil), (*uint)(nil), "").Return([]domain.Project{}, nil)
 	projRepo.On("UpdateProject", mock.AnythingOfType("*domain.Project")).Return(&expired, nil)
 
 	err := svc.AutoProjectLifecycleTick(now)
@@ -332,8 +332,8 @@ func TestAutoProjectLifecycleTick_ExecutionExpireToClosedFailed(t *testing.T) {
 		{ID: 2, ProjectID: 88, Status: domain.MilestoneRejected},
 	}
 
-	projRepo.On("FindProjects", &funding, &status, (*domain.ProjectVisibility)(nil)).Return([]domain.Project{}, nil)
-	projRepo.On("FindProjects", &executing, &status, (*domain.ProjectVisibility)(nil)).Return([]domain.Project{executingProject}, nil)
+	projRepo.On("FindProjects", &funding, &status, (*domain.ProjectVisibility)(nil), (*uint)(nil), "").Return([]domain.Project{}, nil)
+	projRepo.On("FindProjects", &executing, &status, (*domain.ProjectVisibility)(nil), (*uint)(nil), "").Return([]domain.Project{executingProject}, nil)
 	projRepo.On("FindMilestonesByProjectID", uint(88)).Return(milestones, nil)
 	projRepo.On("UpdateProject", mock.AnythingOfType("*domain.Project")).Return(&executingProject, nil)
 
@@ -361,8 +361,8 @@ func TestAutoProjectLifecycleTick_MilestoneOverdue_SuspendProjectFailed(t *testi
 		{ID: 1, ProjectID: 77, PhaseNo: 1, Status: domain.MilestoneActive, DueDate: &due},
 	}
 
-	projRepo.On("FindProjects", &funding, &status, (*domain.ProjectVisibility)(nil)).Return([]domain.Project{}, nil)
-	projRepo.On("FindProjects", &executing, &status, (*domain.ProjectVisibility)(nil)).Return([]domain.Project{executingProject}, nil)
+	projRepo.On("FindProjects", &funding, &status, (*domain.ProjectVisibility)(nil), (*uint)(nil), "").Return([]domain.Project{}, nil)
+	projRepo.On("FindProjects", &executing, &status, (*domain.ProjectVisibility)(nil), (*uint)(nil), "").Return([]domain.Project{executingProject}, nil)
 	projRepo.On("FindMilestonesByProjectID", uint(77)).Return(milestones, nil)
 	projRepo.On("UpdateMilestone", mock.AnythingOfType("*domain.Milestone")).Return(nil)
 	projRepo.On("UpdateProject", mock.AnythingOfType("*domain.Project")).Return(&executingProject, nil)
