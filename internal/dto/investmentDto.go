@@ -86,6 +86,15 @@ type ProjectInvestorItem struct {
 	FirstInvestedAt *time.Time `json:"first_invested_at"`
 }
 
+type MilestoneVoterItem struct {
+	UserID    uint    `json:"user_id"`
+	FirstName string  `json:"first_name"`
+	LastName  string  `json:"last_name"`
+	Picture   *string `json:"picture,omitempty"`
+	Voted     bool    `json:"voted"`
+	Choice    string  `json:"choice,omitempty"` // "approve" | "reject" | ""
+}
+
 type InvestedProjectItem struct {
 	ProjectID       uint       `json:"project_id"`
 	Title           string     `json:"title"`

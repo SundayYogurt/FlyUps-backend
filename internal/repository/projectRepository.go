@@ -74,7 +74,9 @@ type ProjectRepository interface {
 	FindMeetingsByProject(projectID uint, filter string) ([]domain.Meeting, error)
 	UpdateMeeting(meeting *domain.Meeting) (*domain.Meeting, error)
 	FindMeetingsByOwnerID(ownerID uint) ([]domain.Meeting, error)
+	FindMeetingsByInvestorID(investorUserID uint) ([]domain.Meeting, error)
 	FindVote(milestoneID uint, boosterUserID uint) (*domain.MilestoneVote, error)
+	ListVotesByMilestoneID(milestoneID uint) ([]domain.MilestoneVote, error)
 	FindMeetingByMilestoneID(milestoneID uint) (*domain.Meeting, error)
 	HasCompletedMeeting(milestoneID uint) (bool, error)
 
@@ -175,6 +177,12 @@ func (p *projectRepository) FindVote(milestoneID uint, boosterUserID uint) (*dom
 	return &vote, nil
 }
 
+func (p *projectRepository) ListVotesByMilestoneID(milestoneID uint) ([]domain.MilestoneVote, error) {
+	var votes []domain.MilestoneVote
+	err := p.db.Where("milestone_id = ?", milestoneID).Find(&votes).Error
+	return votes, err
+}
+
 func (p *projectRepository) FindMeetingsByOwnerID(ownerID uint) ([]domain.Meeting, error) {
 	var meetings []domain.Meeting
 
@@ -189,6 +197,18 @@ func (p *projectRepository) FindMeetingsByOwnerID(ownerID uint) ([]domain.Meetin
 	}
 
 	return meetings, nil
+}
+
+func (p *projectRepository) FindMeetingsByInvestorID(investorUserID uint) ([]domain.Meeting, error) {
+	var meetings []domain.Meeting
+	err := p.db.
+		Joins("JOIN milestones ON milestones.id = meetings.milestone_id").
+		Joins("JOIN projects ON projects.id = milestones.project_id").
+		Joins("JOIN investments ON investments.project_id = projects.id").
+		Where("investments.booster_user_id = ? AND investments.status = ?", investorUserID, "verified").
+		Preload("Milestone").
+		Find(&meetings).Error
+	return meetings, err
 }
 
 func (p *projectRepository) UpdateMeeting(meeting *domain.Meeting) (*domain.Meeting, error) {
