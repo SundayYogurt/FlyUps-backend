@@ -795,6 +795,13 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 					relatedType := "milestone"
 					body := fmt.Sprintf("Milestone Phase %d: %s ผ่านการโหวตแล้ว กำลังดำเนินการปล่อยทุน", m.PhaseNo, m.Title)
 					_ = s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifMilestone, "Milestone ผ่านการโหวต", body, &relatedID, &relatedType)
+					// notify all admins to process disbursement
+					adminBody := fmt.Sprintf("โปรเจกต์ %s – Phase %d: %s ผ่านการโหวตแล้ว กรุณาโอนเงินให้ Pioneer", p.Title, m.PhaseNo, m.Title)
+					if adminIDs, err := s.userRepo.FindAdminUserIDs(); err == nil {
+						for _, aid := range adminIDs {
+							_ = s.notifSvc.CreateAndPush(aid, domain.NotifMilestone, "Phase ผ่านการโหวต – รอโอนเงิน", adminBody, &relatedID, &relatedType)
+						}
+					}
 				}
 				if s.emailClient != nil {
 					projectTitle := p.Title
@@ -890,13 +897,22 @@ func (s *investmentService) FinalizeVotingIfExpired(milestoneID uint) error {
 		return err
 	}
 
-	if m.Status != domain.MilestoneApproved || !m.VotingOpen || m.VotingOpenedAt == nil {
-		return nil // Not in voting state
+	if m.Status != domain.MilestoneApproved || !m.VotingOpen {
+		return nil
 	}
 
 	now := time.Now().UTC()
-	if !now.After(m.VotingOpenedAt.Add(7 * 24 * time.Hour)) {
-		return nil // Voting not expired yet
+	// Use milestone DueDate as voting deadline; fall back to 7 days from open if unset
+	var deadline time.Time
+	if m.DueDate != nil {
+		deadline = m.DueDate.UTC()
+	} else if m.VotingOpenedAt != nil {
+		deadline = m.VotingOpenedAt.Add(7 * 24 * time.Hour)
+	} else {
+		return nil
+	}
+	if !now.After(deadline) {
+		return nil // Voting window still open
 	}
 
 	// Expired, tally votes
@@ -948,8 +964,15 @@ func (s *investmentService) FinalizeVotingIfExpired(milestoneID uint) error {
 			if s.notifSvc != nil {
 				relatedID := m.ID
 				relatedType := "milestone"
-				body := fmt.Sprintf("Milestone Phase %d: %s ปิดโหวตและผ่านแล้ว (มีผู้ใช้สิทธิ์โหวต %v)", m.PhaseNo, m.Title, approveAmount > 0)
+				body := fmt.Sprintf("Milestone Phase %d: %s ปิดโหวตและผ่านแล้ว", m.PhaseNo, m.Title)
 				_ = s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifMilestone, "Milestone ผ่านการโหวตอัตโนมัติ", body, &relatedID, &relatedType)
+				// notify admins
+				adminBody := fmt.Sprintf("โปรเจกต์ %s – Phase %d: %s ผ่านการโหวต (หมดเวลา) กรุณาโอนเงินให้ Pioneer", p.Title, m.PhaseNo, m.Title)
+				if adminIDs, err := s.userRepo.FindAdminUserIDs(); err == nil {
+					for _, aid := range adminIDs {
+						_ = s.notifSvc.CreateAndPush(aid, domain.NotifMilestone, "Phase ผ่านการโหวต – รอโอนเงิน", adminBody, &relatedID, &relatedType)
+					}
+				}
 			}
 		}
 	} else {
