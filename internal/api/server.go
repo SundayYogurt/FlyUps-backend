@@ -189,6 +189,7 @@ func StartServer(cfg config.AppConfig) {
 		notifSvc,
 		notificationClient,
 	)
+	rh.InvestmentSvc = investmentSvc
 	projectSvc := service.NewProjectService(
 		repository.NewProjectRepository(db),
 		repository.NewUserRepository(db),

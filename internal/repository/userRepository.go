@@ -13,6 +13,7 @@ type UserRepository interface {
 	FindUser(email string) (*domain.User, error)
 	FindUserByResetToken(token string) (*domain.User, error)
 	FindUserById(id uint) (*domain.User, error)
+	FindAdminUserIDs() ([]uint, error)
 	UpdateUser(userID uint, updates map[string]interface{}) error
 	UpsertStudentProfileByUserID(profile *domain.StudentProfile) error
 	CreateBankAccount(bank *domain.BankAccount) error
@@ -346,6 +347,12 @@ func (r *userRepository) FindUserByResetToken(token string) (*domain.User, error
 	}
 
 	return user, nil
+}
+
+func (r *userRepository) FindAdminUserIDs() ([]uint, error) {
+	var ids []uint
+	err := r.db.Model(&domain.User{}).Where("role = ?", "admin").Pluck("id", &ids).Error
+	return ids, err
 }
 
 func (r *userRepository) FindUserById(id uint) (*domain.User, error) {
