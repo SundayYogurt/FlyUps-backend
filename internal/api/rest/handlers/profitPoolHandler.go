@@ -13,6 +13,8 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+const errInvalidBody = errInvalidBody
+
 type ProfitPoolHandler struct {
 	svc       service.ProfitPoolService
 	validator *validator.Validate
@@ -59,7 +61,7 @@ func (h *ProfitPoolHandler) Create(ctx fiber.Ctx) error {
 	}
 	var req dto.CreateProfitPoolRequest
 	if err := ctx.Bind().JSON(&req); err != nil {
-		return rest.BadRequestError(ctx, "invalid request body")
+		return rest.BadRequestError(ctx, errInvalidBody)
 	}
 	if err := h.validator.Struct(req); err != nil {
 		return rest.BadRequestError(ctx, err.Error())
@@ -143,7 +145,7 @@ func (h *ProfitPoolHandler) PioneerSubmit(ctx fiber.Ctx) error {
 	}
 	var req dto.PioneerSubmitProfitRequest
 	if err := ctx.Bind().JSON(&req); err != nil {
-		return rest.BadRequestError(ctx, "invalid request body")
+		return rest.BadRequestError(ctx, errInvalidBody)
 	}
 	if err := h.validator.Struct(req); err != nil {
 		return rest.BadRequestError(ctx, err.Error())
@@ -182,7 +184,7 @@ func (h *ProfitPoolHandler) ConfirmPayout(ctx fiber.Ctx) error {
 	}
 	var req dto.ConfirmInvestorPayoutRequest
 	if err := ctx.Bind().JSON(&req); err != nil {
-		return rest.BadRequestError(ctx, "invalid request body")
+		return rest.BadRequestError(ctx, errInvalidBody)
 	}
 	if err := h.validator.Struct(req); err != nil {
 		return rest.BadRequestError(ctx, err.Error())

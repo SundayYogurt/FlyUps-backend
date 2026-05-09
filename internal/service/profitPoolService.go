@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+const errInternalServer = "internal server error"
+
 type ProfitPoolService interface {
 	Create(adminID uint, req dto.CreateProfitPoolRequest) (*dto.ProfitPoolDetail, error)
 	List() ([]dto.ProfitPoolListItem, error)
@@ -89,7 +91,7 @@ func (s *profitPoolService) Create(adminID uint, req dto.CreateProfitPoolRequest
 func (s *profitPoolService) List() ([]dto.ProfitPoolListItem, error) {
 	pools, err := s.repo.ListAll()
 	if err != nil {
-		return nil, errors.New("internal server error")
+		return nil, errors.New(errInternalServer)
 	}
 
 	items := make([]dto.ProfitPoolListItem, 0, len(pools))
@@ -244,7 +246,7 @@ func (s *profitPoolService) ConfirmPayout(poolID uint, payoutID uint, adminID ui
 	return nil
 }
 
-func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dto.PioneerSubmitProfitRequest) (*dto.ProfitPoolDetail, error) {
+func (s *profitPoolService) validatePioneerProjectForProfit(pioneerID, projectID uint, quarterNo int) (*domain.Project, error) {
 	project, err := s.projectRepo.FindProjectByID(projectID)
 	if err != nil {
 		return nil, errors.New("project not found")
@@ -255,25 +257,46 @@ func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dt
 	if project.State != domain.StateExecuting && project.State != domain.StateClosed {
 		return nil, errors.New("project must be in executing or closed state")
 	}
-
-	exists, err := s.repo.ExistsByProjectAndQuarter(projectID, req.QuarterNo)
+	exists, err := s.repo.ExistsByProjectAndQuarter(projectID, quarterNo)
 	if err != nil {
-		return nil, errors.New("internal server error")
+		return nil, errors.New(errInternalServer)
 	}
 	if exists {
-		return nil, fmt.Errorf("ไตรมาสที่ %d ส่งไปแล้ว", req.QuarterNo)
+		return nil, fmt.Errorf("ไตรมาสที่ %d ส่งไปแล้ว", quarterNo)
 	}
-
-	// ตรวจสอบว่าส่งครบ 4 ไตรมาสยังไม่เกิน
 	existing, _ := s.repo.ListByPioneerUserID(pioneerID)
-	projectCount := 0
+	count := 0
 	for _, p := range existing {
 		if p.ProjectID == projectID {
-			projectCount++
+			count++
 		}
 	}
-	if projectCount >= 4 {
+	if count >= 4 {
 		return nil, errors.New("ส่งครบ 4 ไตรมาสแล้ว")
+	}
+	return project, nil
+}
+
+func (s *profitPoolService) notifyAdminsNewProfit(pool *domain.ProfitPool, projectTitle string) {
+	if s.notifSvc == nil {
+		return
+	}
+	adminIDs, err := s.userRepo.FindAdminUserIDs()
+	if err != nil {
+		return
+	}
+	relatedID := pool.ID
+	relatedType := "profit_pool"
+	body := fmt.Sprintf("Pioneer โอนกำไร Q%d โปรเจกต์ %s จำนวน ฿%.2f รอการแจกจ่ายให้นักลงทุน", pool.QuarterNo, projectTitle, pool.TotalAmount)
+	for _, aid := range adminIDs {
+		_ = s.notifSvc.CreateAndPush(aid, domain.NotifProfit, "Pioneer โอนกำไรเข้าระบบ", body, &relatedID, &relatedType)
+	}
+}
+
+func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dto.PioneerSubmitProfitRequest) (*dto.ProfitPoolDetail, error) {
+	project, err := s.validatePioneerProjectForProfit(pioneerID, projectID, req.QuarterNo)
+	if err != nil {
+		return nil, err
 	}
 
 	investors, err := s.investRepo.ListInvestorsByProjectID(projectID)
@@ -300,28 +323,17 @@ func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dt
 	for _, inv := range investors {
 		sharePct := math.Round((inv.PrincipalAmount/totalPrincipal)*10000) / 100
 		amount := math.Round((inv.PrincipalAmount/totalPrincipal)*req.TotalAmount*100) / 100
-		payout := &domain.InvestorProfitPayout{
+		_ = s.repo.CreatePayout(&domain.InvestorProfitPayout{
 			ProfitPoolID:  pool.ID,
 			ProjectID:     projectID,
 			BoosterUserID: inv.UserID,
 			Amount:        amount,
 			SharePct:      sharePct,
 			Status:        domain.InvestorPayoutPending,
-		}
-		_ = s.repo.CreatePayout(payout)
+		})
 	}
 
-	// แจ้ง admin
-	if s.notifSvc != nil {
-		if adminIDs, err := s.userRepo.FindAdminUserIDs(); err == nil {
-			relatedID := pool.ID
-			relatedType := "profit_pool"
-			body := fmt.Sprintf("Pioneer โอนกำไร Q%d โปรเจกต์ %s จำนวน ฿%.2f รอการแจกจ่ายให้นักลงทุน", req.QuarterNo, project.Title, req.TotalAmount)
-			for _, aid := range adminIDs {
-				_ = s.notifSvc.CreateAndPush(aid, domain.NotifProfit, "Pioneer โอนกำไรเข้าระบบ", body, &relatedID, &relatedType)
-			}
-		}
-	}
+	s.notifyAdminsNewProfit(pool, project.Title)
 
 	return s.GetDetail(pool.ID)
 }
@@ -329,7 +341,7 @@ func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dt
 func (s *profitPoolService) GetPioneerPools(pioneerID uint) ([]dto.ProfitPoolListItem, error) {
 	pools, err := s.repo.ListByPioneerUserID(pioneerID)
 	if err != nil {
-		return nil, errors.New("internal server error")
+		return nil, errors.New(errInternalServer)
 	}
 
 	items := make([]dto.ProfitPoolListItem, 0, len(pools))
