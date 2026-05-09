@@ -28,6 +28,7 @@ type ProfitPool struct {
 	TransferRef   string           `json:"transfer_ref"`
 	Status        ProfitPoolStatus `json:"status" gorm:"default:'pending'"`
 	AdminNote     string           `json:"admin_note"`
+	QuarterNo     int              `json:"quarter_no" gorm:"default:0"` // 0 = unspecified, 1-4 = quarterly payment
 	gorm.Model
 }
 

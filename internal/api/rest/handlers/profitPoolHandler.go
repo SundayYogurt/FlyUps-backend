@@ -34,6 +34,10 @@ func SetupProfitPoolRoutes(rh *rest.RestHandler) {
 	admin.Get("/", h.List)
 	admin.Get("/:id", h.GetDetail)
 	admin.Patch("/:id/payouts/:payoutId/confirm", h.ConfirmPayout)
+
+	pioneer := rh.App.Group("/pioneer/profit-pools", rh.Middlewares.AuthorizePioneer)
+	pioneer.Post("/:projectId", h.PioneerSubmit)
+	pioneer.Get("/", h.PioneerList)
 }
 
 // Create godoc
@@ -128,6 +132,41 @@ func (h *ProfitPoolHandler) GetDetail(ctx fiber.Ctx) error {
 // @Failure 401 {object} map[string]string "Unauthorized"
 // @Failure 404 {object} map[string]string "Profit pool or payout not found"
 // @Router /admin/profit-pools/{id}/payouts/{payoutId}/confirm [patch]
+func (h *ProfitPoolHandler) PioneerSubmit(ctx fiber.Ctx) error {
+	currentUser := h.auth.GetCurrentUser(ctx)
+	if currentUser.ID == 0 {
+		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
+	}
+	projectID, err := strconv.ParseUint(ctx.Params("projectId"), 10, 32)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid project id")
+	}
+	var req dto.PioneerSubmitProfitRequest
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return rest.BadRequestError(ctx, "invalid request body")
+	}
+	if err := h.validator.Struct(req); err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+	result, err := h.svc.PioneerSubmit(currentUser.ID, uint(projectID), req)
+	if err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+	return rest.SuccessResponse(ctx, "profit submitted", result)
+}
+
+func (h *ProfitPoolHandler) PioneerList(ctx fiber.Ctx) error {
+	currentUser := h.auth.GetCurrentUser(ctx)
+	if currentUser.ID == 0 {
+		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
+	}
+	items, err := h.svc.GetPioneerPools(currentUser.ID)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+	return rest.SuccessResponse(ctx, "success", items)
+}
+
 func (h *ProfitPoolHandler) ConfirmPayout(ctx fiber.Ctx) error {
 	currentUser := h.auth.GetCurrentUser(ctx)
 	if currentUser.ID == 0 {

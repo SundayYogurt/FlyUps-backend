@@ -129,7 +129,10 @@ func (p *projectRepository) HasCompletedMeeting(milestoneID uint) (bool, error) 
 func (p *projectRepository) FindProjectsCancelRequest() ([]domain.Project, error) {
 	var projects []domain.Project
 
-	err := p.db.Model(&domain.Project{}).Where("state = ?", domain.StatePendingCancel).Find(&projects).Error
+	err := p.db.Model(&domain.Project{}).
+		Preload("Owner").
+		Where("state = ?", domain.StatePendingCancel).
+		Find(&projects).Error
 	if err != nil {
 		return nil, err
 	}

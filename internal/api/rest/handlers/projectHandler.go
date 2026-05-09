@@ -139,6 +139,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	adminProj.Get("/", handler.AdminListProjects)
 	adminProj.Get("/pending-review", handler.ProjectsPendingList)
 	adminProj.Get("/:id<int>/detail/pending-review", handler.ProjectDetailReview)
+	adminProj.Get("/:id<int>/detail", handler.ProjectDetailAny)
 
 	// Admin Milestone Submission Review
 	adminProj.Get("/milestones/submitted", handler.AdminListSubmittedMilestones)
@@ -2092,6 +2093,24 @@ func (h *ProjectHandler) ProjectDetailReview(ctx fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, "project detail review success", project)
+}
+
+func (h *ProjectHandler) ProjectDetailAny(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.UnauthorizedError(ctx, "unauthorized")
+	}
+	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+	}
+
+	project, err := h.svc.GetProjectDetailAny(uint(id))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
+	}
+
+	return rest.SuccessResponse(ctx, "project detail success", project)
 }
 
 // Meeting godoc
