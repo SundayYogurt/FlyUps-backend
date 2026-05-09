@@ -19,6 +19,7 @@ type ProfitPoolService interface {
 	ConfirmPayout(poolID uint, payoutID uint, adminID uint, req dto.ConfirmInvestorPayoutRequest) error
 	PioneerSubmit(pioneerID uint, projectID uint, req dto.PioneerSubmitProfitRequest) (*dto.ProfitPoolDetail, error)
 	GetPioneerPools(pioneerID uint) ([]dto.ProfitPoolListItem, error)
+	GetMyProfitPayouts(userID uint) ([]dto.MyProfitPayoutItem, error)
 }
 
 type profitPoolService struct {
@@ -257,6 +258,16 @@ func (s *profitPoolService) validatePioneerProjectForProfit(pioneerID, projectID
 	if project.State != domain.StateExecuting && project.State != domain.StateClosed {
 		return nil, errors.New("project must be in executing or closed state")
 	}
+	// ตรวจว่า milestone ครบ 4 phase และทุก phase เป็น paid ก่อนจ่ายปันผล
+	milestones, err := s.projectRepo.FindMilestonesByProjectID(projectID)
+	if err != nil || len(milestones) == 0 {
+		return nil, errors.New("ยังไม่มีข้อมูล Milestone")
+	}
+	for _, m := range milestones {
+		if m.Status != domain.MilestonePaid {
+			return nil, errors.New("ต้องผ่านครบทุก Phase Milestone ก่อนจึงจะจ่ายปันผลได้")
+		}
+	}
 	exists, err := s.repo.ExistsByProjectAndQuarter(projectID, quarterNo)
 	if err != nil {
 		return nil, errors.New(errInternalServer)
@@ -366,6 +377,34 @@ func (s *profitPoolService) GetPioneerPools(pioneerID uint) ([]dto.ProfitPoolLis
 			}
 		}
 		item.ConfirmedCount = confirmed
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+func (s *profitPoolService) GetMyProfitPayouts(userID uint) ([]dto.MyProfitPayoutItem, error) {
+	payouts, err := s.repo.ListPayoutsByBoosterUserID(userID)
+	if err != nil {
+		return nil, errors.New(errInternalServer)
+	}
+	items := make([]dto.MyProfitPayoutItem, 0, len(payouts))
+	for _, p := range payouts {
+		item := dto.MyProfitPayoutItem{
+			ID:          p.ID,
+			ProjectID:   p.ProjectID,
+			Amount:      p.Amount,
+			SharePct:    p.SharePct,
+			Status:      string(p.Status),
+			TransferRef: p.TransferRef,
+			ConfirmedAt: p.ConfirmedAt,
+			CreatedAt:   p.CreatedAt,
+		}
+		if pool, err := s.repo.FindByID(p.ProfitPoolID); err == nil {
+			item.QuarterNo = pool.QuarterNo
+		}
+		if project, err := s.projectRepo.FindProjectByID(p.ProjectID); err == nil {
+			item.ProjectTitle = project.Title
+		}
 		items = append(items, item)
 	}
 	return items, nil

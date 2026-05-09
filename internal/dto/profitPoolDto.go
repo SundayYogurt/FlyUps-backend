@@ -52,6 +52,19 @@ type ProfitPoolDetail struct {
 	Payouts       []InvestorPayoutDetail `json:"payouts"`
 }
 
+type MyProfitPayoutItem struct {
+	ID           uint       `json:"id"`
+	ProjectID    uint       `json:"project_id"`
+	ProjectTitle string     `json:"project_title"`
+	QuarterNo    int        `json:"quarter_no"`
+	Amount       float64    `json:"amount"`
+	SharePct     float64    `json:"share_pct"`
+	Status       string     `json:"status"`
+	TransferRef  string     `json:"transfer_ref"`
+	ConfirmedAt  *time.Time `json:"confirmed_at,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+}
+
 type ProfitPoolListItem struct {
 	ID             uint      `json:"id"`
 	ProjectID      uint      `json:"project_id"`

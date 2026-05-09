@@ -40,6 +40,9 @@ func SetupProfitPoolRoutes(rh *rest.RestHandler) {
 	pioneer := rh.App.Group("/pioneer/profit-pools", rh.Middlewares.AuthorizePioneer)
 	pioneer.Post("/:projectId", h.PioneerSubmit)
 	pioneer.Get("/", h.PioneerList)
+
+	investor := rh.App.Group("/me/profit-payouts", rh.Middlewares.Authorize)
+	investor.Get("/", h.MyProfitPayouts)
 }
 
 // Create godoc
@@ -163,6 +166,18 @@ func (h *ProfitPoolHandler) PioneerList(ctx fiber.Ctx) error {
 		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
 	}
 	items, err := h.svc.GetPioneerPools(currentUser.ID)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+	return rest.SuccessResponse(ctx, "success", items)
+}
+
+func (h *ProfitPoolHandler) MyProfitPayouts(ctx fiber.Ctx) error {
+	currentUser := h.auth.GetCurrentUser(ctx)
+	if currentUser.ID == 0 {
+		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
+	}
+	items, err := h.svc.GetMyProfitPayouts(currentUser.ID)
 	if err != nil {
 		return rest.InternalError(ctx, err)
 	}
