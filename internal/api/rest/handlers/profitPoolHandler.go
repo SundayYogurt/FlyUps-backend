@@ -13,7 +13,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-const errInvalidBody = errInvalidBody
+const errInvalidBody = "invalid request body"
 
 type ProfitPoolHandler struct {
 	svc       service.ProfitPoolService
