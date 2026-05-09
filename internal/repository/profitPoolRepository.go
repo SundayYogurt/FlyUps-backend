@@ -10,6 +10,8 @@ type ProfitPoolRepository interface {
 	Create(pool *domain.ProfitPool) error
 	FindByID(id uint) (*domain.ProfitPool, error)
 	ListAll() ([]domain.ProfitPool, error)
+	ListByPioneerUserID(pioneerUserID uint) ([]domain.ProfitPool, error)
+	ExistsByProjectAndQuarter(projectID uint, quarterNo int) (bool, error)
 	Update(pool *domain.ProfitPool) error
 
 	CreatePayout(p *domain.InvestorProfitPayout) error
@@ -44,6 +46,22 @@ func (r *profitPoolRepository) ListAll() ([]domain.ProfitPool, error) {
 		return nil, err
 	}
 	return list, nil
+}
+
+func (r *profitPoolRepository) ListByPioneerUserID(pioneerUserID uint) ([]domain.ProfitPool, error) {
+	var list []domain.ProfitPool
+	if err := r.db.Where("pioneer_user_id = ?", pioneerUserID).Order("created_at desc").Find(&list).Error; err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+func (r *profitPoolRepository) ExistsByProjectAndQuarter(projectID uint, quarterNo int) (bool, error) {
+	var count int64
+	err := r.db.Model(&domain.ProfitPool{}).
+		Where("project_id = ? AND quarter_no = ?", projectID, quarterNo).
+		Count(&count).Error
+	return count > 0, err
 }
 
 func (r *profitPoolRepository) Update(pool *domain.ProfitPool) error {

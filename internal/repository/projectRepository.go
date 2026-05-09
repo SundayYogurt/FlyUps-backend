@@ -11,6 +11,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+const stateQuery = "state = ?"
+
 type ProjectRepository interface {
 	CreateProject(project *domain.Project) (*domain.Project, error)
 	FindProjectByID(id uint) (*domain.Project, error)
@@ -129,7 +131,10 @@ func (p *projectRepository) HasCompletedMeeting(milestoneID uint) (bool, error) 
 func (p *projectRepository) FindProjectsCancelRequest() ([]domain.Project, error) {
 	var projects []domain.Project
 
-	err := p.db.Model(&domain.Project{}).Where("state = ?", domain.StatePendingCancel).Find(&projects).Error
+	err := p.db.Model(&domain.Project{}).
+		Preload("Owner").
+		Where(stateQuery, domain.StatePendingCancel).
+		Find(&projects).Error
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +397,7 @@ func (p *projectRepository) FindProjectsState(state string) ([]domain.Project, e
 		Preload("Owner.StudentProfile.University").
 		Preload("Owner.IdCardVerification").
 		Preload("Owner.StudentCardVerification").
-		Where("state = ?", state).
+		Where(stateQuery, state).
 		Order("created_at DESC").
 		Find(&projects).Error
 	if err != nil {
@@ -758,7 +763,7 @@ func (p *projectRepository) FindProjectDetailByID(id uint, state *domain.Project
 
 	// filter
 	if state != nil {
-		query = query.Where("state = ?", *state)
+		query = query.Where(stateQuery, *state)
 	}
 
 	if status != nil {
@@ -787,7 +792,7 @@ func (p *projectRepository) FindProjects(state *domain.ProjectState, status *dom
 		Order("id DESC")
 
 	if state != nil {
-		query = query.Where("state = ?", *state)
+		query = query.Where(stateQuery, *state)
 	}
 
 	if status != nil {

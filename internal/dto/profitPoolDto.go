@@ -7,6 +7,13 @@ type CreateProfitPoolRequest struct {
 	TotalAmount float64 `json:"total_amount" validate:"required,gt=0"`
 	TransferRef string  `json:"transfer_ref" validate:"required"`
 	AdminNote   string  `json:"admin_note"`
+	QuarterNo   int     `json:"quarter_no" validate:"min=0,max=4"`
+}
+
+type PioneerSubmitProfitRequest struct {
+	TotalAmount float64 `json:"total_amount" validate:"required,gt=0"`
+	TransferRef string  `json:"transfer_ref" validate:"required"`
+	QuarterNo   int     `json:"quarter_no" validate:"required,min=1,max=4"`
 }
 
 type ConfirmInvestorPayoutRequest struct {
@@ -40,6 +47,7 @@ type ProfitPoolDetail struct {
 	TransferRef   string                 `json:"transfer_ref"`
 	Status        string                 `json:"status"`
 	AdminNote     string                 `json:"admin_note"`
+	QuarterNo     int                    `json:"quarter_no"`
 	CreatedAt     time.Time              `json:"created_at"`
 	Payouts       []InvestorPayoutDetail `json:"payouts"`
 }
@@ -53,5 +61,6 @@ type ProfitPoolListItem struct {
 	Status         string    `json:"status"`
 	InvestorCount  int       `json:"investor_count"`
 	ConfirmedCount int       `json:"confirmed_count"`
+	QuarterNo      int       `json:"quarter_no"`
 	CreatedAt      time.Time `json:"created_at"`
 }

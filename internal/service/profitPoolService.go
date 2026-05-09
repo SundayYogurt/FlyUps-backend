@@ -10,11 +10,15 @@ import (
 	"time"
 )
 
+const errInternalServer = "internal server error"
+
 type ProfitPoolService interface {
 	Create(adminID uint, req dto.CreateProfitPoolRequest) (*dto.ProfitPoolDetail, error)
 	List() ([]dto.ProfitPoolListItem, error)
 	GetDetail(poolID uint) (*dto.ProfitPoolDetail, error)
 	ConfirmPayout(poolID uint, payoutID uint, adminID uint, req dto.ConfirmInvestorPayoutRequest) error
+	PioneerSubmit(pioneerID uint, projectID uint, req dto.PioneerSubmitProfitRequest) (*dto.ProfitPoolDetail, error)
+	GetPioneerPools(pioneerID uint) ([]dto.ProfitPoolListItem, error)
 }
 
 type profitPoolService struct {
@@ -61,6 +65,7 @@ func (s *profitPoolService) Create(adminID uint, req dto.CreateProfitPoolRequest
 		TransferRef:   req.TransferRef,
 		Status:        domain.ProfitPoolPending,
 		AdminNote:     req.AdminNote,
+		QuarterNo:     req.QuarterNo,
 	}
 	if err := s.repo.Create(pool); err != nil {
 		return nil, errors.New("failed to create profit pool")
@@ -86,7 +91,7 @@ func (s *profitPoolService) Create(adminID uint, req dto.CreateProfitPoolRequest
 func (s *profitPoolService) List() ([]dto.ProfitPoolListItem, error) {
 	pools, err := s.repo.ListAll()
 	if err != nil {
-		return nil, errors.New("internal server error")
+		return nil, errors.New(errInternalServer)
 	}
 
 	items := make([]dto.ProfitPoolListItem, 0, len(pools))
@@ -96,6 +101,7 @@ func (s *profitPoolService) List() ([]dto.ProfitPoolListItem, error) {
 			ProjectID:   p.ProjectID,
 			TotalAmount: p.TotalAmount,
 			Status:      string(p.Status),
+			QuarterNo:   p.QuarterNo,
 			CreatedAt:   p.CreatedAt,
 		}
 		if project, err := s.projectRepo.FindProjectByID(p.ProjectID); err == nil {
@@ -132,6 +138,7 @@ func (s *profitPoolService) GetDetail(poolID uint) (*dto.ProfitPoolDetail, error
 		TransferRef:   pool.TransferRef,
 		Status:        string(pool.Status),
 		AdminNote:     pool.AdminNote,
+		QuarterNo:     pool.QuarterNo,
 		CreatedAt:     pool.CreatedAt,
 	}
 	if project, err := s.projectRepo.FindProjectByID(pool.ProjectID); err == nil {
@@ -237,4 +244,129 @@ func (s *profitPoolService) ConfirmPayout(poolID uint, payoutID uint, adminID ui
 	}
 
 	return nil
+}
+
+func (s *profitPoolService) validatePioneerProjectForProfit(pioneerID, projectID uint, quarterNo int) (*domain.Project, error) {
+	project, err := s.projectRepo.FindProjectByID(projectID)
+	if err != nil {
+		return nil, errors.New("project not found")
+	}
+	if project.OwnerUserID != pioneerID {
+		return nil, errors.New("permission denied")
+	}
+	if project.State != domain.StateExecuting && project.State != domain.StateClosed {
+		return nil, errors.New("project must be in executing or closed state")
+	}
+	exists, err := s.repo.ExistsByProjectAndQuarter(projectID, quarterNo)
+	if err != nil {
+		return nil, errors.New(errInternalServer)
+	}
+	if exists {
+		return nil, fmt.Errorf("ไตรมาสที่ %d ส่งไปแล้ว", quarterNo)
+	}
+	existing, _ := s.repo.ListByPioneerUserID(pioneerID)
+	count := 0
+	for _, p := range existing {
+		if p.ProjectID == projectID {
+			count++
+		}
+	}
+	if count >= 4 {
+		return nil, errors.New("ส่งครบ 4 ไตรมาสแล้ว")
+	}
+	return project, nil
+}
+
+func (s *profitPoolService) notifyAdminsNewProfit(pool *domain.ProfitPool, projectTitle string) {
+	if s.notifSvc == nil {
+		return
+	}
+	adminIDs, err := s.userRepo.FindAdminUserIDs()
+	if err != nil {
+		return
+	}
+	relatedID := pool.ID
+	relatedType := "profit_pool"
+	body := fmt.Sprintf("Pioneer โอนกำไร Q%d โปรเจกต์ %s จำนวน ฿%.2f รอการแจกจ่ายให้นักลงทุน", pool.QuarterNo, projectTitle, pool.TotalAmount)
+	for _, aid := range adminIDs {
+		_ = s.notifSvc.CreateAndPush(aid, domain.NotifProfit, "Pioneer โอนกำไรเข้าระบบ", body, &relatedID, &relatedType)
+	}
+}
+
+func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dto.PioneerSubmitProfitRequest) (*dto.ProfitPoolDetail, error) {
+	project, err := s.validatePioneerProjectForProfit(pioneerID, projectID, req.QuarterNo)
+	if err != nil {
+		return nil, err
+	}
+
+	investors, err := s.investRepo.ListInvestorsByProjectID(projectID)
+	if err != nil || len(investors) == 0 {
+		return nil, errors.New("no investors found for this project")
+	}
+	var totalPrincipal float64
+	for _, inv := range investors {
+		totalPrincipal += inv.PrincipalAmount
+	}
+
+	pool := &domain.ProfitPool{
+		ProjectID:     projectID,
+		PioneerUserID: pioneerID,
+		TotalAmount:   req.TotalAmount,
+		TransferRef:   req.TransferRef,
+		Status:        domain.ProfitPoolPending,
+		QuarterNo:     req.QuarterNo,
+	}
+	if err := s.repo.Create(pool); err != nil {
+		return nil, errors.New("failed to create profit pool")
+	}
+
+	for _, inv := range investors {
+		sharePct := math.Round((inv.PrincipalAmount/totalPrincipal)*10000) / 100
+		amount := math.Round((inv.PrincipalAmount/totalPrincipal)*req.TotalAmount*100) / 100
+		_ = s.repo.CreatePayout(&domain.InvestorProfitPayout{
+			ProfitPoolID:  pool.ID,
+			ProjectID:     projectID,
+			BoosterUserID: inv.UserID,
+			Amount:        amount,
+			SharePct:      sharePct,
+			Status:        domain.InvestorPayoutPending,
+		})
+	}
+
+	s.notifyAdminsNewProfit(pool, project.Title)
+
+	return s.GetDetail(pool.ID)
+}
+
+func (s *profitPoolService) GetPioneerPools(pioneerID uint) ([]dto.ProfitPoolListItem, error) {
+	pools, err := s.repo.ListByPioneerUserID(pioneerID)
+	if err != nil {
+		return nil, errors.New(errInternalServer)
+	}
+
+	items := make([]dto.ProfitPoolListItem, 0, len(pools))
+	for _, p := range pools {
+		item := dto.ProfitPoolListItem{
+			ID:          p.ID,
+			ProjectID:   p.ProjectID,
+			TotalAmount: p.TotalAmount,
+			Status:      string(p.Status),
+			QuarterNo:   p.QuarterNo,
+			CreatedAt:   p.CreatedAt,
+		}
+		if project, err := s.projectRepo.FindProjectByID(p.ProjectID); err == nil {
+			item.ProjectTitle = project.Title
+		}
+		payouts, _ := s.repo.ListPayoutsByPoolID(p.ID)
+		item.InvestorCount = len(payouts)
+		confirmed := 0
+		for _, pay := range payouts {
+			if pay.Status == domain.InvestorPayoutConfirmed {
+				confirmed++
+			}
+		}
+		item.ConfirmedCount = confirmed
+		items = append(items, item)
+	}
+	return items, nil
 }

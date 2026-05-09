@@ -17,6 +17,8 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+const errInvalidProjectID = errInvalidProjectID
+
 type ProjectHandler struct {
 	svc       service.ProjectService
 	validator *validator.Validate
@@ -139,6 +141,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	adminProj.Get("/", handler.AdminListProjects)
 	adminProj.Get("/pending-review", handler.ProjectsPendingList)
 	adminProj.Get("/:id<int>/detail/pending-review", handler.ProjectDetailReview)
+	adminProj.Get("/:id<int>/detail", handler.ProjectDetailAny)
 
 	// Admin Milestone Submission Review
 	adminProj.Get("/milestones/submitted", handler.AdminListSubmittedMilestones)
@@ -233,7 +236,7 @@ func (h *ProjectHandler) CancelProject(ctx fiber.Ctx) error {
 
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil || id <= 0 {
-		return rest.BadRequestError(ctx, "invalid project id")
+		return rest.BadRequestError(ctx, errInvalidProjectID)
 	}
 
 	err = h.svc.CancelProject(uint(id), user)
@@ -266,7 +269,7 @@ func (h *ProjectHandler) SubmitCancelProject(ctx fiber.Ctx) error {
 
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil || id <= 0 {
-		return rest.BadRequestError(ctx, "invalid project id")
+		return rest.BadRequestError(ctx, errInvalidProjectID)
 	}
 
 	var body dto.CancelProjectRequest
@@ -302,7 +305,7 @@ func (h *ProjectHandler) ApproveCancel(ctx fiber.Ctx) error {
 
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil || id <= 0 {
-		return rest.BadRequestError(ctx, "invalid project id")
+		return rest.BadRequestError(ctx, errInvalidProjectID)
 	}
 
 	err = h.svc.ApproveCancelProject(uint(id))
@@ -333,7 +336,7 @@ func (h *ProjectHandler) RejectCancel(ctx fiber.Ctx) error {
 
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil || id <= 0 {
-		return rest.BadRequestError(ctx, "invalid project id")
+		return rest.BadRequestError(ctx, errInvalidProjectID)
 	}
 
 	err = h.svc.RejectCancelProject(uint(id))
@@ -358,7 +361,7 @@ func (h *ProjectHandler) RejectCancel(ctx fiber.Ctx) error {
 func (h *ProjectHandler) GetCancelPreview(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil || id <= 0 {
-		return rest.BadRequestError(ctx, "invalid project id")
+		return rest.BadRequestError(ctx, errInvalidProjectID)
 	}
 
 	preview, err := h.svc.GetCancelPreview(uint(id))
@@ -394,7 +397,7 @@ func (h *ProjectHandler) AttachProjectMedia(ctx fiber.Ctx) error {
 
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil || id <= 0 {
-		return rest.BadRequestError(ctx, "invalid project id")
+		return rest.BadRequestError(ctx, errInvalidProjectID)
 	}
 
 	type mediaItem struct {
@@ -595,7 +598,7 @@ func (h *ProjectHandler) UpdateProject(ctx fiber.Ctx) error {
 	idStr := ctx.Params("id")
 	projectID, err := strconv.Atoi(idStr)
 	if err != nil || projectID <= 0 {
-		return rest.BadRequestError(ctx, "invalid project id")
+		return rest.BadRequestError(ctx, errInvalidProjectID)
 	}
 
 	// parse request body
@@ -699,7 +702,7 @@ func (h *ProjectHandler) GetMyProjectByID(ctx fiber.Ctx) error {
 	idStr := ctx.Params("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil || id <= 0 {
-		return rest.BadRequestError(ctx, "invalid project id")
+		return rest.BadRequestError(ctx, errInvalidProjectID)
 	}
 
 	proj, err := h.svc.GetOwnerProjectByID(uint(id), user.ID)
@@ -757,7 +760,7 @@ func (h *ProjectHandler) GetPublicProjectByID(ctx fiber.Ctx) error {
 	idStr := ctx.Params("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil || id <= 0 {
-		return rest.BadRequestError(ctx, "invalid project id")
+		return rest.BadRequestError(ctx, errInvalidProjectID)
 	}
 
 	proj, err := h.svc.GetPublicProjectByID(uint(id))
@@ -879,7 +882,7 @@ func (h *ProjectHandler) AddProjectMilestone(ctx fiber.Ctx) error {
 	idStr := ctx.Params("id")
 	projectID, err := strconv.Atoi(idStr)
 	if err != nil || projectID <= 0 {
-		return rest.BadRequestError(ctx, "invalid project id")
+		return rest.BadRequestError(ctx, errInvalidProjectID)
 	}
 
 	var body dto.CreateMilestoneRequest
@@ -944,7 +947,7 @@ func (h *ProjectHandler) AddProjectStory(ctx fiber.Ctx) error {
 	idStr := ctx.Params("id")
 	projectID, err := strconv.Atoi(idStr)
 	if err != nil || projectID <= 0 {
-		return rest.BadRequestError(ctx, "invalid project id")
+		return rest.BadRequestError(ctx, errInvalidProjectID)
 	}
 
 	var body domain.StorySection
@@ -1047,7 +1050,7 @@ func (h *ProjectHandler) DeleteProject(ctx fiber.Ctx) error {
 	}
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	if err := h.svc.DeleteProject(uint(id), user); err != nil {
 		return rest.InternalError(ctx, err)
@@ -1068,7 +1071,7 @@ func (h *ProjectHandler) DeleteProject(ctx fiber.Ctx) error {
 func (h *ProjectHandler) GetProjectMedia(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	media, err := h.svc.GetProjectMedia(uint(id))
 	if err != nil {
@@ -1139,7 +1142,7 @@ func (h *ProjectHandler) DeleteProjectMedia(ctx fiber.Ctx) error {
 func (h *ProjectHandler) GetProjectMilestones(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	milestones, err := h.svc.GetProjectMilestones(uint(id))
 	if err != nil {
@@ -1385,7 +1388,7 @@ func (h *ProjectHandler) OpenMilestoneVoting(ctx fiber.Ctx) error {
 func (h *ProjectHandler) GetProjectStories(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	stories, err := h.svc.GetProjectStories(uint(id))
 	if err != nil {
@@ -1435,7 +1438,7 @@ func (h *ProjectHandler) UpdateProjectStatus(ctx fiber.Ctx) error {
 	}
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	var body struct {
 		State  string `json:"state"`
@@ -1501,7 +1504,7 @@ func (h *ProjectHandler) CreateProjectUpdate(ctx fiber.Ctx) error {
 	}
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	var body dto.CreateProjectUpdateRequest
 	if err := ctx.Bind().Body(&body); err != nil {
@@ -1573,7 +1576,7 @@ func (h *ProjectHandler) DeleteProjectUpdate(ctx fiber.Ctx) error {
 func (h *ProjectHandler) GetProjectUpdates(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	updates, err := h.svc.GetProjectUpdates(uint(id))
 	if err != nil {
@@ -1594,7 +1597,7 @@ func (h *ProjectHandler) GetProjectUpdates(ctx fiber.Ctx) error {
 func (h *ProjectHandler) GetProjectFAQs(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	faqs, err := h.svc.GetProjectFAQs(uint(id))
 	if err != nil {
@@ -1618,7 +1621,7 @@ func (h *ProjectHandler) CreateProjectFAQ(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	var body domain.ProjectFAQ
 	if err := ctx.Bind().Body(&body); err != nil {
@@ -1687,7 +1690,7 @@ func (h *ProjectHandler) DeleteProjectFAQ(ctx fiber.Ctx) error {
 func (h *ProjectHandler) GetProjectThreads(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	threads, err := h.svc.GetProjectThreads(uint(id))
 	if err != nil {
@@ -1699,7 +1702,7 @@ func (h *ProjectHandler) GetProjectThreads(ctx fiber.Ctx) error {
 func (h *ProjectHandler) GetProjectUpdateThreads(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	updateID, err := strconv.Atoi(ctx.Params("update_id"))
 	if err != nil {
@@ -1716,7 +1719,7 @@ func (h *ProjectHandler) CreateProjectUpdateThread(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	updateID, err := strconv.Atoi(ctx.Params("update_id"))
 	if err != nil {
@@ -1739,7 +1742,7 @@ func (h *ProjectHandler) CreateBoosterProjectUpdateThread(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	updateID, err := strconv.Atoi(ctx.Params("update_id"))
 	if err != nil {
@@ -1773,7 +1776,7 @@ func (h *ProjectHandler) CreateProjectThread(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	var body domain.ProjectThread
 	if err := ctx.Bind().Body(&body); err != nil {
@@ -1804,7 +1807,7 @@ func (h *ProjectHandler) CreateBoosterProjectThread(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	var body domain.ProjectThread
 	if err := ctx.Bind().Body(&body); err != nil {
@@ -1962,7 +1965,7 @@ func (h *ProjectHandler) SubmitForReview(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	if err := h.svc.SubmitForReview(uint(id), user); err != nil {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
@@ -1983,7 +1986,7 @@ func (h *ProjectHandler) SubmitForReview(ctx fiber.Ctx) error {
 func (h *ProjectHandler) ApproveProject(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	if err := h.svc.ApproveProject(uint(id)); err != nil {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
@@ -2004,7 +2007,7 @@ func (h *ProjectHandler) ApproveProject(ctx fiber.Ctx) error {
 func (h *ProjectHandler) RejectProject(ctx fiber.Ctx) error {
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	if err := h.svc.RejectProject(uint(id)); err != nil {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
@@ -2026,7 +2029,7 @@ func (h *ProjectHandler) CloseProject(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	if err := h.svc.CloseProject(uint(id), user); err != nil {
 		switch err.Error() {
@@ -2083,7 +2086,7 @@ func (h *ProjectHandler) ProjectDetailReview(ctx fiber.Ctx) error {
 	}
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 
 	project, err := h.svc.GetProjectDetailRequest(uint(id))
@@ -2092,6 +2095,24 @@ func (h *ProjectHandler) ProjectDetailReview(ctx fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, "project detail review success", project)
+}
+
+func (h *ProjectHandler) ProjectDetailAny(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.UnauthorizedError(ctx, "unauthorized")
+	}
+	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
+	}
+
+	project, err := h.svc.GetProjectDetailAny(uint(id))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
+	}
+
+	return rest.SuccessResponse(ctx, "project detail success", project)
 }
 
 // Meeting godoc
@@ -2148,7 +2169,7 @@ func (h *ProjectHandler) EditMeeting(ctx fiber.Ctx) error {
 
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
-		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid project id"))
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 
 	var body dto.UpdateMeetingRequest
@@ -2290,7 +2311,7 @@ func (h *ProjectHandler) GetMyProjectMeetings(ctx fiber.Ctx) error {
 	idParam := ctx.Params("id")
 	projectID, err := strconv.Atoi(idParam)
 	if err != nil {
-		return rest.BadRequestError(ctx, "invalid project id")
+		return rest.BadRequestError(ctx, errInvalidProjectID)
 	}
 
 	filter := ctx.Query("filter", "all")

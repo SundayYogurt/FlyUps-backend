@@ -99,6 +99,7 @@ type ProjectService interface {
 	CancelProject(projectID uint, user domain.User) error
 	GetAllProjectsRequest() ([]domain.Project, error)
 	GetProjectDetailRequest(projectID uint) (*domain.Project, error)
+	GetProjectDetailAny(projectID uint) (*domain.Project, error)
 	AutoProjectLifecycleTick(now time.Time) error
 	SubmitCancelRequest(projectID uint, input dto.CancelProjectRequest, user domain.User) error
 	ApproveCancelProject(projectID uint) error
@@ -460,7 +461,25 @@ func (s *projectService) UpdateProjectStatus(projectID uint, newState domain.Pro
 	project.Status = newStatus
 
 	_, err = s.projectRepo.UpdateProject(project)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// เมื่อเปลี่ยนเป็น executing ให้ activate Phase 1 milestone อัตโนมัติ
+	if newState == domain.StateExecuting {
+		milestones, err := s.projectRepo.FindMilestonesByProjectID(projectID)
+		if err == nil {
+			for i := range milestones {
+				if milestones[i].PhaseNo == 1 && (milestones[i].Status == domain.MilestoneWaiting || milestones[i].Status == domain.MilestoneDraft) {
+					milestones[i].Status = domain.MilestoneActive
+					_ = s.projectRepo.UpdateMilestone(&milestones[i])
+					break
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // MEDIA
@@ -1936,6 +1955,19 @@ func (s *projectService) GetProjectDetailRequest(projectID uint) (*domain.Projec
 
 	if project == nil {
 		return nil, errors.New("project not found")
+	}
+
+	return project, nil
+}
+
+func (s *projectService) GetProjectDetailAny(projectID uint) (*domain.Project, error) {
+	if projectID == 0 {
+		return nil, errors.New("invalid project ID")
+	}
+
+	project, err := s.projectRepo.FindProjectDetailByID(projectID, nil, nil, nil)
+	if err != nil {
+		return nil, err
 	}
 
 	return project, nil
