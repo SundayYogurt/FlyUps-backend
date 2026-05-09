@@ -17,7 +17,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-const errInvalidProjectID = errInvalidProjectID
+const errInvalidProjectID = "invalid project id"
 
 type ProjectHandler struct {
 	svc       service.ProjectService
