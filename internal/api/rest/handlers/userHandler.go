@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"flyup/config"
 	"flyup/internal/repository"
@@ -62,6 +61,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 
 	pubRoutes.Get("/auth/google", handler.GoogleLogin)
 	pubRoutes.Get("/auth/google/callback", handler.GoogleCallback)
+	pubRoutes.Post("/auth/refresh", handler.RefreshToken)
 
 	//private route
 	privateRoutes := app.Group("/user", rh.Middlewares.Authorize)
@@ -207,7 +207,7 @@ func (h *UserHandler) Signing(ctx fiber.Ctx) error {
 			"message": "please provide valid inputs",
 		})
 	}
-	token, err := h.svc.Signing(signingInput.Email, signingInput.Password)
+	token, userID, userRole, err := h.svc.Signing(signingInput.Email, signingInput.Password)
 
 	if err != nil {
 		errMsg := err.Error()
@@ -235,21 +235,11 @@ func (h *UserHandler) Signing(ctx fiber.Ctx) error {
 			})
 		}
 	}
-	// set cookie
-	ctx.Cookie(&fiber.Cookie{
-		Name:     "auth_token",
-		Value:    token,
-		HTTPOnly: true,
-		Secure:   true,   // false ถ้า localhost
-		SameSite: "None", // required for cross-site cookie on Safari/iOS
-		Path:     "/",
-		MaxAge:   60 * 60 * 24, // 1 day
-	})
+	if err := h.setAuthCookies(ctx, token, userID, signingInput.Email, userRole); err != nil {
+		return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "failed to set session"})
+	}
 
-	return ctx.Status(http.StatusOK).JSON(fiber.Map{
-		"message": "login",
-		"token":   token,
-	})
+	return ctx.Status(http.StatusOK).JSON(fiber.Map{"message": "login"})
 }
 
 // ForgotPassword godoc
@@ -854,19 +844,60 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 		return ctx.Redirect().To(oauthFailedRedirect)
 	}
 
-	ctx.Cookie(&fiber.Cookie{
-		Name:     "auth_token",
-		Value:    token,
-		HTTPOnly: true,
-		Secure:   true,
-		SameSite: "None", // required for cross-site cookie on Safari/iOS
-		Path:     "/",
-		MaxAge:   3600,
-	})
+	// extract user info from token to generate refresh token
+	u, err := h.auth.VerifyToken(token)
+	if err != nil {
+		return ctx.Redirect().To(oauthFailedRedirect)
+	}
+	if err := h.setAuthCookies(ctx, token, u.ID, u.Email, u.Role); err != nil {
+		return ctx.Redirect().To(oauthFailedRedirect)
+	}
 
-	// Send token to frontend
-	redirectUrl := baseURL + "/?token=" + token
+	// token ใน URL ใช้แค่บอก frontend ว่า OAuth สำเร็จ (cookie ถูก set แล้ว)
+	redirectUrl := baseURL + "/?token=1"
 	return ctx.Redirect().To(redirectUrl)
+}
+
+// setAuthCookies ตั้ง access cookie (15 min) และ refresh cookie (30 days)
+func (h *UserHandler) setAuthCookies(ctx fiber.Ctx, accessToken string, userID uint, email string, role string) error {
+	refreshToken, err := h.auth.GenerateRefreshToken(userID, email, role)
+	if err != nil {
+		return err
+	}
+	cookieBase := fiber.Cookie{HTTPOnly: true, Secure: true, SameSite: "None", Path: "/"}
+
+	ac := cookieBase
+	ac.Name = "auth_token"
+	ac.Value = accessToken
+	ac.MaxAge = 15 * 60 // 15 นาที
+	ctx.Cookie(&ac)
+
+	rc := cookieBase
+	rc.Name = "refresh_token"
+	rc.Value = refreshToken
+	rc.MaxAge = 30 * 24 * 60 * 60 // 30 วัน
+	ctx.Cookie(&rc)
+	return nil
+}
+
+// RefreshToken ออก access token ใหม่จาก refresh token
+func (h *UserHandler) RefreshToken(ctx fiber.Ctx) error {
+	refreshToken := ctx.Cookies("refresh_token")
+	if refreshToken == "" {
+		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "refresh_token missing"})
+	}
+	user, err := h.auth.VerifyRefreshToken(refreshToken)
+	if err != nil {
+		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "invalid or expired refresh token"})
+	}
+	newAccessToken, err := h.auth.GenerateToken(user.ID, user.Email, user.Role)
+	if err != nil {
+		return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "failed to generate token"})
+	}
+	if err := h.setAuthCookies(ctx, newAccessToken, user.ID, user.Email, user.Role); err != nil {
+		return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "failed to set session"})
+	}
+	return ctx.JSON(fiber.Map{"message": "token refreshed"})
 }
 
 // SignOut godoc
@@ -878,20 +909,12 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 // @Success 200 {object} object "logout success"
 // @Router /user/signout [post]
 func (h *UserHandler) SignOut(ctx fiber.Ctx) error {
-	ctx.Cookie(&fiber.Cookie{
-		Name:     "auth_token",
-		Value:    "",
-		Expires:  time.Now().Add(-time.Hour), // ทำให้หมดอายุทันที
-		MaxAge:   -1,                         // เพิ่ม MaxAge เพื่อให้แน่ใจว่าลบได้
-		SameSite: "None",                     // keep same attributes when deleting
-		Path:     "/",
-		HTTPOnly: true,
-		Secure:   true,
-	})
-
-	return ctx.JSON(fiber.Map{
-		"message": "logout success",
-	})
+	clearCookie := fiber.Cookie{Value: "", MaxAge: -1, SameSite: "None", Path: "/", HTTPOnly: true, Secure: true}
+	ac := clearCookie; ac.Name = "auth_token"
+	rc := clearCookie; rc.Name = "refresh_token"
+	ctx.Cookie(&ac)
+	ctx.Cookie(&rc)
+	return ctx.JSON(fiber.Map{"message": "logout success"})
 }
 
 // SelectRole godoc
@@ -930,16 +953,9 @@ func (h *UserHandler) SelectRole(ctx fiber.Ctx) error {
 	if err != nil {
 		return rest.InternalError(ctx, err)
 	}
-
-	ctx.Cookie(&fiber.Cookie{
-		Name:     "auth_token",
-		Value:    token,
-		HTTPOnly: true,
-		Secure:   true,
-		SameSite: "None",
-		Path:     "/",
-		MaxAge:   60 * 60 * 24,
-	})
+	if err := h.setAuthCookies(ctx, token, user.ID, user.Email, body.Role); err != nil {
+		return rest.InternalError(ctx, err)
+	}
 
 	return ctx.Status(http.StatusOK).JSON(fiber.Map{
 		"message": "role updated successfully",
