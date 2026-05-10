@@ -36,6 +36,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 		rh.NotifSvc,
 		rh.Notification,
 		rh.InvestmentSvc,
+		repository.NewDisbursementRepository(rh.DB),
 	)
 
 	handler := ProjectHandler{

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"flyup/internal/api/rest"
@@ -12,38 +13,51 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 type NotificationHandler struct {
 	svc  service.NotificationService
 	auth helper.Auth
+	rh   *rest.RestHandler
 }
 
 func SetupNotificationRoutes(rh *rest.RestHandler) {
 	h := &NotificationHandler{
 		svc:  rh.NotifSvc,
 		auth: rh.Auth,
+		rh:   rh,
 	}
 
 	priv := rh.App.Group("/notifications", rh.Middlewares.Authorize)
 	priv.Get("/", h.List)
-	priv.Get("/stream", h.Stream)
+	priv.Post("/sse-token", h.IssueSSEToken) // short-lived one-time token for EventSource
 	priv.Patch("/read-all", h.MarkAllAsRead)
 	priv.Patch("/:id/read", h.MarkAsRead)
+
+	// SSE stream — NOT behind Authorize middleware; uses one-time sse_token instead
+	rh.App.Get("/notifications/stream", h.Stream)
+}
+
+// IssueSSEToken issues a short-lived (60s) one-time token for SSE connection.
+// The token is stored in Redis; it is deleted on first use.
+func (h *NotificationHandler) IssueSSEToken(c fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(c)
+	if user.ID == 0 {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
+	}
+
+	token := uuid.New().String()
+	key := "sse_token:" + token
+	ctx := context.Background()
+	if err := h.rh.Cache.Set(ctx, key, strconv.FormatUint(uint64(user.ID), 10), 60*time.Second); err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "failed to issue token"})
+	}
+
+	return c.JSON(fiber.Map{"token": token})
 }
 
 // List godoc
-// @Summary List notifications
-// @Description Get paginated notifications for the current user
-// @Tags Notifications
-// @Produce json
-// @Security BearerAuth
-// @Param page query int false "Page number (default 1)"
-// @Param limit query int false "Items per page (default 20, max 100)"
-// @Success 200 {object} object "Paginated notifications with unread count"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 500 {object} object "Internal Server Error"
-// @Router /notifications [get]
 func (h *NotificationHandler) List(c fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(c)
 	if user.ID == 0 {
@@ -75,20 +89,28 @@ func (h *NotificationHandler) List(c fiber.Ctx) error {
 	})
 }
 
-// Stream godoc
-// @Summary Server-Sent Events notification stream
-// @Description Subscribe to real-time notifications via SSE. Returns `text/event-stream` content.
-// @Tags Notifications
-// @Produce text/event-stream
-// @Security BearerAuth
-// @Success 200 {string} string "SSE stream (ping and notification events)"
-// @Failure 401 {object} object "Unauthorized"
-// @Router /notifications/stream [get]
+// Stream — SSE endpoint authenticated via one-time sse_token query param (NOT JWT in URL)
 func (h *NotificationHandler) Stream(c fiber.Ctx) error {
-	user := h.auth.GetCurrentUser(c)
-	if user.ID == 0 {
-		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
+	sseToken := c.Query("sse_token")
+	if sseToken == "" {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "sse_token required"})
 	}
+
+	ctx := context.Background()
+	key := "sse_token:" + sseToken
+
+	// Validate and consume (delete) the one-time token
+	userIDStr, err := h.rh.Cache.Get(ctx, key)
+	if err != nil || userIDStr == "" {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "invalid or expired sse_token"})
+	}
+	_ = h.rh.Cache.Del(ctx, key) // one-time use
+
+	userID64, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "invalid sse_token"})
+	}
+	userID := uint(userID64)
 
 	c.Set("Content-Type", "text/event-stream")
 	c.Set("Cache-Control", "no-cache")
@@ -96,15 +118,14 @@ func (h *NotificationHandler) Stream(c fiber.Ctx) error {
 	c.Set("Transfer-Encoding", "chunked")
 	c.Set("X-Accel-Buffering", "no")
 
-	ch := h.svc.Subscribe(user.ID)
+	ch := h.svc.Subscribe(userID)
 
 	c.Response().SetBodyStreamWriter(func(w *bufio.Writer) {
-		defer h.svc.Unsubscribe(user.ID, ch)
+		defer h.svc.Unsubscribe(userID, ch)
 
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 
-		// initial ping to confirm connection
 		fmt.Fprintf(w, ": ping\n\n")
 		if err := w.Flush(); err != nil {
 			return
@@ -134,17 +155,6 @@ func (h *NotificationHandler) Stream(c fiber.Ctx) error {
 }
 
 // MarkAsRead godoc
-// @Summary Mark notification as read
-// @Description Mark a specific notification as read by ID
-// @Tags Notifications
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "Notification ID"
-// @Success 200 {object} object "marked as read"
-// @Failure 400 {object} object "Invalid notification ID"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 500 {object} object "Internal Server Error"
-// @Router /notifications/{id}/read [patch]
 func (h *NotificationHandler) MarkAsRead(c fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(c)
 	if user.ID == 0 {
@@ -164,15 +174,6 @@ func (h *NotificationHandler) MarkAsRead(c fiber.Ctx) error {
 }
 
 // MarkAllAsRead godoc
-// @Summary Mark all notifications as read
-// @Description Mark all notifications for the current user as read
-// @Tags Notifications
-// @Produce json
-// @Security BearerAuth
-// @Success 200 {object} object "all marked as read"
-// @Failure 401 {object} object "Unauthorized"
-// @Failure 500 {object} object "Internal Server Error"
-// @Router /notifications/read-all [patch]
 func (h *NotificationHandler) MarkAllAsRead(c fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(c)
 	if user.ID == 0 {

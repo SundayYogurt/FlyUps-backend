@@ -12,6 +12,7 @@ import (
 	"log"
 	"math"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 )
@@ -120,13 +121,14 @@ type ProjectService interface {
 }
 
 type projectService struct {
-	projectRepo   repository.ProjectRepository
-	userRepo      repository.UserRepository
-	uniRepo       repository.UniversityRepository
-	cld           *helper.CloudinaryService
-	notifSvc      NotificationService
-	emailClient   notification.NotificationClient
-	investmentSvc InvestmentService
+	projectRepo      repository.ProjectRepository
+	userRepo         repository.UserRepository
+	uniRepo          repository.UniversityRepository
+	cld              *helper.CloudinaryService
+	notifSvc         NotificationService
+	emailClient      notification.NotificationClient
+	investmentSvc    InvestmentService
+	disbursementRepo repository.DisbursementRepository
 }
 
 func NewProjectService(
@@ -136,9 +138,11 @@ func NewProjectService(
 	notifSvc NotificationService,
 	emailClient notification.NotificationClient,
 	investmentSvc InvestmentService,
+	disbursementRepo repository.DisbursementRepository,
 ) ProjectService {
 	return &projectService{
-		projectRepo:   projectRepo,
+		projectRepo:      projectRepo,
+		disbursementRepo: disbursementRepo,
 		userRepo:      userRepo,
 		cld:           cld,
 		notifSvc:      notifSvc,
@@ -976,13 +980,45 @@ func (s *projectService) DeleteMilestone(milestoneID uint, user domain.User) err
 	return s.projectRepo.DeleteMilestone(milestoneID)
 }
 
+// calcPhaseDueDate คำนวณ DueDate ของ milestone จาก FundingAt + cumulative Duration ทุก phase ก่อนหน้า
+func calcPhaseDueDate(target *domain.Milestone, all []domain.Milestone, fundingAt time.Time) *time.Time {
+	if fundingAt.IsZero() {
+		return nil
+	}
+	sorted := make([]domain.Milestone, len(all))
+	copy(sorted, all)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].PhaseNo < sorted[j].PhaseNo })
+	cursor := fundingAt.UTC()
+	for _, ms := range sorted {
+		dur := 0
+		if ms.Duration != nil {
+			dur = *ms.Duration
+		}
+		cursor = cursor.AddDate(0, 0, dur)
+		if ms.ID == target.ID {
+			t := cursor
+			return &t
+		}
+	}
+	return nil
+}
+
 func (s *projectService) GetProjectMilestones(projectID uint) ([]domain.Milestone, error) {
-	if _, err := s.projectRepo.FindProjectByID(projectID); err != nil {
+	project, err := s.projectRepo.FindProjectByID(projectID)
+	if err != nil {
 		return nil, errors.New("project not found")
 	}
 	milestones, err := s.projectRepo.FindMilestonesByProjectID(projectID)
 	if err != nil {
 		return nil, errors.New("failed to retrieve milestones")
+	}
+	// เติม DueDate จาก FundingAt + cumulative Duration สำหรับ milestone ที่ยังไม่มี DueDate
+	if !project.FundingAt.IsZero() {
+		for i := range milestones {
+			if milestones[i].DueDate == nil && milestones[i].Duration != nil {
+				milestones[i].DueDate = calcPhaseDueDate(&milestones[i], milestones, project.FundingAt)
+			}
+		}
 	}
 	return milestones, nil
 }
@@ -1045,7 +1081,7 @@ func (s *projectService) SubmitMilestone(milestoneID uint, input dto.SubmitMiles
 		return nil, errors.New("milestone cannot be submitted in current status")
 	}
 
-	// sequential guard: phase > 1 requires previous phase to be paid
+	// sequential guard: phase > 1 requires previous phase disbursement to be confirmed
 	if m.PhaseNo > 1 {
 		list, err := s.projectRepo.FindMilestonesByProjectID(m.ProjectID)
 		if err != nil {
@@ -1058,6 +1094,14 @@ func (s *projectService) SubmitMilestone(milestoneID uint, input dto.SubmitMiles
 				foundPrev = true
 				if list[i].Status != domain.MilestonePaid {
 					return nil, errors.New("previous milestone must be paid before submitting this phase")
+				}
+				// ตรวจว่า admin โอนเงิน (disbursement) จริงแล้ว ไม่ใช่แค่สร้าง record
+				disbursement, dErr := s.disbursementRepo.FindByMilestoneID(list[i].ID)
+				if dErr != nil || disbursement == nil {
+					return nil, errors.New("previous milestone disbursement not found")
+				}
+				if disbursement.Status != domain.DisbursementConfirmed {
+					return nil, errors.New("previous milestone payment has not been transferred yet")
 				}
 				break
 			}
@@ -2177,11 +2221,20 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 		return nil, errors.New("forbidden: you cannot use this milestone")
 	}
 
-	if milestone.DueDate != nil && time.Now().After(*milestone.DueDate) {
-		return nil, errors.New("cannot create meeting: milestone is expired")
+	// ถ้า DueDate ยังไม่ถูกตั้ง ให้คำนวณจาก FundingAt + cumulative Duration
+	if milestone.DueDate == nil && milestone.Duration != nil && !project.FundingAt.IsZero() {
+		if allMs, err := s.projectRepo.FindMilestonesByProjectID(milestone.ProjectID); err == nil {
+			milestone.DueDate = calcPhaseDueDate(milestone, allMs, project.FundingAt)
+		}
 	}
-
-	if milestone.DueDate != nil && dateParsed.After(*milestone.DueDate) {
+	maxMeetingDate := time.Now().UTC().AddDate(1, 0, 0) // fallback: ไม่เกิน 1 ปี
+	if milestone.DueDate != nil {
+		if time.Now().UTC().After(*milestone.DueDate) {
+			return nil, errors.New("cannot create meeting: milestone is expired")
+		}
+		maxMeetingDate = *milestone.DueDate
+	}
+	if dateParsed.After(maxMeetingDate) {
 		return nil, errors.New("cannot schedule meeting after milestone due date")
 	}
 
@@ -2452,11 +2505,20 @@ func (s *projectService) EditMeeting(meetingID uint, input dto.UpdateMeetingRequ
 		return nil, errors.New("forbidden: you cannot use this milestone")
 	}
 
-	if milestone.DueDate != nil && time.Now().After(*milestone.DueDate) {
-		return nil, errors.New("cannot create meeting: milestone is expired")
+	// ถ้า DueDate ยังไม่ถูกตั้ง ให้คำนวณจาก FundingAt + cumulative Duration
+	if milestone.DueDate == nil && milestone.Duration != nil && !project.FundingAt.IsZero() {
+		if allMs, err := s.projectRepo.FindMilestonesByProjectID(milestone.ProjectID); err == nil {
+			milestone.DueDate = calcPhaseDueDate(milestone, allMs, project.FundingAt)
+		}
 	}
-
-	if milestone.DueDate != nil && dateParsed.After(*milestone.DueDate) {
+	maxMeetingDate := time.Now().UTC().AddDate(1, 0, 0) // fallback: ไม่เกิน 1 ปี
+	if milestone.DueDate != nil {
+		if time.Now().UTC().After(*milestone.DueDate) {
+			return nil, errors.New("cannot create meeting: milestone is expired")
+		}
+		maxMeetingDate = *milestone.DueDate
+	}
+	if dateParsed.After(maxMeetingDate) {
 		return nil, errors.New("cannot schedule meeting after milestone due date")
 	}
 

@@ -122,6 +122,17 @@ func StartServer(cfg config.AppConfig) {
 
 	app.Use(c)
 
+	// Security headers
+	app.Use(func(c fiber.Ctx) error {
+		c.Set("X-Content-Type-Options", "nosniff")
+		c.Set("X-Frame-Options", "DENY")
+		c.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		c.Set("Permissions-Policy", "geolocation=(), camera=(), microphone=()")
+		c.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		c.Set("Server", "")
+		return c.Next()
+	})
+
 	app.Get("/", HealthCheck)
 	app.Get("/swagger/doc.json", swaggerJSON)
 	app.Get("/swagger*", swaggerUI)
@@ -197,6 +208,7 @@ func StartServer(cfg config.AppConfig) {
 		notifSvc,
 		notificationClient,
 		investmentSvc,
+		repository.NewDisbursementRepository(db),
 	)
 	go func() {
 		ticker := time.NewTicker(1 * time.Minute)
