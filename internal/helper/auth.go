@@ -22,7 +22,9 @@ type AuthService interface {
 	CreateHashedPassword(string) (string, error)
 	VerifyPassword(string, string) error
 	GenerateToken(uint, string, string) (string, error)
+	GenerateRefreshToken(uint, string, string) (string, error)
 	VerifyToken(string) (domain.User, error)
+	VerifyRefreshToken(string) (domain.User, error)
 	GenerateCode() (string, error)
 }
 
@@ -99,7 +101,7 @@ func (a Auth) GenerateToken(id uint, email string, role string) (string, error) 
 		"email": email,
 		"role":  role,
 		"iat":   time.Now().Unix(),
-		"exp":   time.Now().Add(time.Hour * 24 * 30).Unix(), // exp 30 วัน
+		"exp":   time.Now().Add(15 * time.Minute).Unix(), // access token: 15 นาที
 	}
 
 	// สร้าง token
@@ -157,6 +159,65 @@ func (a Auth) VerifyToken(tokenStr string) (domain.User, error) {
 	}
 
 	return domain.User{}, errors.New("invalid token")
+}
+
+// GenerateRefreshToken สร้าง refresh token อายุ 30 วัน
+func (a Auth) GenerateRefreshToken(id uint, email string, role string) (string, error) {
+	if id == 0 || email == "" || role == "" {
+		return "", errors.New("required inputs are missing")
+	}
+	obfuscatedID, err := a.encryptID(id)
+	if err != nil {
+		return "", errors.New("failed to obfuscate id")
+	}
+	claims := jwt.MapClaims{
+		"sub":  obfuscatedID,
+		"email": email,
+		"role": role,
+		"type": "refresh",
+		"iat":  time.Now().Unix(),
+		"exp":  time.Now().Add(30 * 24 * time.Hour).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(a.Secret))
+}
+
+// VerifyRefreshToken ตรวจสอบ refresh token และคืน User
+func (a Auth) VerifyRefreshToken(tokenStr string) (domain.User, error) {
+	if tokenStr == "" {
+		return domain.User{}, errors.New("invalid token")
+	}
+	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(a.Secret), nil
+	})
+	if err != nil {
+		return domain.User{}, err
+	}
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		return domain.User{}, errors.New("invalid token")
+	}
+	if claims["type"] != "refresh" {
+		return domain.User{}, errors.New("not a refresh token")
+	}
+	user := domain.User{}
+	if sub, ok := claims["sub"].(string); ok {
+		decryptedID, err := a.decryptID(sub)
+		if err != nil {
+			return domain.User{}, errors.New("invalid subject in token")
+		}
+		user.ID = decryptedID
+	}
+	if email, ok := claims["email"].(string); ok {
+		user.Email = email
+	}
+	if role, ok := claims["role"].(string); ok {
+		user.Role = role
+	}
+	return user, nil
 }
 
 func (a Auth) GenerateCode() (string, error) {

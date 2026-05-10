@@ -26,7 +26,7 @@ import (
 
 type UserService interface {
 	SignUp(input dto.UserSignUp) (string, error)
-	Signing(email string, password string) (string, error)
+	Signing(email string, password string) (token string, userID uint, role string, err error)
 	GoogleSigning(code string, role string, oauthConfig *oauth2.Config) (string, error)
 	VerifyEmail(input dto.VerifyEmailRequest) (string, error)
 	ForgotPassword(email string) error
@@ -1153,36 +1153,26 @@ func (s *userService) findUserByEmail(email string) (*domain.User, error) {
 	return user, err
 }
 
-func (s *userService) Signing(email string, password string) (string, error) {
+func (s *userService) Signing(email string, password string) (string, uint, string, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	user, err := s.Repo.FindUser(email)
 	if err != nil {
-		return "", errors.New("invalid email or password") // ไม่บอกว่า email ไม่มี เพื่อความปลอดภัย
+		return "", 0, "", errors.New("invalid email or password")
 	}
-
-	// Check if email is verified
 	if user.EmailVerifiedAt == nil {
-		return "", errors.New("please verify your email first")
+		return "", 0, "", errors.New("please verify your email first")
 	}
-
-	// Check if user is suspended
 	if user.Status == domain.SUSPENDED {
-		return "", errors.New("your account has been suspended")
+		return "", 0, "", errors.New("your account has been suspended")
 	}
-
-	// Check if this is a Google-only account
 	if user.GoogleSub != nil && user.PasswordHash == "" {
-		return "", errors.New("this email is registered with Google. Please use 'Continue with Google' to login")
+		return "", 0, "", errors.New("this email is registered with Google. Please use 'Continue with Google' to login")
 	}
-
-	// Verify password
-	err = s.Auth.VerifyPassword(password, user.PasswordHash)
-	if err != nil {
-		return "", errors.New("invalid email or password") // ไม่บอกว่า password ผิด เพื่อความปลอดภัย
+	if err = s.Auth.VerifyPassword(password, user.PasswordHash); err != nil {
+		return "", 0, "", errors.New("invalid email or password")
 	}
-
-	// Generate token
-	return s.Auth.GenerateToken(user.ID, user.Email, user.Role)
+	token, err := s.Auth.GenerateToken(user.ID, user.Email, user.Role)
+	return token, user.ID, user.Role, err
 }
 
 func (s *userService) ForgotPassword(email string) error {
