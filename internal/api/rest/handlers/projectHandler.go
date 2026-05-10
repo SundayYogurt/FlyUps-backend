@@ -58,6 +58,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	pub.Get("/:id<int>/threads", handler.GetProjectThreads)
 	pub.Get("/:id<int>/updates/:update_id<int>/threads", handler.GetProjectUpdateThreads)
 	pub.Get("/threads/:thread_id<int>/messages", handler.GetProjectThreadMessages)
+	pub.Get("/slug/:slug", handler.GetPublicProjectBySlug)
 
 	// Categories
 	app.Get("/categories", handler.GetAllCategories)
@@ -168,6 +169,15 @@ func (h *ProjectHandler) GetRecommendationProjects(ctx fiber.Ctx) error {
 		return err
 	}
 	return rest.SuccessResponse(ctx, "success", projects)
+}
+
+func (h *ProjectHandler) GetPublicProjectBySlug(ctx fiber.Ctx) error {
+	slug := ctx.Params("slug")
+	proj, err := h.svc.GetPublicProjectBySlug(slug)
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusNotFound, err)
+	}
+	return rest.SuccessResponse(ctx, "success", h.toProjectDetailResponse(proj))
 }
 
 // GetNewProjects godoc
