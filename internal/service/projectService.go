@@ -2181,6 +2181,10 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 		return nil, errors.New("cannot create meeting: milestone is expired")
 	}
 
+	if milestone.DueDate != nil && dateParsed.After(*milestone.DueDate) {
+		return nil, errors.New("cannot schedule meeting after milestone due date")
+	}
+
 	if input.Description == nil {
 		return nil, errors.New("description is required")
 	}
@@ -2450,6 +2454,10 @@ func (s *projectService) EditMeeting(meetingID uint, input dto.UpdateMeetingRequ
 
 	if milestone.DueDate != nil && time.Now().After(*milestone.DueDate) {
 		return nil, errors.New("cannot create meeting: milestone is expired")
+	}
+
+	if milestone.DueDate != nil && dateParsed.After(*milestone.DueDate) {
+		return nil, errors.New("cannot schedule meeting after milestone due date")
 	}
 
 	meeting, err := s.projectRepo.FindMeetingByID(meetingID)

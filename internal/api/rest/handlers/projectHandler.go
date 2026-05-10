@@ -2141,7 +2141,7 @@ func (h *ProjectHandler) Meeting(ctx fiber.Ctx) error {
 
 	meeting, err := h.svc.Meeting(body, user.ID)
 	if err != nil {
-		return rest.InternalError(ctx, err)
+		return rest.BadRequestError(ctx, err.Error())
 	}
 
 	return rest.SuccessResponse(ctx, "meeting created successfully", meeting)
@@ -2179,7 +2179,7 @@ func (h *ProjectHandler) EditMeeting(ctx fiber.Ctx) error {
 
 	meeting, err := h.svc.EditMeeting(uint(id), body, user.ID)
 	if err != nil {
-		return rest.InternalError(ctx, err)
+		return rest.BadRequestError(ctx, err.Error())
 	}
 
 	return rest.SuccessResponse(ctx, "meeting updated successfully", meeting)
