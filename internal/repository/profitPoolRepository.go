@@ -17,6 +17,7 @@ type ProfitPoolRepository interface {
 	CreatePayout(p *domain.InvestorProfitPayout) error
 	FindPayoutByID(id uint) (*domain.InvestorProfitPayout, error)
 	ListPayoutsByPoolID(poolID uint) ([]domain.InvestorProfitPayout, error)
+	ListPayoutsByBoosterUserID(boosterUserID uint) ([]domain.InvestorProfitPayout, error)
 	UpdatePayout(p *domain.InvestorProfitPayout) error
 }
 
@@ -83,6 +84,14 @@ func (r *profitPoolRepository) FindPayoutByID(id uint) (*domain.InvestorProfitPa
 func (r *profitPoolRepository) ListPayoutsByPoolID(poolID uint) ([]domain.InvestorProfitPayout, error) {
 	var list []domain.InvestorProfitPayout
 	if err := r.db.Where("profit_pool_id = ?", poolID).Order("booster_user_id asc").Find(&list).Error; err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+func (r *profitPoolRepository) ListPayoutsByBoosterUserID(boosterUserID uint) ([]domain.InvestorProfitPayout, error) {
+	var list []domain.InvestorProfitPayout
+	if err := r.db.Where("booster_user_id = ?", boosterUserID).Order("created_at desc").Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil

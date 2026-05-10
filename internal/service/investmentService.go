@@ -1186,6 +1186,18 @@ func (s *investmentService) handlePaymentSucceeded(intentID string) {
 			log.Printf("[Webhook] auto-transition to executing error: %v", err)
 		} else {
 			log.Printf("[Webhook] project %d reached funding goal → state=executing", project.ID)
+			// เริ่ม milestone phase 1 ทันทีที่ครบเป้า
+			milestones, err := s.projectRepo.FindMilestonesByProjectID(project.ID)
+			if err == nil {
+				for i := range milestones {
+					if milestones[i].Status == domain.MilestoneWaiting && milestones[i].PhaseNo == 1 {
+						milestones[i].Status = domain.MilestoneActive
+						if err := s.projectRepo.UpdateMilestone(&milestones[i]); err != nil {
+							log.Printf("[Webhook] activate milestone phase 1 error: %v", err)
+						}
+					}
+				}
+			}
 		}
 	}
 
