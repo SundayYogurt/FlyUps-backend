@@ -1,0 +1,99 @@
+meta {
+  name: Get project detail for review
+  type: http
+  seq: 22
+}
+
+get {
+  url: {{baseUrl}}/admin/projects/:id/detail/pending-review
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: Project detail for review
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/:id/detail/pending-review
+    method: GET
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Invalid project ID or error
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/:id/detail/pending-review
+    method: GET
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: Unauthorized
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/:id/detail/pending-review
+    method: GET
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

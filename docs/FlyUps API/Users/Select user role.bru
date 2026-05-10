@@ -1,0 +1,86 @@
+meta {
+  name: Select user role
+  type: http
+  seq: 13
+}
+
+patch {
+  url: {{baseUrl}}/user/role
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: Role updated successfully
+  
+  request: {
+    url: {{baseUrl}}/user/role
+    method: PATCH
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Invalid request
+  
+  request: {
+    url: {{baseUrl}}/user/role
+    method: PATCH
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: Unauthorized
+  
+  request: {
+    url: {{baseUrl}}/user/role
+    method: PATCH
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

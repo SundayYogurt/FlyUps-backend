@@ -1,0 +1,43 @@
+meta {
+  name: Admin get milestone detail
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{baseUrl}}/admin/projects/milestones/:milestone_id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  milestone_id: 
+}
+
+example {
+  name: 200 Response
+  description: Milestone details
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/milestones/:milestone_id
+    method: GET
+    mode: none
+    params:path: {
+      milestone_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

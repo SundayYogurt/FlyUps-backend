@@ -1,0 +1,111 @@
+meta {
+  name: Add bank account
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/user/add-bank
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: bank account added successfully
+  
+  request: {
+    url: {{baseUrl}}/user/add-bank
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Invalid request
+  
+  request: {
+    url: {{baseUrl}}/user/add-bank
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: Unauthorized
+  
+  request: {
+    url: {{baseUrl}}/user/add-bank
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 500 Response
+  description: Internal Error
+  
+  request: {
+    url: {{baseUrl}}/user/add-bank
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 500
+      text: Internal Server Error
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

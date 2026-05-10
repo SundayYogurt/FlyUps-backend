@@ -42,6 +42,7 @@ type UserService interface {
 	AddBankAccount(userID uint, input dto.BankRequest) error
 	UpdateBankAccount(userID uint, bankID uint, input dto.BankRequest) error
 	FindBankByUserID(id uint) ([]domain.BankAccount, error)
+	SetDefaultBankAccount(userID uint, bankID uint) error
 	ApproveIdCard(userID uint, adminID uint) error
 	ApproveStudentCard(userID uint, adminID uint) error
 	RejectIdCard(userID uint, adminID uint) error
@@ -851,6 +852,23 @@ func (s *userService) FindBankByUserID(userID uint) ([]domain.BankAccount, error
 	return userBank, nil
 }
 
+func (s *userService) SetDefaultBankAccount(userID uint, bankID uint) error {
+	if userID == 0 || bankID == 0 {
+		return errors.New("invalid id")
+	}
+
+	// เช็คว่าเป็นเจ้าของบัญชีจริงไหม
+	bank, err := s.Repo.FindBankById(bankID)
+	if err != nil {
+		return errors.New("bank not found")
+	}
+	if bank == nil || bank.UserID != userID {
+		return errors.New("not your bank account")
+	}
+
+	return s.Repo.SetDefaultBankAccount(userID, bankID)
+}
+
 func (s *userService) UpdateBankAccount(userID uint, bankID uint, input dto.BankRequest) error {
 	if userID == 0 || bankID == 0 {
 		return errors.New("invalid id")
@@ -904,6 +922,14 @@ func (s *userService) UpdateBankAccount(userID uint, bankID uint, input dto.Bank
 		bank.AccountNumber = number
 	}
 
+	// 4. default logic
+	if input.IsDefault != nil && *input.IsDefault {
+		if err := s.Repo.SetDefaultBankAccount(userID, bankID); err != nil {
+			return errors.New("failed to set default bank account")
+		}
+		bank.IsDefault = true
+	}
+
 	// 5. save
 	return s.Repo.UpdateBankAccount(bank)
 }
@@ -950,11 +976,31 @@ func (s *userService) AddBankAccount(userID uint, input dto.BankRequest) error {
 		return errors.New("account number already exists")
 	}
 
+	// check if this is the first bank account
+	banks, _ := s.Repo.FindBankByUserId(userID)
+	isDefault := false
+	if len(banks) == 0 {
+		isDefault = true // first account is always default
+	} else if input.IsDefault != nil && *input.IsDefault {
+		isDefault = true
+	}
+
 	bank := &domain.BankAccount{
 		UserID:        userID,
 		BankName:      *input.BankName,
 		AccountName:   *input.AccountName,
 		AccountNumber: *input.AccountNumber,
+		IsDefault:     isDefault,
+	}
+
+	if isDefault {
+		// If we are setting this as default, we need to clear others first (handled by transaction if we use Repo method, but here we are creating)
+		// Better to use the same transaction logic.
+		err := s.Repo.CreateBankAccount(bank)
+		if err != nil {
+			return err
+		}
+		return s.Repo.SetDefaultBankAccount(userID, bank.ID)
 	}
 
 	return s.Repo.CreateBankAccount(bank)

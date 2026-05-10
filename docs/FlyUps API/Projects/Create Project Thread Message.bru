@@ -1,0 +1,43 @@
+meta {
+  name: Create Project Thread Message
+  type: http
+  seq: 22
+}
+
+post {
+  url: {{baseUrl}}/pioneer/projects/threads/:thread_id/messages
+  body: none
+  auth: inherit
+}
+
+params:path {
+  thread_id: 
+}
+
+example {
+  name: 200 Response
+  description: Message created
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/threads/:thread_id/messages
+    method: POST
+    mode: none
+    params:path: {
+      thread_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

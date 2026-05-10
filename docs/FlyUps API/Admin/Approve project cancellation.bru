@@ -1,0 +1,127 @@
+meta {
+  name: Approve project cancellation
+  type: http
+  seq: 20
+}
+
+patch {
+  url: {{baseUrl}}/admin/projects/:id/approve-cancel
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: project cancelled successfully
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/:id/approve-cancel
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Invalid project ID or business rule violation
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/:id/approve-cancel
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: Unauthorized
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/:id/approve-cancel
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 500 Response
+  description: Internal Server Error
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/:id/approve-cancel
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 500
+      text: Internal Server Error
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

@@ -1,0 +1,43 @@
+meta {
+  name: Create Project Update
+  type: http
+  seq: 40
+}
+
+post {
+  url: {{baseUrl}}/pioneer/projects/:id/updates
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: Update created
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/:id/updates
+    method: POST
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

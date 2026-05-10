@@ -194,7 +194,14 @@ func (s *projectService) CreateProject(ownerID uint) (*domain.Project, error) {
 		PlatformFee: 5.0,
 	}
 
-	return s.projectRepo.CreateProject(project)
+	created, err := s.projectRepo.CreateProject(project)
+	if err != nil {
+		return nil, err
+	}
+
+	// อัปเดต slug หลังได้ ID
+	created.Slug = helper.GenerateProjectSlug(created.Title, created.ID)
+	return s.projectRepo.UpdateProject(created)
 }
 
 func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRequest, user domain.User) (*domain.Project, error) {
@@ -228,6 +235,7 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 
 	if input.Title != nil {
 		project.Title = *input.Title
+		project.Slug = helper.GenerateProjectSlug(project.Title, project.ID)
 	}
 	if input.Description != nil {
 		project.Description = input.Description

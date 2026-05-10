@@ -1,0 +1,51 @@
+meta {
+  name: Admin list all projects
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/admin/projects
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~search: 
+  ~category_id: 
+  ~state: 
+  ~status: 
+  ~visibility: 
+}
+
+example {
+  name: 200 Response
+  description: List of projects
+  
+  request: {
+    url: {{baseUrl}}/admin/projects
+    method: GET
+    mode: none
+    params:query: {
+      ~search: 
+      ~category_id: 
+      ~state: 
+      ~status: 
+      ~visibility: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

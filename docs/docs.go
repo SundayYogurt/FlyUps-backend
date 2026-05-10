@@ -279,6 +279,227 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/complaints": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Complaints"
+                ],
+                "summary": "List all complaints (admin only)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "open|resolved|rejected",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/complaints/project-stats/{project_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin gets complaint statistics (total, open, resolved, rejected) for a specific project",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Complaints"
+                ],
+                "summary": "Get complaint stats for a project (admin only)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Project ID",
+                        "name": "project_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Complaint statistics",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Project not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/complaints/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Complaints"
+                ],
+                "summary": "Get a single complaint (admin only)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Complaint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/complaints/{id}/reject": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Complaints"
+                ],
+                "summary": "Reject a complaint (admin only)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Complaint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Rejection note",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ResolveComplaintRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/complaints/{id}/resolve": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Complaints"
+                ],
+                "summary": "Resolve a complaint (admin only)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Complaint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Resolution note",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ResolveComplaintRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/admin/create-university": {
             "post": {
                 "security": [
@@ -642,6 +863,58 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/financial/projects": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns per-project phase payout status",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Admin per-project financial overview",
+                "responses": {
+                    "200": {
+                        "description": "projects financial",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/financial/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns Stripe balance, disbursement stats, and refund stats",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Admin financial summary",
+                "responses": {
+                    "200": {
+                        "description": "financial summary",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/admin/id-card-verifications": {
             "get": {
                 "security": [
@@ -764,6 +1037,426 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/list-users": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin gets a paginated list of users with optional filters",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "List all users",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "User role (booster/pioneer)",
+                        "name": "role",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "User status (active/suspended)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search by email, first name, or last name",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "success",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/profit-pools": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin gets all profit pool records",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ProfitPools"
+                ],
+                "summary": "List all profit pools (admin only)",
+                "responses": {
+                    "200": {
+                        "description": "List of profit pools",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin creates a new profit pool to distribute returns to investors of a project",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ProfitPools"
+                ],
+                "summary": "Create profit pool (admin only)",
+                "parameters": [
+                    {
+                        "description": "Create profit pool payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateProfitPoolRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "profit pool created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request or business rule violation",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/profit-pools/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin gets full detail of a profit pool including individual investor payout records",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ProfitPools"
+                ],
+                "summary": "Get profit pool detail (admin only)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Profit Pool ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Profit pool detail with payouts",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid profit pool ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Profit pool not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/profit-pools/{id}/payouts/{payoutId}/confirm": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin confirms that a profit payout has been transferred to a specific investor",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ProfitPools"
+                ],
+                "summary": "Confirm investor payout (admin only)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Profit Pool ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Investor Payout ID",
+                        "name": "payoutId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Confirmation payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ConfirmInvestorPayoutRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "payout confirmed",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid ID or business rule violation",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Profit pool or payout not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/projects": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin gets a list of all projects with optional filters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Admin list all projects",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search by project title",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by category ID",
+                        "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by state",
+                        "name": "state",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by visibility",
+                        "name": "visibility",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of projects",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/projects/cancel-request": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin gets all projects with a pending cancellation request waiting for review",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "List pending cancellation requests",
+                "responses": {
+                    "200": {
+                        "description": "List of projects pending cancellation",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
                         }
                     }
                 }
@@ -1001,6 +1694,104 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/projects/{id}/approve-cancel": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin approves a pioneer's cancellation request and refunds all investors",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Approve project cancellation",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Project ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "project cancelled successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project ID or business rule violation",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/projects/{id}/cancel-preview": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin previews the cancellation impact (refund amounts, investors affected) before approving",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Preview project cancellation impact",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Project ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Cancel preview data",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project ID",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/projects/{id}/detail/pending-review": {
             "get": {
                 "security": [
@@ -1077,6 +1868,58 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "Project rejected",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/projects/{id}/reject-cancel": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin rejects a pioneer's cancellation request and keeps the project active",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Reject project cancellation",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Project ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "reject project cancelled successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project ID or business rule violation",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
                         }
@@ -1616,6 +2459,70 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/booster/projects/{id}/threads": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Booster (investor) creates a discussion thread on a project they have invested in",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Create thread as booster",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Project ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Thread Data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "thread created successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or project ID",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - not an investor of this project",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/categories": {
             "get": {
                 "description": "Get list of all project categories",
@@ -1666,6 +2573,98 @@ const docTemplate = `{
                         "description": "Category details",
                         "schema": {
                             "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/complaints": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Logged-in user files a complaint (max 1 per project per user)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Complaints"
+                ],
+                "summary": "File a complaint about a project",
+                "parameters": [
+                    {
+                        "description": "Complaint payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateComplaintRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "already filed",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/complaints/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Complaints"
+                ],
+                "summary": "List my complaints",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -2026,24 +3025,29 @@ const docTemplate = `{
                 }
             }
         },
-        "/investments/{id}/refund": {
-            "post": {
+        "/investments/{id}/contract": {
+            "get": {
                 "security": [
+                    {
+                        "BearerAuth": []
+                    },
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Refund a verified investment while project is in funding state. Platform fee and VAT are non-refundable. Requires a note for admin approval.",
+                "description": "Refund a verified investment while project is in funding state. Platform fee and VAT are non-refundable. Requires a note for admin approval.\nGenerate and download an HTML contract for a specific investment",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
-                    "application/json"
+                    "application/json",
+                    "text/html"
                 ],
                 "tags": [
+                    "Investments",
                     "Investments"
                 ],
-                "summary": "Refund an investment",
+                "summary": "Download investment contract",
                 "parameters": [
                     {
                         "type": "integer",
@@ -2060,13 +3064,20 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/dto.RefundInvestmentRequest"
                         }
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Investment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "refund processed",
+                        "description": "HTML contract file",
                         "schema": {
-                            "$ref": "#/definitions/dto.RefundResponse"
+                            "type": "string"
                         }
                     },
                     "400": {
@@ -2099,144 +3110,30 @@ const docTemplate = `{
                 }
             }
         },
-        "/notifications": {
+        "/investments/{id}/refund": {
+            "post": {
+                "responses": {}
+            }
+        },
+        "/me/meeting/{id}": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get paginated notifications for the current user",
+                "description": "Get details of a specific meeting that the authenticated user is associated with",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Notifications"
+                    "Meetings"
                 ],
-                "summary": "List notifications",
+                "summary": "Get My Meeting by ID",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Page number (default 1)",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Items per page (default 20, max 100)",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Paginated notifications with unread count",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                }
-            }
-        },
-        "/notifications/read-all": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Mark all notifications for the current user as read",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Notifications"
-                ],
-                "summary": "Mark all notifications as read",
-                "responses": {
-                    "200": {
-                        "description": "all marked as read",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                }
-            }
-        },
-        "/notifications/stream": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Subscribe to real-time notifications via SSE. Returns ` + "`" + `text/event-stream` + "`" + ` content.",
-                "produces": [
-                    "text/event-stream"
-                ],
-                "tags": [
-                    "Notifications"
-                ],
-                "summary": "Server-Sent Events notification stream",
-                "responses": {
-                    "200": {
-                        "description": "SSE stream (ping and notification events)",
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                }
-            }
-        },
-        "/notifications/{id}/read": {
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Mark a specific notification as read by ID",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Notifications"
-                ],
-                "summary": "Mark notification as read",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Notification ID",
+                        "description": "Meeting ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2244,13 +3141,13 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "marked as read",
+                        "description": "Meeting details",
                         "schema": {
                             "type": "object"
                         }
                     },
                     "400": {
-                        "description": "Invalid notification ID",
+                        "description": "Invalid meeting ID",
                         "schema": {
                             "type": "object"
                         }
@@ -2265,6 +3162,205 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/me/meetings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all meetings that the authenticated user is associated with (as pioneer or investor)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "Get All My Meetings",
+                "responses": {
+                    "200": {
+                        "description": "List of all meetings",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/me/milestones/{id}/meetings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all meetings associated with a specific milestone that the current user participates in",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "Get My Meetings by Milestone",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Milestone ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "all",
+                        "description": "Filter: all | upcoming | past",
+                        "name": "filter",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of meetings",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid milestone ID or filter",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/me/projects/{id}/meetings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all meetings associated with a specific project that the current user participates in",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "Get My Meetings by Project",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Project ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "default": "all",
+                        "description": "Filter: all | upcoming | past",
+                        "name": "filter",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of meetings",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project ID or filter",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/pioneer/payouts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Pioneer gets all their disbursement records (pending + confirmed)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Disbursements"
+                ],
+                "summary": "List my payouts",
+                "responses": {
+                    "200": {
+                        "description": "List of pioneer payouts",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -2317,6 +3413,58 @@ const docTemplate = `{
                 "responses": {
                     "201": {
                         "description": "Project created",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/pioneer/projects/cancel/meeting/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Pioneer cancels an existing meeting",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "Cancel Meeting",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Meeting ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Meeting canceled successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid meeting ID",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
                         }
@@ -2486,6 +3634,127 @@ const docTemplate = `{
                 }
             }
         },
+        "/pioneer/projects/meeting": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Pioneer creates a meeting invitation for investors of a milestone",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "Create Meeting",
+                "parameters": [
+                    {
+                        "description": "Create Meeting Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateMeetingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Meeting created successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/pioneer/projects/meeting/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Pioneer edits an existing meeting",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Meetings"
+                ],
+                "summary": "Edit Meeting",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Meeting ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update Meeting Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateMeetingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Meeting updated successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or meeting ID",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/pioneer/projects/messages/{message_id}": {
             "delete": {
                 "security": [
@@ -2641,6 +3910,43 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "Milestone updated",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/pioneer/projects/milestones/{milestone_id}/cancel": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Pioneer cancels a submitted milestone and reverts it back to active",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Cancel milestone submission",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Milestone ID",
+                        "name": "milestone_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Milestone cancelled",
                         "schema": {
                             "type": "object"
                         }
@@ -3552,6 +4858,70 @@ const docTemplate = `{
                 }
             }
         },
+        "/pioneer/projects/{id}/submit-cancel": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Pioneer submits a cancellation request for admin review",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Submit cancel request",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Project ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Cancel request payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CancelProjectRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "submit cancel successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or project ID",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/pioneer/projects/{id}/threads": {
             "post": {
                 "security": [
@@ -3646,7 +5016,7 @@ const docTemplate = `{
         },
         "/projects": {
             "get": {
-                "description": "Get list of all public/approved projects",
+                "description": "Get list of public funding projects with optional filters",
                 "consumes": [
                     "application/json"
                 ],
@@ -3657,9 +5027,47 @@ const docTemplate = `{
                     "Projects"
                 ],
                 "summary": "Get Public Projects",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search by project title",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Filter by category ID",
+                        "name": "category_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort order: newest (default) | ending_soon | popular",
+                        "name": "sort",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Minimum funding goal",
+                        "name": "min_goal",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "Maximum funding goal",
+                        "name": "max_goal",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "List of public projects",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
                         }
@@ -3692,6 +5100,148 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "List of projects",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/ending": {
+            "get": {
+                "description": "Get projects whose funding deadline is approaching",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Get Ending Soon Projects",
+                "responses": {
+                    "200": {
+                        "description": "List of projects ending soon",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/executing": {
+            "get": {
+                "description": "Get projects that are in executing or closed (completed) state",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Get Executing / Completed Projects",
+                "responses": {
+                    "200": {
+                        "description": "List of executing/completed projects",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/new": {
+            "get": {
+                "description": "Get a list of the most recently created/approved projects",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Get Newest Projects",
+                "responses": {
+                    "200": {
+                        "description": "List of newest projects",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/recommend": {
+            "get": {
+                "description": "Get a curated list of recommended/featured projects",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Get Recommended Projects",
+                "responses": {
+                    "200": {
+                        "description": "List of recommended projects",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/slug/{slug}": {
+            "get": {
+                "description": "Get specific public project details by its slug",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Get Public Project by Slug",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project Slug",
+                        "name": "slug",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Project details",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Project not found",
                         "schema": {
                             "type": "object"
                         }
@@ -4114,6 +5664,63 @@ const docTemplate = `{
                 }
             }
         },
+        "/user/add-password": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Allows a user who signed up via Google to set a local password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Add password for Google user",
+                "parameters": [
+                    {
+                        "description": "New password",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AddPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "add password success",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/user/change-password": {
             "put": {
                 "security": [
@@ -4262,6 +5869,92 @@ const docTemplate = `{
                 }
             }
         },
+        "/user/notification-preferences": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get the current user's notification preferences",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get notification preferences",
+                "responses": {
+                    "200": {
+                        "description": "notification preferences",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update the current user's notification preferences",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Update notification preferences",
+                "parameters": [
+                    {
+                        "description": "Notification preferences",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateNotificationPrefsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "preferences updated",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/user/profile": {
             "patch": {
                 "security": [
@@ -4312,6 +6005,106 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/role": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Select role for users with 'pending' role (after Google Signup)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Select user role",
+                "parameters": [
+                    {
+                        "description": "Role selection, e.g., {\\",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Role updated successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/set-default-bank/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Set a specific bank account as the default for the user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Set default bank account",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Bank Account ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "default bank account updated successfully",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "type": "object"
                         }
@@ -4506,6 +6299,199 @@ const docTemplate = `{
                 "MediaTypeRaw"
             ]
         },
+        "domain.Meeting": {
+            "type": "object",
+            "properties": {
+                "about": {
+                    "description": "ใช้ type text เพราะวาระการประชุมอาจจะยาว",
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "link": {
+                    "description": "อนุญาตให้เป็น null",
+                    "type": "string"
+                },
+                "meeting_type": {
+                    "description": "\"online\" หรือ \"onsite\"",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/domain.MeetingType"
+                        }
+                    ]
+                },
+                "milestone": {
+                    "$ref": "#/definitions/domain.Milestone"
+                },
+                "milestone_id": {
+                    "type": "integer"
+                },
+                "place": {
+                    "description": "อนุญาตให้เป็น null",
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/domain.MeetingStatus"
+                },
+                "time": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.MeetingStatus": {
+            "type": "string",
+            "enum": [
+                "open",
+                "closed",
+                "cancelled"
+            ],
+            "x-enum-varnames": [
+                "MeetingOpen",
+                "MeetingClosed",
+                "MeetingCancelled"
+            ]
+        },
+        "domain.MeetingType": {
+            "type": "string",
+            "enum": [
+                "online",
+                "onsite",
+                "hybrid"
+            ],
+            "x-enum-varnames": [
+                "Online",
+                "Onsite",
+                "Hybrid"
+            ]
+        },
+        "domain.Milestone": {
+            "type": "object",
+            "properties": {
+                "acceptance_criteria": {
+                    "type": "string"
+                },
+                "admin_note": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "due_date": {
+                    "type": "string"
+                },
+                "duration": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "meetings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Meeting"
+                    }
+                },
+                "original_due_date": {
+                    "type": "string"
+                },
+                "percent_release": {
+                    "type": "integer"
+                },
+                "phase_no": {
+                    "type": "integer"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "retry_count": {
+                    "type": "integer"
+                },
+                "retry_deadline": {
+                    "type": "string"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "status": {
+                    "$ref": "#/definitions/domain.MilestoneStatus"
+                },
+                "submission_attachments": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "submission_criteria": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "submission_links": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "submission_summary": {
+                    "description": "Submission (what was done in this phase + evidence)",
+                    "type": "string"
+                },
+                "submitted_at": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.MediaType"
+                    }
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "urls": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "voting_closed_at": {
+                    "type": "string"
+                },
+                "voting_open": {
+                    "description": "Booster voting gate (opened by pioneer after admin approves submission)",
+                    "type": "boolean"
+                },
+                "voting_opened_at": {
+                    "type": "string"
+                }
+            }
+        },
         "domain.MilestoneStatus": {
             "type": "string",
             "enum": [
@@ -4516,7 +6502,8 @@ const docTemplate = `{
                 "approved",
                 "rejected",
                 "failed",
-                "paid"
+                "paid",
+                "cancelled"
             ],
             "x-enum-varnames": [
                 "MilestoneDraft",
@@ -4526,7 +6513,8 @@ const docTemplate = `{
                 "MilestoneApproved",
                 "MilestoneRejected",
                 "MilestoneFailed",
-                "MilestonePaid"
+                "MilestonePaid",
+                "MilestoneCancelled"
             ]
         },
         "domain.ProjectVisibility": {
@@ -4542,10 +6530,25 @@ const docTemplate = `{
                 "VisibilityUnlisted"
             ]
         },
+        "dto.AddPasswordRequest": {
+            "type": "object",
+            "required": [
+                "new_password"
+            ],
+            "properties": {
+                "new_password": {
+                    "type": "string",
+                    "minLength": 8
+                }
+            }
+        },
         "dto.AdminMilestoneDetailResponse": {
             "type": "object",
             "properties": {
                 "acceptance_criteria": {
+                    "type": "string"
+                },
+                "admin_note": {
                     "type": "string"
                 },
                 "checked_criteria": {
@@ -4553,6 +6556,12 @@ const docTemplate = `{
                     "items": {
                         "type": "boolean"
                     }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
                 },
                 "description": {
                     "type": "string"
@@ -4584,6 +6593,15 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "meetings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Meeting"
+                    }
+                },
+                "original_due_date": {
+                    "type": "string"
+                },
                 "owner": {
                     "$ref": "#/definitions/dto.ProjectOwnerProfile"
                 },
@@ -4602,8 +6620,17 @@ const docTemplate = `{
                 "project_title": {
                     "type": "string"
                 },
+                "retry_count": {
+                    "type": "integer"
+                },
+                "retry_deadline": {
+                    "type": "string"
+                },
                 "sort_order": {
                     "type": "integer"
+                },
+                "start_date": {
+                    "type": "string"
                 },
                 "status": {
                     "$ref": "#/definitions/domain.MilestoneStatus"
@@ -4641,6 +6668,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/domain.MediaType"
                     }
+                },
+                "updatedAt": {
+                    "type": "string"
                 },
                 "urls": {
                     "type": "array",
@@ -4666,6 +6696,15 @@ const docTemplate = `{
                 "acceptance_criteria": {
                     "type": "string"
                 },
+                "admin_note": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
                 "description": {
                     "type": "string"
                 },
@@ -4677,6 +6716,15 @@ const docTemplate = `{
                 },
                 "id": {
                     "type": "integer"
+                },
+                "meetings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Meeting"
+                    }
+                },
+                "original_due_date": {
+                    "type": "string"
                 },
                 "owner": {
                     "$ref": "#/definitions/dto.ProjectOwnerProfile"
@@ -4691,6 +6739,12 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "project_title": {
+                    "type": "string"
+                },
+                "retry_count": {
+                    "type": "integer"
+                },
+                "retry_deadline": {
                     "type": "string"
                 },
                 "sort_order": {
@@ -4732,6 +6786,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/domain.MediaType"
                     }
+                },
+                "updatedAt": {
+                    "type": "string"
                 },
                 "urls": {
                     "type": "array",
@@ -4762,6 +6819,24 @@ const docTemplate = `{
                 },
                 "bank_name": {
                     "type": "string"
+                },
+                "is_default": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "dto.CancelProjectRequest": {
+            "type": "object",
+            "required": [
+                "reason"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string",
+                    "minLength": 20
                 }
             }
         },
@@ -4796,6 +6871,43 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ConfirmInvestorPayoutRequest": {
+            "type": "object",
+            "required": [
+                "transfer_ref"
+            ],
+            "properties": {
+                "note": {
+                    "type": "string"
+                },
+                "transfer_ref": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CreateComplaintRequest": {
+            "type": "object",
+            "required": [
+                "body",
+                "project_id",
+                "subject"
+            ],
+            "properties": {
+                "body": {
+                    "type": "string",
+                    "maxLength": 5000,
+                    "minLength": 10
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "subject": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 3
+                }
+            }
+        },
         "dto.CreateDomainRequest": {
             "type": "object",
             "properties": {
@@ -4816,6 +6928,47 @@ const docTemplate = `{
                 },
                 "project_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "dto.CreateMeetingRequest": {
+            "type": "object",
+            "required": [
+                "date",
+                "meeting_type",
+                "milestone_id",
+                "time"
+            ],
+            "properties": {
+                "about": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "link": {
+                    "type": "string"
+                },
+                "meeting_type": {
+                    "enum": [
+                        "online",
+                        "onsite",
+                        "hybrid"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/domain.MeetingType"
+                        }
+                    ]
+                },
+                "milestone_id": {
+                    "type": "integer"
+                },
+                "time": {
+                    "type": "string"
                 }
             }
         },
@@ -4857,6 +7010,33 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "dto.CreateProfitPoolRequest": {
+            "type": "object",
+            "required": [
+                "project_id",
+                "total_amount",
+                "transfer_ref"
+            ],
+            "properties": {
+                "admin_note": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "quarter_no": {
+                    "type": "integer",
+                    "maximum": 4,
+                    "minimum": 0
+                },
+                "total_amount": {
+                    "type": "number"
+                },
+                "transfer_ref": {
+                    "type": "string"
                 }
             }
         },
@@ -5033,10 +7213,16 @@ const docTemplate = `{
                 "major": {
                     "type": "string"
                 },
+                "picture": {
+                    "type": "string"
+                },
                 "project_count": {
                     "type": "integer"
                 },
                 "university": {
+                    "type": "string"
+                },
+                "verify_status": {
                     "type": "string"
                 }
             }
@@ -5072,11 +7258,21 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SubmitMilestoneRequest": {
+        "dto.ResolveComplaintRequest": {
             "type": "object",
             "required": [
-                "summary"
+                "admin_note"
             ],
+            "properties": {
+                "admin_note": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "minLength": 3
+                }
+            }
+        },
+        "dto.SubmitMilestoneRequest": {
+            "type": "object",
             "properties": {
                 "attachments": {
                     "description": "evidence files uploaded to Cloudinary (use /upload first)",
@@ -5086,24 +7282,22 @@ const docTemplate = `{
                     }
                 },
                 "criteria": {
-                    "description": "checklist or items done (e.g. mapped from acceptance criteria)",
+                    "description": "checklist items ที่ทำเสร็จแล้ว (mapped from acceptance_criteria)",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "links": {
-                    "description": "external links (GitHub, Figma, docs, etc.)",
+                    "description": "external links (GitHub, Figma, YouTube, docs, etc.)",
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
                 "summary": {
-                    "description": "summary of what has been done in this phase",
-                    "type": "string",
-                    "maxLength": 5000,
-                    "minLength": 1
+                    "description": "สรุปสิ่งที่ทำใน phase นี้",
+                    "type": "string"
                 }
             }
         },
@@ -5126,6 +7320,47 @@ const docTemplate = `{
                 },
                 "is_active": {
                     "type": "boolean"
+                }
+            }
+        },
+        "dto.UpdateMeetingRequest": {
+            "type": "object",
+            "required": [
+                "date",
+                "meeting_type",
+                "milestone_id",
+                "time"
+            ],
+            "properties": {
+                "about": {
+                    "type": "string"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "link": {
+                    "type": "string"
+                },
+                "meeting_type": {
+                    "enum": [
+                        "online",
+                        "onsite",
+                        "hybrid"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/domain.MeetingType"
+                        }
+                    ]
+                },
+                "milestone_id": {
+                    "type": "integer"
+                },
+                "place": {
+                    "type": "string"
+                },
+                "time": {
+                    "type": "string"
                 }
             }
         },
@@ -5170,11 +7405,29 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.UpdateNotificationPrefsRequest": {
+            "type": "object",
+            "required": [
+                "notification_preferences"
+            ],
+            "properties": {
+                "notification_preferences": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "boolean"
+                    }
+                }
+            }
+        },
         "dto.UpdateProjectRequest": {
             "type": "object",
             "properties": {
                 "category_id": {
                     "type": "integer"
+                },
+                "cover_image": {
+                    "description": "URL รูปปก (upload ผ่าน /upload ก่อน)",
+                    "type": "string"
                 },
                 "description": {
                     "type": "string"
@@ -5327,6 +7580,18 @@ const docTemplate = `{
                         "approve",
                         "reject"
                     ]
+                }
+            }
+        },
+        "gorm.DeletedAt": {
+            "type": "object",
+            "properties": {
+                "time": {
+                    "type": "string"
+                },
+                "valid": {
+                    "description": "Valid is true if Time is not NULL",
+                    "type": "boolean"
                 }
             }
         }

@@ -1,0 +1,86 @@
+meta {
+  name: Create university
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/admin/create-university
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: create university success
+  
+  request: {
+    url: {{baseUrl}}/admin/create-university
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Invalid request
+  
+  request: {
+    url: {{baseUrl}}/admin/create-university
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: Unauthorized
+  
+  request: {
+    url: {{baseUrl}}/admin/create-university
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

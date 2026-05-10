@@ -1,0 +1,43 @@
+meta {
+  name: Delete Category
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{baseUrl}}/admin/categories/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: Category deleted
+  
+  request: {
+    url: {{baseUrl}}/admin/categories/:id
+    method: DELETE
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

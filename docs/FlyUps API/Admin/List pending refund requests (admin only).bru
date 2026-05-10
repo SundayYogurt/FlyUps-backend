@@ -1,0 +1,61 @@
+meta {
+  name: List pending refund requests (admin only)
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/admin/investments/refund-requests
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: list of refund requests
+  
+  request: {
+    url: {{baseUrl}}/admin/investments/refund-requests
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 403 Response
+  description: access denied
+  
+  request: {
+    url: {{baseUrl}}/admin/investments/refund-requests
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 403
+      text: Forbidden
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

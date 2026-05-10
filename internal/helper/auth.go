@@ -1,10 +1,16 @@
 package helper
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"flyup/internal/domain"
 	"fmt"
+	"io"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -81,13 +87,19 @@ func (a Auth) GenerateToken(id uint, email string, role string) (string, error) 
 		return "", errors.New("required inputs are missing to generate token")
 	}
 
+	// เข้ารหัส ID เพื่อซ่อน
+	obfuscatedID, err := a.encryptID(id)
+	if err != nil {
+		return "", errors.New("failed to obfuscate id")
+	}
+
 	// สร้าง Claims
 	claims := jwt.MapClaims{
-		"user_id": id,
-		"email":   email,
-		"role":    role,
-		"iat":     time.Now().Unix(),
-		"exp":     time.Now().Add(time.Hour * 24 * 30).Unix(), // exp 30 วัน
+		"sub":   obfuscatedID, // ใช้ sub แทน user_id เพื่อความเป็นมาตรฐานและซ่อนความหมาย
+		"email": email,
+		"role":  role,
+		"iat":   time.Now().Unix(),
+		"exp":   time.Now().Add(time.Hour * 24 * 30).Unix(), // exp 30 วัน
 	}
 
 	// สร้าง token
@@ -126,9 +138,13 @@ func (a Auth) VerifyToken(tokenStr string) (domain.User, error) {
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		user := domain.User{}
 
-		// แปลง float64 จาก json เป็น อันที่ต้องการ
-		if id, ok := claims["user_id"].(float64); ok {
-			user.ID = uint(id)
+		// ถอดรหัส ID
+		if sub, ok := claims["sub"].(string); ok {
+			decryptedID, err := a.decryptID(sub)
+			if err != nil {
+				return domain.User{}, errors.New("invalid subject in token")
+			}
+			user.ID = decryptedID
 		}
 		if email, ok := claims["email"].(string); ok {
 			user.Email = email
@@ -164,4 +180,98 @@ func (a Auth) GetCurrentUser(ctx fiber.Ctx) domain.User {
 		return *u
 	}
 	return domain.User{}
+}
+
+// encryptID เข้ารหัส ID ให้เป็น string ที่อ่านไม่ออก
+func (a Auth) encryptID(id uint) (string, error) {
+	key := []byte(a.Secret)
+	if len(key) < 16 {
+		// ถ้า secret สั้นไป ให้เติม 0 ให้ครบ 16 bytes (AES-128)
+		newKey := make([]byte, 16)
+		copy(newKey, key)
+		key = newKey
+	} else if len(key) > 32 {
+		key = key[:32]
+	} else if len(key) > 16 && len(key) < 24 {
+		newKey := make([]byte, 24)
+		copy(newKey, key)
+		key = newKey
+	} else if len(key) > 24 && len(key) < 32 {
+		newKey := make([]byte, 32)
+		copy(newKey, key)
+		key = newKey
+	}
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", err
+	}
+
+	idStr := strconv.FormatUint(uint64(id), 10)
+	ciphertext := gcm.Seal(nonce, nonce, []byte(idStr), nil)
+
+	return base64.URLEncoding.EncodeToString(ciphertext), nil
+}
+
+// decryptID ถอดรหัส ID กลับเป็น uint
+func (a Auth) decryptID(encryptedStr string) (uint, error) {
+	ciphertext, err := base64.URLEncoding.DecodeString(encryptedStr)
+	if err != nil {
+		return 0, err
+	}
+
+	key := []byte(a.Secret)
+	if len(key) < 16 {
+		newKey := make([]byte, 16)
+		copy(newKey, key)
+		key = newKey
+	} else if len(key) > 32 {
+		key = key[:32]
+	} else if len(key) > 16 && len(key) < 24 {
+		newKey := make([]byte, 24)
+		copy(newKey, key)
+		key = newKey
+	} else if len(key) > 24 && len(key) < 32 {
+		newKey := make([]byte, 32)
+		copy(newKey, key)
+		key = newKey
+	}
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return 0, err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return 0, err
+	}
+
+	nonceSize := gcm.NonceSize()
+	if len(ciphertext) < nonceSize {
+		return 0, errors.New("ciphertext too short")
+	}
+
+	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return 0, err
+	}
+
+	id64, err := strconv.ParseUint(string(plaintext), 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint(id64), nil
 }

@@ -1,0 +1,43 @@
+meta {
+  name: Get Project Thread Messages
+  type: http
+  seq: 48
+}
+
+get {
+  url: {{baseUrl}}/projects/threads/:thread_id/messages
+  body: none
+  auth: inherit
+}
+
+params:path {
+  thread_id: 
+}
+
+example {
+  name: 200 Response
+  description: List of messages
+  
+  request: {
+    url: {{baseUrl}}/projects/threads/:thread_id/messages
+    method: GET
+    mode: none
+    params:path: {
+      thread_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

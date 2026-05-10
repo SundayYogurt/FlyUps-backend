@@ -205,7 +205,18 @@ func (s *disbursementService) toItems(list []domain.Disbursement) []dto.Disburse
 		}
 
 		if banks, err := s.userRepo.FindBankByUserId(d.PioneerUserID); err == nil && len(banks) > 0 {
-			b := banks[0]
+			var b domain.BankAccount
+			found := false
+			for _, bank := range banks {
+				if bank.IsDefault {
+					b = bank
+					found = true
+					break
+				}
+			}
+			if !found {
+				b = banks[0]
+			}
 			item.BankAccount = &dto.DisbursementBankAccount{
 				BankName:      b.BankName,
 				AccountName:   b.AccountName,

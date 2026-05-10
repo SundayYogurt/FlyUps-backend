@@ -1,0 +1,43 @@
+meta {
+  name: Update Story Section
+  type: http
+  seq: 19
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/stories/:story_id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  story_id: 
+}
+
+example {
+  name: 200 Response
+  description: Story updated
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/stories/:story_id
+    method: PATCH
+    mode: none
+    params:path: {
+      story_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

@@ -1,0 +1,43 @@
+meta {
+  name: Get Public Project by ID
+  type: http
+  seq: 49
+}
+
+get {
+  url: {{baseUrl}}/projects/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: Project details
+  
+  request: {
+    url: {{baseUrl}}/projects/:id
+    method: GET
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

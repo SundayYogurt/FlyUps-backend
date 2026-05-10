@@ -1,0 +1,43 @@
+meta {
+  name: Admin list submitted milestones
+  type: http
+  seq: 15
+}
+
+get {
+  url: {{baseUrl}}/admin/projects/milestones/submitted
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~project_id: 
+}
+
+example {
+  name: 200 Response
+  description: Submitted milestones
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/milestones/submitted
+    method: GET
+    mode: none
+    params:query: {
+      ~project_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

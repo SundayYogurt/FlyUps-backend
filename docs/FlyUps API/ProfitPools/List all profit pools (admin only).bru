@@ -1,0 +1,86 @@
+meta {
+  name: List all profit pools (admin only)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/admin/profit-pools
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: List of profit pools
+  
+  request: {
+    url: {{baseUrl}}/admin/profit-pools
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: Unauthorized
+  
+  request: {
+    url: {{baseUrl}}/admin/profit-pools
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 500 Response
+  description: Internal Server Error
+  
+  request: {
+    url: {{baseUrl}}/admin/profit-pools
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 500
+      text: Internal Server Error
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

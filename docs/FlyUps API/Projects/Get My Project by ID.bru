@@ -1,0 +1,43 @@
+meta {
+  name: Get My Project by ID
+  type: http
+  seq: 25
+}
+
+get {
+  url: {{baseUrl}}/pioneer/projects/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: Project details
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/:id
+    method: GET
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

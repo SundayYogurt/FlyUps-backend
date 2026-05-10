@@ -1,0 +1,36 @@
+meta {
+  name: Sign out
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{baseUrl}}/user/signout
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: logout success
+  
+  request: {
+    url: {{baseUrl}}/user/signout
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

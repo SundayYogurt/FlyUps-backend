@@ -1,0 +1,43 @@
+meta {
+  name: Delete Project
+  type: http
+  seq: 26
+}
+
+delete {
+  url: {{baseUrl}}/pioneer/projects/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: Project deleted
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/:id
+    method: DELETE
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

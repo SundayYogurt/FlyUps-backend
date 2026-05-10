@@ -1,0 +1,43 @@
+meta {
+  name: Admin approves milestone submission
+  type: http
+  seq: 17
+}
+
+patch {
+  url: {{baseUrl}}/admin/projects/milestones/:milestone_id/approve
+  body: none
+  auth: inherit
+}
+
+params:path {
+  milestone_id: 
+}
+
+example {
+  name: 200 Response
+  description: Milestone marked as paid
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/milestones/:milestone_id/approve
+    method: PATCH
+    mode: none
+    params:path: {
+      milestone_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

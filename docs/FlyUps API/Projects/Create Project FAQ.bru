@@ -1,0 +1,43 @@
+meta {
+  name: Create Project FAQ
+  type: http
+  seq: 30
+}
+
+post {
+  url: {{baseUrl}}/pioneer/projects/:id/faqs
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: FAQ created
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/:id/faqs
+    method: POST
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

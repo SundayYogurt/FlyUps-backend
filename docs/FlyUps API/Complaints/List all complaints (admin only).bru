@@ -1,0 +1,43 @@
+meta {
+  name: List all complaints (admin only)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/admin/complaints
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~status: 
+}
+
+example {
+  name: 200 Response
+  description: OK
+  
+  request: {
+    url: {{baseUrl}}/admin/complaints
+    method: GET
+    mode: none
+    params:query: {
+      ~status: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

@@ -71,6 +71,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	privateRoutes.Post("/id-verify", handler.VerifyIDCard)
 	privateRoutes.Post("/add-bank", handler.AddBankAccount)
 	privateRoutes.Patch("/update-bank/:id", handler.UpdateBankAccount)
+	privateRoutes.Patch("/set-default-bank/:id", handler.SetDefaultBankAccount)
 	privateRoutes.Post("/signout", handler.SignOut)
 	privateRoutes.Put("/change-password", handler.ChangePassword)
 	privateRoutes.Put("/add-password", handler.AddPassword)
@@ -524,6 +525,37 @@ func (h *UserHandler) UpdateBankAccount(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, err.Error())
 	}
 	return rest.SuccessResponse(ctx, "bank account updated successfully", nil)
+}
+
+// SetDefaultBankAccount godoc
+// @Summary Set default bank account
+// @Description Set a specific bank account as the default for the user
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Bank Account ID"
+// @Success 200 {object} object "default bank account updated successfully"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /user/set-default-bank/{id} [patch]
+func (h *UserHandler) SetDefaultBankAccount(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+
+	bankId := ctx.Params("id")
+	bankIdParsed, err := strconv.ParseUint(bankId, 10, 64)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid Bank ID")
+	}
+
+	if err := h.svc.SetDefaultBankAccount(user.ID, uint(bankIdParsed)); err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "default bank account updated successfully", nil)
 }
 
 // GetBankUserAccounts godoc

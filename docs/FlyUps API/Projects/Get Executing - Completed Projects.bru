@@ -1,0 +1,61 @@
+meta {
+  name: Get Executing / Completed Projects
+  type: http
+  seq: 44
+}
+
+get {
+  url: {{baseUrl}}/projects/executing
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: List of executing/completed projects
+  
+  request: {
+    url: {{baseUrl}}/projects/executing
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 500 Response
+  description: Internal Server Error
+  
+  request: {
+    url: {{baseUrl}}/projects/executing
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 500
+      text: Internal Server Error
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

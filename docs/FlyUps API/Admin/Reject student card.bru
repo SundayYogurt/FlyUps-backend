@@ -1,0 +1,99 @@
+meta {
+  name: Reject student card
+  type: http
+  seq: 25
+}
+
+patch {
+  url: {{baseUrl}}/admin/reject-student-card/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: student card rejected
+  
+  request: {
+    url: {{baseUrl}}/admin/reject-student-card/:id
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Invalid request
+  
+  request: {
+    url: {{baseUrl}}/admin/reject-student-card/:id
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: Unauthorized
+  
+  request: {
+    url: {{baseUrl}}/admin/reject-student-card/:id
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

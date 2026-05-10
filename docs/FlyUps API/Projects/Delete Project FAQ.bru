@@ -1,0 +1,43 @@
+meta {
+  name: Delete Project FAQ
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/pioneer/projects/faqs/:faq_id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  faq_id: 
+}
+
+example {
+  name: 200 Response
+  description: FAQ deleted
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/faqs/:faq_id
+    method: DELETE
+    mode: none
+    params:path: {
+      faq_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

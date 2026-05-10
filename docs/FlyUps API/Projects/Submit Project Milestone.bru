@@ -1,0 +1,43 @@
+meta {
+  name: Submit Project Milestone
+  type: http
+  seq: 17
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/milestones/:milestone_id/submit
+  body: none
+  auth: inherit
+}
+
+params:path {
+  milestone_id: 
+}
+
+example {
+  name: 200 Response
+  description: Milestone submitted
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/milestones/:milestone_id/submit
+    method: PATCH
+    mode: none
+    params:path: {
+      milestone_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

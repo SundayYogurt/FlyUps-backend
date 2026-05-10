@@ -1,0 +1,43 @@
+meta {
+  name: Resolve a complaint (admin only)
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/admin/complaints/:id/resolve
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: OK
+  
+  request: {
+    url: {{baseUrl}}/admin/complaints/:id/resolve
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

@@ -1,0 +1,36 @@
+meta {
+  name: Admin financial summary
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/admin/financial/summary
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: financial summary
+  
+  request: {
+    url: {{baseUrl}}/admin/financial/summary
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

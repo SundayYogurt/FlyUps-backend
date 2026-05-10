@@ -1,0 +1,99 @@
+meta {
+  name: Approve a refund request (admin only)
+  type: http
+  seq: 11
+}
+
+patch {
+  url: {{baseUrl}}/admin/investments/:id/approve-refund
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: refund approved
+  
+  request: {
+    url: {{baseUrl}}/admin/investments/:id/approve-refund
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: invalid id or business rule violation
+  
+  request: {
+    url: {{baseUrl}}/admin/investments/:id/approve-refund
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 403 Response
+  description: access denied
+  
+  request: {
+    url: {{baseUrl}}/admin/investments/:id/approve-refund
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 403
+      text: Forbidden
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

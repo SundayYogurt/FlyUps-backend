@@ -1,0 +1,99 @@
+meta {
+  name: Preview project cancellation impact
+  type: http
+  seq: 21
+}
+
+get {
+  url: {{baseUrl}}/admin/projects/:id/cancel-preview
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: Cancel preview data
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/:id/cancel-preview
+    method: GET
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Invalid project ID
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/:id/cancel-preview
+    method: GET
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 500 Response
+  description: Internal Server Error
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/:id/cancel-preview
+    method: GET
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 500
+      text: Internal Server Error
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

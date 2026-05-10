@@ -1,0 +1,43 @@
+meta {
+  name: Update Project Thread
+  type: http
+  seq: 21
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/threads/:thread_id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  thread_id: 
+}
+
+example {
+  name: 200 Response
+  description: Thread updated
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/threads/:thread_id
+    method: PATCH
+    mode: none
+    params:path: {
+      thread_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

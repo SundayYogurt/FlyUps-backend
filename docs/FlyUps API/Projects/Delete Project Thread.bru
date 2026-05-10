@@ -1,0 +1,43 @@
+meta {
+  name: Delete Project Thread
+  type: http
+  seq: 20
+}
+
+delete {
+  url: {{baseUrl}}/pioneer/projects/threads/:thread_id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  thread_id: 
+}
+
+example {
+  name: 200 Response
+  description: Thread deleted
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/threads/:thread_id
+    method: DELETE
+    mode: none
+    params:path: {
+      thread_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

@@ -1,0 +1,43 @@
+meta {
+  name: Update Project Status
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/admin/projects/:id/status
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: Status updated
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/:id/status
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

@@ -14,7 +14,7 @@ import (
 
 func TestAdminApproveMilestoneSubmission_SetApproved(t *testing.T) {
 	projRepo := new(ProjectRepository)
-	svc := NewProjectService(projRepo, nil, nil, nil, nil, nil)
+	svc := NewProjectService(projRepo, nil, nil, nil, nil, nil, nil)
 
 	milestoneID := uint(10)
 	m := &domain.Milestone{
@@ -34,7 +34,7 @@ func TestAdminApproveMilestoneSubmission_SetApproved(t *testing.T) {
 
 func TestOpenMilestoneVoting_Success(t *testing.T) {
 	projRepo := new(ProjectRepository)
-	svc := NewProjectService(projRepo, nil, nil, nil, nil, nil)
+	svc := NewProjectService(projRepo, nil, nil, nil, nil, nil, nil)
 
 	user := domain.User{ID: 7}
 	milestoneID := uint(11)
@@ -60,7 +60,7 @@ func TestOpenMilestoneVoting_Success(t *testing.T) {
 
 func TestCloseProject_FundingToExecuting_AndActivatePhaseOne(t *testing.T) {
 	projRepo := new(ProjectRepository)
-	svc := NewProjectService(projRepo, nil, nil, nil, nil, nil)
+	svc := NewProjectService(projRepo, nil, nil, nil, nil, nil, nil)
 
 	user := domain.User{ID: 1}
 	projectID := uint(200)
@@ -89,7 +89,7 @@ func TestCloseProject_FundingToExecuting_AndActivatePhaseOne(t *testing.T) {
 
 func TestCloseProject_ExecutingToClosed_WhenAllPaid(t *testing.T) {
 	projRepo := new(ProjectRepository)
-	svc := NewProjectService(projRepo, nil, nil, nil, nil, nil)
+	svc := NewProjectService(projRepo, nil, nil, nil, nil, nil, nil)
 
 	user := domain.User{ID: 1}
 	projectID := uint(201)
@@ -158,7 +158,7 @@ func TestVoteMilestone_AutoPaidOnMajorityApprove(t *testing.T) {
 
 func TestSubmitMilestone_SetsSubmittedAndData(t *testing.T) {
 	projRepo := new(ProjectRepository)
-	projectSvc := NewProjectService(projRepo, nil, nil, nil, nil, nil)
+	projectSvc := NewProjectService(projRepo, nil, nil, nil, nil, nil, nil)
 
 	user := domain.User{ID: 1}
 	projectID := uint(601)
@@ -191,7 +191,8 @@ func TestSubmitMilestone_SetsSubmittedAndData(t *testing.T) {
 
 func TestSubmitMilestone_Phase2_RequiresPrevPaid(t *testing.T) {
 	projRepo := new(ProjectRepository)
-	projectSvc := NewProjectService(projRepo, nil, nil, nil, nil, nil)
+	disbRepo := new(mockDisbursementRepo)
+	projectSvc := NewProjectService(projRepo, nil, nil, nil, nil, nil, disbRepo)
 
 	user := domain.User{ID: 1}
 	projectID := uint(700)
@@ -210,6 +211,7 @@ func TestSubmitMilestone_Phase2_RequiresPrevPaid(t *testing.T) {
 		{ID: 11, ProjectID: projectID, PhaseNo: 1, Status: domain.MilestonePaid},
 		{ID: 12, ProjectID: projectID, PhaseNo: 2, Status: domain.MilestoneActive},
 	}, nil)
+	disbRepo.On("FindByMilestoneID", uint(11)).Return(&domain.Disbursement{Status: domain.DisbursementConfirmed}, nil)
 	projRepo.On("UpdateMilestone", mock.AnythingOfType("*domain.Milestone")).Return(nil)
 
 	req := dto.SubmitMilestoneRequest{}
@@ -221,7 +223,7 @@ func TestSubmitMilestone_Phase2_RequiresPrevPaid(t *testing.T) {
 
 func TestSubmitMilestone_Phase2_FailsWhenPrevNotPaid(t *testing.T) {
 	projRepo := new(ProjectRepository)
-	projectSvc := NewProjectService(projRepo, nil, nil, nil, nil, nil)
+	projectSvc := NewProjectService(projRepo, nil, nil, nil, nil, nil, nil)
 
 	user := domain.User{ID: 1}
 	projectID := uint(710)

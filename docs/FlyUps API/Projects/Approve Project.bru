@@ -1,0 +1,43 @@
+meta {
+  name: Approve Project
+  type: http
+  seq: 1
+}
+
+patch {
+  url: {{baseUrl}}/admin/projects/:id/approve
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: Project approved
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/:id/approve
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

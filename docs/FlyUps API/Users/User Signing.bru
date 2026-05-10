@@ -1,0 +1,111 @@
+meta {
+  name: User Signing
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/signin
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: Token information
+  
+  request: {
+    url: {{baseUrl}}/signin
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Invalid input
+  
+  request: {
+    url: {{baseUrl}}/signin
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: Incorrect credentials
+  
+  request: {
+    url: {{baseUrl}}/signin
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 403 Response
+  description: Email not verified
+  
+  request: {
+    url: {{baseUrl}}/signin
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 403
+      text: Forbidden
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

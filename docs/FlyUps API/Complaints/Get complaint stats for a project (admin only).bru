@@ -1,0 +1,127 @@
+meta {
+  name: Get complaint stats for a project (admin only)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/admin/complaints/project-stats/:project_id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  project_id: 
+}
+
+example {
+  name: 200 Response
+  description: Complaint statistics
+  
+  request: {
+    url: {{baseUrl}}/admin/complaints/project-stats/:project_id
+    method: GET
+    mode: none
+    params:path: {
+      project_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Invalid project ID
+  
+  request: {
+    url: {{baseUrl}}/admin/complaints/project-stats/:project_id
+    method: GET
+    mode: none
+    params:path: {
+      project_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 404 Response
+  description: Project not found
+  
+  request: {
+    url: {{baseUrl}}/admin/complaints/project-stats/:project_id
+    method: GET
+    mode: none
+    params:path: {
+      project_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 404
+      text: Not Found
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 500 Response
+  description: Internal Server Error
+  
+  request: {
+    url: {{baseUrl}}/admin/complaints/project-stats/:project_id
+    method: GET
+    mode: none
+    params:path: {
+      project_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 500
+      text: Internal Server Error
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

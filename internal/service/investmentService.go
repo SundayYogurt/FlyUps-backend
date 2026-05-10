@@ -413,11 +413,23 @@ func (s *investmentService) ListRefundRequests() ([]dto.RefundRequestItem, error
 		if err == nil {
 			item.BoosterName = user.FirstName + " " + user.LastName
 			item.BoosterEmail = user.Email
-			if user.BankAccount != nil {
+			
+			var defaultBank *domain.BankAccount
+			for _, b := range user.BankAccounts {
+				if b.IsDefault {
+					defaultBank = &b
+					break
+				}
+			}
+			if defaultBank == nil && len(user.BankAccounts) > 0 {
+				defaultBank = &user.BankAccounts[0]
+			}
+			
+			if defaultBank != nil {
 				item.BankAccount = &dto.RefundBankAccount{
-					BankName:      user.BankAccount.BankName,
-					AccountName:   user.BankAccount.AccountName,
-					AccountNumber: user.BankAccount.AccountNumber,
+					BankName:      defaultBank.BankName,
+					AccountName:   defaultBank.AccountName,
+					AccountNumber: defaultBank.AccountNumber,
 				}
 			}
 		}

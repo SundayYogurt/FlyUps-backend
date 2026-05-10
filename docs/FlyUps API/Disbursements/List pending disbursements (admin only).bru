@@ -1,0 +1,86 @@
+meta {
+  name: List pending disbursements (admin only)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/admin/disbursements/pending
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: list of pending disbursements
+  
+  request: {
+    url: {{baseUrl}}/admin/disbursements/pending
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: unauthorized
+  
+  request: {
+    url: {{baseUrl}}/admin/disbursements/pending
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 500 Response
+  description: internal server error
+  
+  request: {
+    url: {{baseUrl}}/admin/disbursements/pending
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 500
+      text: Internal Server Error
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
