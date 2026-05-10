@@ -1,0 +1,43 @@
+meta {
+  name: Get Project Updates
+  type: http
+  seq: 52
+}
+
+get {
+  url: {{baseUrl}}/projects/:id/updates
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: List of updates
+  
+  request: {
+    url: {{baseUrl}}/projects/:id/updates
+    method: GET
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

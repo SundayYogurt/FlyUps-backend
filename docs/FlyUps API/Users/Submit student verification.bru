@@ -1,0 +1,86 @@
+meta {
+  name: Submit student verification
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{baseUrl}}/user/student-verify
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: successfully submit verify to admin!
+  
+  request: {
+    url: {{baseUrl}}/user/student-verify
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Invalid input
+  
+  request: {
+    url: {{baseUrl}}/user/student-verify
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: Unauthorized
+  
+  request: {
+    url: {{baseUrl}}/user/student-verify
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

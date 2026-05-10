@@ -1,0 +1,43 @@
+meta {
+  name: Open milestone voting
+  type: http
+  seq: 16
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/milestones/:milestone_id/open-vote
+  body: none
+  auth: inherit
+}
+
+params:path {
+  milestone_id: 
+}
+
+example {
+  name: 200 Response
+  description: Voting opened
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/milestones/:milestone_id/open-vote
+    method: PATCH
+    mode: none
+    params:path: {
+      milestone_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

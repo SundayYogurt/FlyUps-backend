@@ -1,0 +1,43 @@
+meta {
+  name: Delete Story Section
+  type: http
+  seq: 18
+}
+
+delete {
+  url: {{baseUrl}}/pioneer/projects/stories/:story_id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  story_id: 
+}
+
+example {
+  name: 200 Response
+  description: Story deleted
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/stories/:story_id
+    method: DELETE
+    mode: none
+    params:path: {
+      story_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

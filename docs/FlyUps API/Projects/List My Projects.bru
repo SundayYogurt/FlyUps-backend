@@ -1,0 +1,36 @@
+meta {
+  name: List My Projects
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/pioneer/projects
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: List of projects
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

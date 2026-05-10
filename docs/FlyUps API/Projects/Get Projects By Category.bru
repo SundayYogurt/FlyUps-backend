@@ -1,0 +1,43 @@
+meta {
+  name: Get Projects By Category
+  type: http
+  seq: 42
+}
+
+get {
+  url: {{baseUrl}}/projects/category/:category_id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  category_id: 
+}
+
+example {
+  name: 200 Response
+  description: List of projects
+  
+  request: {
+    url: {{baseUrl}}/projects/category/:category_id
+    method: GET
+    mode: none
+    params:path: {
+      category_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

@@ -1,0 +1,115 @@
+meta {
+  name: List all users
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/admin/list-users
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~page: 
+  ~page_size: 
+  ~role: 
+  ~status: 
+  ~search: 
+}
+
+example {
+  name: 200 Response
+  description: success
+  
+  request: {
+    url: {{baseUrl}}/admin/list-users
+    method: GET
+    mode: none
+    params:query: {
+      ~page: 
+      ~page_size: 
+      ~role: 
+      ~status: 
+      ~search: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: Unauthorized
+  
+  request: {
+    url: {{baseUrl}}/admin/list-users
+    method: GET
+    mode: none
+    params:query: {
+      ~page: 
+      ~page_size: 
+      ~role: 
+      ~status: 
+      ~search: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 500 Response
+  description: Internal Server Error
+  
+  request: {
+    url: {{baseUrl}}/admin/list-users
+    method: GET
+    mode: none
+    params:query: {
+      ~page: 
+      ~page_size: 
+      ~role: 
+      ~status: 
+      ~search: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 500
+      text: Internal Server Error
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

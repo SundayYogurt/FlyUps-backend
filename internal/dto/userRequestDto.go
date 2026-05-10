@@ -73,7 +73,8 @@ type VerifyIDInput struct {
 type BankRequest struct {
 	BankName      *string `json:"bank_name,omitempty"`
 	AccountName   *string `json:"account_name,omitempty"`
-	AccountNumber *string `json:"account_number"`
+	AccountNumber *string `json:"account_number,omitempty"`
+	IsDefault     *bool   `json:"is_default,omitempty"`
 }
 
 type SuspendUserInput struct {

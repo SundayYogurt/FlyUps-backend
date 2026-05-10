@@ -1,0 +1,43 @@
+meta {
+  name: Cancel milestone submission
+  type: http
+  seq: 15
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/milestones/:milestone_id/cancel
+  body: none
+  auth: inherit
+}
+
+params:path {
+  milestone_id: 
+}
+
+example {
+  name: 200 Response
+  description: Milestone cancelled
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/milestones/:milestone_id/cancel
+    method: PATCH
+    mode: none
+    params:path: {
+      milestone_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

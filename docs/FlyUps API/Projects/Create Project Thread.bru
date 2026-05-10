@@ -1,0 +1,43 @@
+meta {
+  name: Create Project Thread
+  type: http
+  seq: 39
+}
+
+post {
+  url: {{baseUrl}}/pioneer/projects/:id/threads
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: Thread created
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/:id/threads
+    method: POST
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

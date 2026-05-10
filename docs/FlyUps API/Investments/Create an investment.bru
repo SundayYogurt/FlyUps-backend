@@ -1,0 +1,86 @@
+meta {
+  name: Create an investment
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/investments
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 201 Response
+  description: investment created with QR code
+  
+  request: {
+    url: {{baseUrl}}/investments
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 201
+      text: Created
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: invalid request or business rule violation
+  
+  request: {
+    url: {{baseUrl}}/investments
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: unauthorized
+  
+  request: {
+    url: {{baseUrl}}/investments
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

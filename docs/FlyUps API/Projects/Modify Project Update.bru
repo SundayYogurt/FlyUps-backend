@@ -1,0 +1,43 @@
+meta {
+  name: Modify Project Update
+  type: http
+  seq: 24
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/updates/:update_id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  update_id: 
+}
+
+example {
+  name: 200 Response
+  description: Update modified
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/updates/:update_id
+    method: PATCH
+    mode: none
+    params:path: {
+      update_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

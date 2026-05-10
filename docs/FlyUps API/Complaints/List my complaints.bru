@@ -1,0 +1,36 @@
+meta {
+  name: List my complaints
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/complaints/me
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: OK
+  
+  request: {
+    url: {{baseUrl}}/complaints/me
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

@@ -1,0 +1,86 @@
+meta {
+  name: Get ID card verification requests
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/admin/id-card-verifications
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: get users cardID verify request success
+  
+  request: {
+    url: {{baseUrl}}/admin/id-card-verifications
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: Unauthorized
+  
+  request: {
+    url: {{baseUrl}}/admin/id-card-verifications
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 500 Response
+  description: Internal Server Error
+  
+  request: {
+    url: {{baseUrl}}/admin/id-card-verifications
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 500
+      text: Internal Server Error
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

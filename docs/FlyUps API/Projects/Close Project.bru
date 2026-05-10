@@ -1,0 +1,43 @@
+meta {
+  name: Close Project
+  type: http
+  seq: 29
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/:id/close
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: Project closed
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/:id/close
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

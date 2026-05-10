@@ -1,0 +1,36 @@
+meta {
+  name: Admin per-project financial overview
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/admin/financial/projects
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: projects financial
+  
+  request: {
+    url: {{baseUrl}}/admin/financial/projects
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

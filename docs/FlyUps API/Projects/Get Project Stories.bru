@@ -1,0 +1,43 @@
+meta {
+  name: Get Project Stories
+  type: http
+  seq: 35
+}
+
+get {
+  url: {{baseUrl}}/pioneer/projects/:id/stories
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: List of stories
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/:id/stories
+    method: GET
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

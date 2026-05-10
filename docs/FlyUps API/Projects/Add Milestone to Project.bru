@@ -1,0 +1,43 @@
+meta {
+  name: Add Milestone to Project
+  type: http
+  seq: 34
+}
+
+post {
+  url: {{baseUrl}}/pioneer/projects/:id/milestones
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: Milestone created
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/:id/milestones
+    method: POST
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

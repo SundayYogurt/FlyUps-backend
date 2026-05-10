@@ -1,0 +1,86 @@
+meta {
+  name: List my invested projects
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/investments/my-projects
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: List of invested projects
+  
+  request: {
+    url: {{baseUrl}}/investments/my-projects
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: Unauthorized
+  
+  request: {
+    url: {{baseUrl}}/investments/my-projects
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 500 Response
+  description: Internal Server Error
+  
+  request: {
+    url: {{baseUrl}}/investments/my-projects
+    method: GET
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 500
+      text: Internal Server Error
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

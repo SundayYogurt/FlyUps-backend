@@ -31,6 +31,18 @@ func StartServer(cfg config.AppConfig) {
 		log.Fatalf("database connection error %v\n", err)
 	}
 	log.Println("database connected")
+	
+	// FIX: ป้องกันปัญหา Duplicate Slug ตอนทำ Migration (กรณีมีข้อมูลเดิมอยู่แล้ว)
+	// เราจะเพิ่ม column slug แบบธรรมดาก่อน (ถ้ายังไม่มี) แล้วไล่แก้ตัวที่ว่างให้มีค่า
+	_ = db.Exec("ALTER TABLE projects ADD COLUMN IF NOT EXISTS slug text DEFAULT ''")
+	var legacyProjects []domain.Project
+	if err := db.Where("slug = '' OR slug IS NULL").Find(&legacyProjects).Error; err == nil && len(legacyProjects) > 0 {
+		log.Printf("found %d projects with empty slug, generating slugs...", len(legacyProjects))
+		for _, p := range legacyProjects {
+			newSlug := helper.GenerateProjectSlug(p.Title, p.ID)
+			db.Model(&domain.Project{}).Where("id = ?", p.ID).Update("slug", newSlug)
+		}
+	}
 
 	// run migration
 	err = db.AutoMigrate(

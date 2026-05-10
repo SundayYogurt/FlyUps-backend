@@ -1,0 +1,132 @@
+meta {
+  name: Confirm investor payout (admin only)
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/admin/profit-pools/:id/payouts/:payoutId/confirm
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+  payoutId: 
+}
+
+example {
+  name: 200 Response
+  description: payout confirmed
+  
+  request: {
+    url: {{baseUrl}}/admin/profit-pools/:id/payouts/:payoutId/confirm
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+      payoutId: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Invalid ID or business rule violation
+  
+  request: {
+    url: {{baseUrl}}/admin/profit-pools/:id/payouts/:payoutId/confirm
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+      payoutId: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: Unauthorized
+  
+  request: {
+    url: {{baseUrl}}/admin/profit-pools/:id/payouts/:payoutId/confirm
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+      payoutId: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 404 Response
+  description: Profit pool or payout not found
+  
+  request: {
+    url: {{baseUrl}}/admin/profit-pools/:id/payouts/:payoutId/confirm
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+      payoutId: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 404
+      text: Not Found
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

@@ -1,0 +1,43 @@
+meta {
+  name: Update Project FAQ
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/faqs/:faq_id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  faq_id: 
+}
+
+example {
+  name: 200 Response
+  description: FAQ updated
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/faqs/:faq_id
+    method: PATCH
+    mode: none
+    params:path: {
+      faq_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

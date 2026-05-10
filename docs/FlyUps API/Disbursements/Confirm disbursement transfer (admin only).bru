@@ -1,0 +1,127 @@
+meta {
+  name: Confirm disbursement transfer (admin only)
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/admin/disbursements/:id/confirm
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: disbursement confirmed
+  
+  request: {
+    url: {{baseUrl}}/admin/disbursements/:id/confirm
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: invalid request
+  
+  request: {
+    url: {{baseUrl}}/admin/disbursements/:id/confirm
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: unauthorized
+  
+  request: {
+    url: {{baseUrl}}/admin/disbursements/:id/confirm
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 404 Response
+  description: disbursement not found
+  
+  request: {
+    url: {{baseUrl}}/admin/disbursements/:id/confirm
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 404
+      text: Not Found
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

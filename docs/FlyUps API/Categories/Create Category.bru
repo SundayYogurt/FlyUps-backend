@@ -1,0 +1,36 @@
+meta {
+  name: Create Category
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/admin/categories
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: Category created
+  
+  request: {
+    url: {{baseUrl}}/admin/categories
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

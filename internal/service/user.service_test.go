@@ -115,6 +115,11 @@ func (m *mockUserRepository) FindBankByAccountNumber(accountNumber string) (*dom
 	return nil, args.Error(1)
 }
 
+func (m *mockUserRepository) SetDefaultBankAccount(userID uint, bankID uint) error {
+	args := m.Called(userID, bankID)
+	return args.Error(0)
+}
+
 func (m *mockUserRepository) UpdateIdCardVerification(v *domain.IdCardVerification) error {
 	args := m.Called(v)
 	return args.Error(0)
@@ -597,7 +602,9 @@ func TestAddBankAccount_Success(t *testing.T) {
 
 	repo.On("FindUserById", userID).Return(&domain.User{ID: userID}, nil)
 	repo.On("FindBankByAccountNumber", accNum).Return((*domain.BankAccount)(nil), nil)
+	repo.On("FindBankByUserId", userID).Return([]domain.BankAccount{}, nil)
 	repo.On("CreateBankAccount", mock.AnythingOfType("*domain.BankAccount")).Return(nil)
+	repo.On("SetDefaultBankAccount", userID, mock.Anything).Return(nil)
 
 	bankName := "Bangkok Bank"
 	accName := "John Doe"

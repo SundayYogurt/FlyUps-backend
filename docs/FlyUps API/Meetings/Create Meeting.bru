@@ -1,0 +1,111 @@
+meta {
+  name: Create Meeting
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/pioneer/projects/meeting
+  body: none
+  auth: inherit
+}
+
+example {
+  name: 200 Response
+  description: Meeting created successfully
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/meeting
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 400 Response
+  description: Invalid request body
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/meeting
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 400
+      text: Bad Request
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 401 Response
+  description: Unauthorized
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/meeting
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 401
+      text: Unauthorized
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 500 Response
+  description: Internal Server Error
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/meeting
+    method: POST
+    mode: none
+  }
+  
+  response: {
+    status: {
+      code: 500
+      text: Internal Server Error
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

@@ -1,0 +1,43 @@
+meta {
+  name: Add Story Section to Project
+  type: http
+  seq: 36
+}
+
+post {
+  url: {{baseUrl}}/pioneer/projects/:id/stories
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: Story created
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/:id/stories
+    method: POST
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

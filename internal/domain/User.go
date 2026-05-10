@@ -36,7 +36,7 @@ type User struct {
 	ResetTokenHash             *string                  `json:"-"`
 	ResetTokenExpiresAt        *time.Time               `json:"-"`
 	StudentProfile             *StudentProfile          `json:"student_profile,omitempty" gorm:"foreignKey:UserID"`
-	BankAccount                *BankAccount             `json:"bank_account,omitempty" gorm:"foreignKey:UserID"`
+	BankAccounts               []BankAccount            `json:"bank_accounts,omitempty" gorm:"foreignKey:UserID"`
 	StudentCardVerification    *StudentCardVerification `json:"student_card_verification,omitempty" gorm:"foreignKey:UserID"`
 	IdCardVerification         *IdCardVerification      `json:"id_card_verification,omitempty" gorm:"foreignKey:UserID"`
 	SuspendReason              *string                  `json:"suspend_reason,omitempty"`
@@ -68,6 +68,7 @@ type BankAccount struct {
 	BankName      string `json:"bank_name"`
 	AccountName   string `json:"account_name"`
 	AccountNumber string `json:"account_number"`
+	IsDefault     bool   `json:"is_default" gorm:"default:false"`
 	gorm.Model
 }
 

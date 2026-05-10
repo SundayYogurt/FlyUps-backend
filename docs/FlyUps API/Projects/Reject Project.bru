@@ -1,0 +1,43 @@
+meta {
+  name: Reject Project
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{baseUrl}}/admin/projects/:id/reject
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: Project rejected
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/:id/reject
+    method: PATCH
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

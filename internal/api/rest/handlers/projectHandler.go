@@ -172,6 +172,16 @@ func (h *ProjectHandler) GetRecommendationProjects(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", projects)
 }
 
+// GetPublicProjectBySlug godoc
+// @Summary Get Public Project by Slug
+// @Description Get specific public project details by its slug
+// @Tags Projects
+// @Accept json
+// @Produce json
+// @Param slug path string true "Project Slug"
+// @Success 200 {object} object "Project details"
+// @Failure 404 {object} object "Project not found"
+// @Router /projects/slug/{slug} [get]
 func (h *ProjectHandler) GetPublicProjectBySlug(ctx fiber.Ctx) error {
 	slug := ctx.Params("slug")
 	proj, err := h.svc.GetPublicProjectBySlug(slug)

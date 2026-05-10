@@ -21,6 +21,7 @@ type UserRepository interface {
 	FindBankByUserId(userID uint) ([]domain.BankAccount, error)
 	FindBankById(id uint) (*domain.BankAccount, error)
 	FindBankByAccountNumber(accountNumber string) (*domain.BankAccount, error)
+	SetDefaultBankAccount(userID uint, bankID uint) error
 	UpdateIdCardVerification(v *domain.IdCardVerification) error
 	UpdateStudentCardVerification(v *domain.StudentCardVerification) error
 	FindStudentStatus(userID uint) (*domain.StudentCardVerification, error)
@@ -221,6 +222,17 @@ func (r *userRepository) UpdateBankAccount(bank *domain.BankAccount) error {
 	return r.db.Save(bank).Error
 }
 
+func (r *userRepository) SetDefaultBankAccount(userID uint, bankID uint) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// ยกเลิกค่าเริ่มต้นเดิมทั้งหมดของผู้ใช้คนนี้
+		if err := tx.Model(&domain.BankAccount{}).Where("user_id = ?", userID).Update("is_default", false).Error; err != nil {
+			return err
+		}
+		// ตั้งค่าบัญชีที่เลือกเป็นค่าเริ่มต้น
+		return tx.Model(&domain.BankAccount{}).Where("id = ? AND user_id = ?", bankID, userID).Update("is_default", true).Error
+	})
+}
+
 func (r *userRepository) CreateIdVerification(v *domain.IdCardVerification) error {
 	return r.db.Create(v).Error
 }
@@ -359,7 +371,7 @@ func (r *userRepository) FindUserById(id uint) (*domain.User, error) {
 	var user domain.User
 	err := r.db.
 		Preload("StudentProfile").
-		Preload("BankAccount").
+		Preload("BankAccounts").
 		Preload("StudentCardVerification", func(db *gorm.DB) *gorm.DB {
 			return db.Order("created_at DESC").Limit(1)
 		}).

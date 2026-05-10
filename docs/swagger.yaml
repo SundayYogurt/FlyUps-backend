@@ -10,6 +10,137 @@ definitions:
     - MediaTypeImage
     - MediaTypeVideo
     - MediaTypeRaw
+  domain.Meeting:
+    properties:
+      about:
+        description: ใช้ type text เพราะวาระการประชุมอาจจะยาว
+        type: string
+      createdAt:
+        type: string
+      date:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      description:
+        type: string
+      id:
+        type: integer
+      link:
+        description: อนุญาตให้เป็น null
+        type: string
+      meeting_type:
+        allOf:
+        - $ref: '#/definitions/domain.MeetingType'
+        description: '"online" หรือ "onsite"'
+      milestone:
+        $ref: '#/definitions/domain.Milestone'
+      milestone_id:
+        type: integer
+      place:
+        description: อนุญาตให้เป็น null
+        type: string
+      status:
+        $ref: '#/definitions/domain.MeetingStatus'
+      time:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  domain.MeetingStatus:
+    enum:
+    - open
+    - closed
+    - cancelled
+    type: string
+    x-enum-varnames:
+    - MeetingOpen
+    - MeetingClosed
+    - MeetingCancelled
+  domain.MeetingType:
+    enum:
+    - online
+    - onsite
+    - hybrid
+    type: string
+    x-enum-varnames:
+    - Online
+    - Onsite
+    - Hybrid
+  domain.Milestone:
+    properties:
+      acceptance_criteria:
+        type: string
+      admin_note:
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      description:
+        type: string
+      due_date:
+        type: string
+      duration:
+        type: integer
+      id:
+        type: integer
+      meetings:
+        items:
+          $ref: '#/definitions/domain.Meeting'
+        type: array
+      original_due_date:
+        type: string
+      percent_release:
+        type: integer
+      phase_no:
+        type: integer
+      project_id:
+        type: integer
+      retry_count:
+        type: integer
+      retry_deadline:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        $ref: '#/definitions/domain.MilestoneStatus'
+      submission_attachments:
+        items:
+          type: string
+        type: array
+      submission_criteria:
+        items:
+          type: string
+        type: array
+      submission_links:
+        items:
+          type: string
+        type: array
+      submission_summary:
+        description: Submission (what was done in this phase + evidence)
+        type: string
+      submitted_at:
+        type: string
+      title:
+        type: string
+      type:
+        items:
+          $ref: '#/definitions/domain.MediaType'
+        type: array
+      updatedAt:
+        type: string
+      urls:
+        items:
+          type: string
+        type: array
+      voting_closed_at:
+        type: string
+      voting_open:
+        description: Booster voting gate (opened by pioneer after admin approves submission)
+        type: boolean
+      voting_opened_at:
+        type: string
+    type: object
   domain.MilestoneStatus:
     enum:
     - draft
@@ -20,6 +151,7 @@ definitions:
     - rejected
     - failed
     - paid
+    - cancelled
     type: string
     x-enum-varnames:
     - MilestoneDraft
@@ -30,6 +162,7 @@ definitions:
     - MilestoneRejected
     - MilestoneFailed
     - MilestonePaid
+    - MilestoneCancelled
   domain.ProjectVisibility:
     enum:
     - private
@@ -40,14 +173,28 @@ definitions:
     - VisibilityPrivate
     - VisibilityPublic
     - VisibilityUnlisted
+  dto.AddPasswordRequest:
+    properties:
+      new_password:
+        minLength: 8
+        type: string
+    required:
+    - new_password
+    type: object
   dto.AdminMilestoneDetailResponse:
     properties:
       acceptance_criteria:
+        type: string
+      admin_note:
         type: string
       checked_criteria:
         items:
           type: boolean
         type: array
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
       description:
         type: string
       due_date:
@@ -68,6 +215,12 @@ definitions:
         type: number
       id:
         type: integer
+      meetings:
+        items:
+          $ref: '#/definitions/domain.Meeting'
+        type: array
+      original_due_date:
+        type: string
       owner:
         $ref: '#/definitions/dto.ProjectOwnerProfile'
       percent_release:
@@ -80,8 +233,14 @@ definitions:
         type: integer
       project_title:
         type: string
+      retry_count:
+        type: integer
+      retry_deadline:
+        type: string
       sort_order:
         type: integer
+      start_date:
+        type: string
       status:
         $ref: '#/definitions/domain.MilestoneStatus'
       submission_attachments:
@@ -107,6 +266,8 @@ definitions:
         items:
           $ref: '#/definitions/domain.MediaType'
         type: array
+      updatedAt:
+        type: string
       urls:
         items:
           type: string
@@ -123,6 +284,12 @@ definitions:
     properties:
       acceptance_criteria:
         type: string
+      admin_note:
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
       description:
         type: string
       due_date:
@@ -131,6 +298,12 @@ definitions:
         type: integer
       id:
         type: integer
+      meetings:
+        items:
+          $ref: '#/definitions/domain.Meeting'
+        type: array
+      original_due_date:
+        type: string
       owner:
         $ref: '#/definitions/dto.ProjectOwnerProfile'
       percent_release:
@@ -140,6 +313,10 @@ definitions:
       project_id:
         type: integer
       project_title:
+        type: string
+      retry_count:
+        type: integer
+      retry_deadline:
         type: string
       sort_order:
         type: integer
@@ -168,6 +345,8 @@ definitions:
         items:
           $ref: '#/definitions/domain.MediaType'
         type: array
+      updatedAt:
+        type: string
       urls:
         items:
           type: string
@@ -188,6 +367,18 @@ definitions:
         type: string
       bank_name:
         type: string
+      is_default:
+        type: boolean
+    type: object
+  dto.CancelProjectRequest:
+    properties:
+      description:
+        type: string
+      reason:
+        minLength: 20
+        type: string
+    required:
+    - reason
     type: object
   dto.ChangePasswordRequest:
     properties:
@@ -210,6 +401,32 @@ definitions:
     required:
     - transfer_ref
     type: object
+  dto.ConfirmInvestorPayoutRequest:
+    properties:
+      note:
+        type: string
+      transfer_ref:
+        type: string
+    required:
+    - transfer_ref
+    type: object
+  dto.CreateComplaintRequest:
+    properties:
+      body:
+        maxLength: 5000
+        minLength: 10
+        type: string
+      project_id:
+        type: integer
+      subject:
+        maxLength: 200
+        minLength: 3
+        type: string
+    required:
+    - body
+    - project_id
+    - subject
+    type: object
   dto.CreateDomainRequest:
     properties:
       domain:
@@ -224,6 +441,33 @@ definitions:
     required:
     - amount
     - project_id
+    type: object
+  dto.CreateMeetingRequest:
+    properties:
+      about:
+        type: string
+      date:
+        type: string
+      description:
+        type: string
+      link:
+        type: string
+      meeting_type:
+        allOf:
+        - $ref: '#/definitions/domain.MeetingType'
+        enum:
+        - online
+        - onsite
+        - hybrid
+      milestone_id:
+        type: integer
+      time:
+        type: string
+    required:
+    - date
+    - meeting_type
+    - milestone_id
+    - time
     type: object
   dto.CreateMilestoneRequest:
     properties:
@@ -251,6 +495,25 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  dto.CreateProfitPoolRequest:
+    properties:
+      admin_note:
+        type: string
+      project_id:
+        type: integer
+      quarter_no:
+        maximum: 4
+        minimum: 0
+        type: integer
+      total_amount:
+        type: number
+      transfer_ref:
+        type: string
+    required:
+    - project_id
+    - total_amount
+    - transfer_ref
     type: object
   dto.CreateProjectUpdateRequest:
     properties:
@@ -369,9 +632,13 @@ definitions:
         type: string
       major:
         type: string
+      picture:
+        type: string
       project_count:
         type: integer
       university:
+        type: string
+      verify_status:
         type: string
     type: object
   dto.RefundInvestmentRequest:
@@ -394,6 +661,15 @@ definitions:
       total_paid:
         type: number
     type: object
+  dto.ResolveComplaintRequest:
+    properties:
+      admin_note:
+        maxLength: 2000
+        minLength: 3
+        type: string
+    required:
+    - admin_note
+    type: object
   dto.SubmitMilestoneRequest:
     properties:
       attachments:
@@ -402,22 +678,18 @@ definitions:
           type: string
         type: array
       criteria:
-        description: checklist or items done (e.g. mapped from acceptance criteria)
+        description: checklist items ที่ทำเสร็จแล้ว (mapped from acceptance_criteria)
         items:
           type: string
         type: array
       links:
-        description: external links (GitHub, Figma, docs, etc.)
+        description: external links (GitHub, Figma, YouTube, docs, etc.)
         items:
           type: string
         type: array
       summary:
-        description: summary of what has been done in this phase
-        maxLength: 5000
-        minLength: 1
+        description: สรุปสิ่งที่ทำใน phase นี้
         type: string
-    required:
-    - summary
     type: object
   dto.SuspendUserInput:
     properties:
@@ -432,6 +704,33 @@ definitions:
         type: string
       is_active:
         type: boolean
+    type: object
+  dto.UpdateMeetingRequest:
+    properties:
+      about:
+        type: string
+      date:
+        type: string
+      link:
+        type: string
+      meeting_type:
+        allOf:
+        - $ref: '#/definitions/domain.MeetingType'
+        enum:
+        - online
+        - onsite
+        - hybrid
+      milestone_id:
+        type: integer
+      place:
+        type: string
+      time:
+        type: string
+    required:
+    - date
+    - meeting_type
+    - milestone_id
+    - time
     type: object
   dto.UpdateMilestoneRequest:
     properties:
@@ -460,10 +759,22 @@ definitions:
           type: string
         type: array
     type: object
+  dto.UpdateNotificationPrefsRequest:
+    properties:
+      notification_preferences:
+        additionalProperties:
+          type: boolean
+        type: object
+    required:
+    - notification_preferences
+    type: object
   dto.UpdateProjectRequest:
     properties:
       category_id:
         type: integer
+      cover_image:
+        description: URL รูปปก (upload ผ่าน /upload ก่อน)
+        type: string
       description:
         type: string
       duration_days:
@@ -569,6 +880,14 @@ definitions:
         type: string
     required:
     - choice
+    type: object
+  gorm.DeletedAt:
+    properties:
+      time:
+        type: string
+      valid:
+        description: Valid is true if Time is not NULL
+        type: boolean
     type: object
 host: api.flyupapi.dev
 info:
@@ -744,6 +1063,146 @@ paths:
       summary: Update Category
       tags:
       - Categories
+  /admin/complaints:
+    get:
+      parameters:
+      - description: open|resolved|rejected
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all complaints (admin only)
+      tags:
+      - Complaints
+  /admin/complaints/{id}:
+    get:
+      parameters:
+      - description: Complaint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get a single complaint (admin only)
+      tags:
+      - Complaints
+  /admin/complaints/{id}/reject:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Complaint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Rejection note
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResolveComplaintRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Reject a complaint (admin only)
+      tags:
+      - Complaints
+  /admin/complaints/{id}/resolve:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Complaint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Resolution note
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResolveComplaintRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Resolve a complaint (admin only)
+      tags:
+      - Complaints
+  /admin/complaints/project-stats/{project_id}:
+    get:
+      description: Admin gets complaint statistics (total, open, resolved, rejected)
+        for a specific project
+      parameters:
+      - description: Project ID
+        in: path
+        name: project_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Complaint statistics
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid project ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Project not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get complaint stats for a project (admin only)
+      tags:
+      - Complaints
   /admin/create-university:
     post:
       consumes:
@@ -976,6 +1435,38 @@ paths:
       summary: List pending disbursements (admin only)
       tags:
       - Disbursements
+  /admin/financial/projects:
+    get:
+      description: Returns per-project phase payout status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: projects financial
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Admin per-project financial overview
+      tags:
+      - Admin
+  /admin/financial/summary:
+    get:
+      description: Returns Stripe balance, disbursement stats, and refund stats
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: financial summary
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Admin financial summary
+      tags:
+      - Admin
   /admin/id-card-verifications:
     get:
       description: Admin gets all pending national ID card verification requests
@@ -1058,6 +1549,256 @@ paths:
       summary: List pending refund requests (admin only)
       tags:
       - Admin
+  /admin/list-users:
+    get:
+      description: Admin gets a paginated list of users with optional filters
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Page size
+        in: query
+        name: page_size
+        type: integer
+      - description: User role (booster/pioneer)
+        in: query
+        name: role
+        type: string
+      - description: User status (active/suspended)
+        in: query
+        name: status
+        type: string
+      - description: Search by email, first name, or last name
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: success
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all users
+      tags:
+      - Admin
+  /admin/profit-pools:
+    get:
+      description: Admin gets all profit pool records
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of profit pools
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List all profit pools (admin only)
+      tags:
+      - ProfitPools
+    post:
+      consumes:
+      - application/json
+      description: Admin creates a new profit pool to distribute returns to investors
+        of a project
+      parameters:
+      - description: Create profit pool payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateProfitPoolRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: profit pool created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request or business rule violation
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create profit pool (admin only)
+      tags:
+      - ProfitPools
+  /admin/profit-pools/{id}:
+    get:
+      description: Admin gets full detail of a profit pool including individual investor
+        payout records
+      parameters:
+      - description: Profit Pool ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profit pool detail with payouts
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid profit pool ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Profit pool not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get profit pool detail (admin only)
+      tags:
+      - ProfitPools
+  /admin/profit-pools/{id}/payouts/{payoutId}/confirm:
+    patch:
+      consumes:
+      - application/json
+      description: Admin confirms that a profit payout has been transferred to a specific
+        investor
+      parameters:
+      - description: Profit Pool ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Investor Payout ID
+        in: path
+        name: payoutId
+        required: true
+        type: integer
+      - description: Confirmation payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ConfirmInvestorPayoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: payout confirmed
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid ID or business rule violation
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Profit pool or payout not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Confirm investor payout (admin only)
+      tags:
+      - ProfitPools
+  /admin/projects:
+    get:
+      consumes:
+      - application/json
+      description: Admin gets a list of all projects with optional filters
+      parameters:
+      - description: Search by project title
+        in: query
+        name: search
+        type: string
+      - description: Filter by category ID
+        in: query
+        name: category_id
+        type: integer
+      - description: Filter by state
+        in: query
+        name: state
+        type: string
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      - description: Filter by visibility
+        in: query
+        name: visibility
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of projects
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Admin list all projects
+      tags:
+      - Admin
   /admin/projects/{id}/approve:
     patch:
       consumes:
@@ -1081,6 +1822,70 @@ paths:
       summary: Approve Project
       tags:
       - Projects
+  /admin/projects/{id}/approve-cancel:
+    patch:
+      description: Admin approves a pioneer's cancellation request and refunds all
+        investors
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: project cancelled successfully
+          schema:
+            type: object
+        "400":
+          description: Invalid project ID or business rule violation
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Approve project cancellation
+      tags:
+      - Admin
+  /admin/projects/{id}/cancel-preview:
+    get:
+      description: Admin previews the cancellation impact (refund amounts, investors
+        affected) before approving
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Cancel preview data
+          schema:
+            type: object
+        "400":
+          description: Invalid project ID
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Preview project cancellation impact
+      tags:
+      - Admin
   /admin/projects/{id}/detail/pending-review:
     get:
       description: Admin gets full detail of a specific project for review
@@ -1133,6 +1938,40 @@ paths:
       summary: Reject Project
       tags:
       - Projects
+  /admin/projects/{id}/reject-cancel:
+    patch:
+      description: Admin rejects a pioneer's cancellation request and keeps the project
+        active
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: reject project cancelled successfully
+          schema:
+            type: object
+        "400":
+          description: Invalid project ID or business rule violation
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Reject project cancellation
+      tags:
+      - Admin
   /admin/projects/{id}/status:
     patch:
       consumes:
@@ -1162,6 +2001,30 @@ paths:
       summary: Update Project Status
       tags:
       - Projects
+  /admin/projects/cancel-request:
+    get:
+      description: Admin gets all projects with a pending cancellation request waiting
+        for review
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of projects pending cancellation
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List pending cancellation requests
+      tags:
+      - Admin
   /admin/projects/milestones/{milestone_id}:
     get:
       consumes:
@@ -1594,6 +2457,48 @@ paths:
       summary: Google Callback
       tags:
       - Auth
+  /booster/projects/{id}/threads:
+    post:
+      consumes:
+      - application/json
+      description: Booster (investor) creates a discussion thread on a project they
+        have invested in
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Thread Data
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: thread created successfully
+          schema:
+            type: object
+        "400":
+          description: Invalid request body or project ID
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "403":
+          description: Forbidden - not an investor of this project
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create thread as booster
+      tags:
+      - Projects
   /categories:
     get:
       consumes:
@@ -1630,6 +2535,64 @@ paths:
       summary: Get Category by ID
       tags:
       - Categories
+  /complaints:
+    post:
+      consumes:
+      - application/json
+      description: Logged-in user files a complaint (max 1 per project per user)
+      parameters:
+      - description: Complaint payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateComplaintRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: already filed
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: File a complaint about a project
+      tags:
+      - Complaints
+  /complaints/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List my complaints
+      tags:
+      - Complaints
   /forgot-password:
     post:
       consumes:
@@ -1768,12 +2731,13 @@ paths:
       summary: Get investment detail
       tags:
       - Investments
-  /investments/{id}/refund:
-    post:
+  /investments/{id}/contract:
+    get:
       consumes:
       - application/json
-      description: Refund a verified investment while project is in funding state.
-        Platform fee and VAT are non-refundable. Requires a note for admin approval.
+      description: |-
+        Refund a verified investment while project is in funding state. Platform fee and VAT are non-refundable. Requires a note for admin approval.
+        Generate and download an HTML contract for a specific investment
       parameters:
       - description: Investment ID
         in: path
@@ -1786,13 +2750,19 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/dto.RefundInvestmentRequest'
+      - description: Investment ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
       - application/json
+      - text/html
       responses:
         "200":
-          description: refund processed
+          description: HTML contract file
           schema:
-            $ref: '#/definitions/dto.RefundResponse'
+            type: string
         "400":
           description: invalid id, missing note, or business rule violation
           schema:
@@ -1813,9 +2783,14 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Refund an investment
+      - BearerAuth: []
+      summary: Download investment contract
       tags:
       - Investments
+      - Investments
+  /investments/{id}/refund:
+    post:
+      responses: {}
   /investments/milestones/{milestone_id}/vote:
     post:
       consumes:
@@ -1907,43 +2882,12 @@ paths:
       summary: Get project investors
       tags:
       - Investments
-  /notifications:
+  /me/meeting/{id}:
     get:
-      description: Get paginated notifications for the current user
+      description: Get details of a specific meeting that the authenticated user is
+        associated with
       parameters:
-      - description: Page number (default 1)
-        in: query
-        name: page
-        type: integer
-      - description: Items per page (default 20, max 100)
-        in: query
-        name: limit
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Paginated notifications with unread count
-          schema:
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            type: object
-      security:
-      - BearerAuth: []
-      summary: List notifications
-      tags:
-      - Notifications
-  /notifications/{id}/read:
-    patch:
-      description: Mark a specific notification as read by ID
-      parameters:
-      - description: Notification ID
+      - description: Meeting ID
         in: path
         name: id
         required: true
@@ -1952,11 +2896,11 @@ paths:
       - application/json
       responses:
         "200":
-          description: marked as read
+          description: Meeting details
           schema:
             type: object
         "400":
-          description: Invalid notification ID
+          description: Invalid meeting ID
           schema:
             type: object
         "401":
@@ -1969,17 +2913,18 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Mark notification as read
+      summary: Get My Meeting by ID
       tags:
-      - Notifications
-  /notifications/read-all:
-    patch:
-      description: Mark all notifications for the current user as read
+      - Meetings
+  /me/meetings:
+    get:
+      description: Get all meetings that the authenticated user is associated with
+        (as pioneer or investor)
       produces:
       - application/json
       responses:
         "200":
-          description: all marked as read
+          description: List of all meetings
           schema:
             type: object
         "401":
@@ -1992,29 +2937,115 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Mark all notifications as read
+      summary: Get All My Meetings
       tags:
-      - Notifications
-  /notifications/stream:
+      - Meetings
+  /me/milestones/{id}/meetings:
     get:
-      description: Subscribe to real-time notifications via SSE. Returns `text/event-stream`
-        content.
+      description: Get all meetings associated with a specific milestone that the
+        current user participates in
+      parameters:
+      - description: Milestone ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: all
+        description: 'Filter: all | upcoming | past'
+        in: query
+        name: filter
+        type: string
       produces:
-      - text/event-stream
+      - application/json
       responses:
         "200":
-          description: SSE stream (ping and notification events)
+          description: List of meetings
           schema:
-            type: string
+            type: object
+        "400":
+          description: Invalid milestone ID or filter
+          schema:
+            type: object
         "401":
           description: Unauthorized
           schema:
             type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
       security:
       - BearerAuth: []
-      summary: Server-Sent Events notification stream
+      summary: Get My Meetings by Milestone
       tags:
-      - Notifications
+      - Meetings
+  /me/projects/{id}/meetings:
+    get:
+      description: Get all meetings associated with a specific project that the current
+        user participates in
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: all
+        description: 'Filter: all | upcoming | past'
+        in: query
+        name: filter
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of meetings
+          schema:
+            type: object
+        "400":
+          description: Invalid project ID or filter
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get My Meetings by Project
+      tags:
+      - Meetings
+  /pioneer/payouts:
+    get:
+      description: Pioneer gets all their disbursement records (pending + confirmed)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of pioneer payouts
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List my payouts
+      tags:
+      - Disbursements
   /pioneer/projects:
     get:
       consumes:
@@ -2385,6 +3416,47 @@ paths:
       summary: Submit Project For Review
       tags:
       - Projects
+  /pioneer/projects/{id}/submit-cancel:
+    patch:
+      consumes:
+      - application/json
+      description: Pioneer submits a cancellation request for admin review
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Cancel request payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CancelProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: submit cancel successfully
+          schema:
+            type: object
+        "400":
+          description: Invalid request body or project ID
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Submit cancel request
+      tags:
+      - Projects
   /pioneer/projects/{id}/threads:
     post:
       consumes:
@@ -2443,6 +3515,39 @@ paths:
       summary: Create Project Update
       tags:
       - Projects
+  /pioneer/projects/cancel/meeting/{id}:
+    patch:
+      description: Pioneer cancels an existing meeting
+      parameters:
+      - description: Meeting ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Meeting canceled successfully
+          schema:
+            type: object
+        "400":
+          description: Invalid meeting ID
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Cancel Meeting
+      tags:
+      - Meetings
   /pioneer/projects/faqs/{faq_id}:
     delete:
       consumes:
@@ -2545,6 +3650,83 @@ paths:
       summary: Update Project Media
       tags:
       - Projects
+  /pioneer/projects/meeting:
+    post:
+      consumes:
+      - application/json
+      description: Pioneer creates a meeting invitation for investors of a milestone
+      parameters:
+      - description: Create Meeting Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateMeetingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Meeting created successfully
+          schema:
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Meeting
+      tags:
+      - Meetings
+  /pioneer/projects/meeting/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Pioneer edits an existing meeting
+      parameters:
+      - description: Meeting ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update Meeting Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateMeetingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Meeting updated successfully
+          schema:
+            type: object
+        "400":
+          description: Invalid request body or meeting ID
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Edit Meeting
+      tags:
+      - Meetings
   /pioneer/projects/messages/{message_id}:
     delete:
       consumes:
@@ -2645,6 +3827,29 @@ paths:
       security:
       - BearerAuth: []
       summary: Update Project Milestone
+      tags:
+      - Projects
+  /pioneer/projects/milestones/{milestone_id}/cancel:
+    patch:
+      consumes:
+      - application/json
+      description: Pioneer cancels a submitted milestone and reverts it back to active
+      parameters:
+      - description: Milestone ID
+        in: path
+        name: milestone_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Milestone cancelled
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Cancel milestone submission
       tags:
       - Projects
   /pioneer/projects/milestones/{milestone_id}/open-vote:
@@ -2886,12 +4091,37 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get list of all public/approved projects
+      description: Get list of public funding projects with optional filters
+      parameters:
+      - description: Search by project title
+        in: query
+        name: search
+        type: string
+      - description: Filter by category ID
+        in: query
+        name: category_id
+        type: integer
+      - description: 'Sort order: newest (default) | ending_soon | popular'
+        in: query
+        name: sort
+        type: string
+      - description: Minimum funding goal
+        in: query
+        name: min_goal
+        type: number
+      - description: Maximum funding goal
+        in: query
+        name: max_goal
+        type: number
       produces:
       - application/json
       responses:
         "200":
           description: List of public projects
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
           schema:
             type: object
       summary: Get Public Projects
@@ -3000,6 +4230,99 @@ paths:
           schema:
             type: object
       summary: Get Projects By Category
+      tags:
+      - Projects
+  /projects/ending:
+    get:
+      description: Get projects whose funding deadline is approaching
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of projects ending soon
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: Get Ending Soon Projects
+      tags:
+      - Projects
+  /projects/executing:
+    get:
+      description: Get projects that are in executing or closed (completed) state
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of executing/completed projects
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: Get Executing / Completed Projects
+      tags:
+      - Projects
+  /projects/new:
+    get:
+      description: Get a list of the most recently created/approved projects
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of newest projects
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: Get Newest Projects
+      tags:
+      - Projects
+  /projects/recommend:
+    get:
+      description: Get a curated list of recommended/featured projects
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of recommended projects
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: Get Recommended Projects
+      tags:
+      - Projects
+  /projects/slug/{slug}:
+    get:
+      consumes:
+      - application/json
+      description: Get specific public project details by its slug
+      parameters:
+      - description: Project Slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Project details
+          schema:
+            type: object
+        "404":
+          description: Project not found
+          schema:
+            type: object
+      summary: Get Public Project by Slug
       tags:
       - Projects
   /projects/threads/{thread_id}/messages:
@@ -3189,6 +4512,42 @@ paths:
       summary: Add bank account
       tags:
       - Users
+  /user/add-password:
+    put:
+      consumes:
+      - application/json
+      description: Allows a user who signed up via Google to set a local password
+      parameters:
+      - description: New password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AddPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: add password success
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add password for Google user
+      tags:
+      - Users
   /user/change-password:
     put:
       consumes:
@@ -3282,6 +4641,60 @@ paths:
       summary: Get User Profile
       tags:
       - Users
+  /user/notification-preferences:
+    get:
+      description: Get the current user's notification preferences
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: notification preferences
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get notification preferences
+      tags:
+      - Users
+    patch:
+      consumes:
+      - application/json
+      description: Update the current user's notification preferences
+      parameters:
+      - description: Notification preferences
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateNotificationPrefsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: preferences updated
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update notification preferences
+      tags:
+      - Users
   /user/profile:
     patch:
       consumes:
@@ -3316,6 +4729,69 @@ paths:
       security:
       - BearerAuth: []
       summary: Update User Profile
+      tags:
+      - Users
+  /user/role:
+    patch:
+      consumes:
+      - application/json
+      description: Select role for users with 'pending' role (after Google Signup)
+      parameters:
+      - description: Role selection, e.g., {\
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role updated successfully
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Select user role
+      tags:
+      - Users
+  /user/set-default-bank/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Set a specific bank account as the default for the user
+      parameters:
+      - description: Bank Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: default bank account updated successfully
+          schema:
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Set default bank account
       tags:
       - Users
   /user/signout:

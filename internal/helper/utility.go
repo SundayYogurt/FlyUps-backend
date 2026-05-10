@@ -194,7 +194,7 @@ func IsUniqueConstraintError(err error) bool {
 func GenerateProjectSlug(title string, id uint) string {
 	slug := strings.ToLower(title)
 	// แทนที่ space และ special chars
-	re := regexp.MustCompile(`[^a-z0-9\u0E00-\u0E7F]+`)
+	re := regexp.MustCompile(`[^a-z0-9\x{0E00}-\x{0E7F}]+`)
 	slug = re.ReplaceAllString(slug, "-")
 	slug = strings.Trim(slug, "-")
 	// เพิ่ม id ต่อท้ายกันซ้ำ

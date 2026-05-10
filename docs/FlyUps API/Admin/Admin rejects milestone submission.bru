@@ -1,0 +1,43 @@
+meta {
+  name: Admin rejects milestone submission
+  type: http
+  seq: 18
+}
+
+patch {
+  url: {{baseUrl}}/admin/projects/milestones/:milestone_id/reject
+  body: none
+  auth: inherit
+}
+
+params:path {
+  milestone_id: 
+}
+
+example {
+  name: 200 Response
+  description: Milestone rejected
+  
+  request: {
+    url: {{baseUrl}}/admin/projects/milestones/:milestone_id/reject
+    method: PATCH
+    mode: none
+    params:path: {
+      milestone_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

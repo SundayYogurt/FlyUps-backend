@@ -618,10 +618,13 @@ func TestListRefundRequests_Success(t *testing.T) {
 		ID:        10,
 		FirstName: "John",
 		LastName:  "Doe",
-		BankAccount: &domain.BankAccount{
-			BankName:      "SCB",
-			AccountName:   "John Doe",
-			AccountNumber: "123456789",
+		BankAccounts: []domain.BankAccount{
+			{
+				BankName:      "SCB",
+				AccountName:   "John Doe",
+				AccountNumber: "123456789",
+				IsDefault:     true,
+			},
 		},
 	}
 

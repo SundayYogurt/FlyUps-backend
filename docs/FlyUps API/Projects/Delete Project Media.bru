@@ -1,0 +1,43 @@
+meta {
+  name: Delete Project Media
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/pioneer/projects/media/:media_id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  media_id: 
+}
+
+example {
+  name: 200 Response
+  description: Media deleted
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/media/:media_id
+    method: DELETE
+    mode: none
+    params:path: {
+      media_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

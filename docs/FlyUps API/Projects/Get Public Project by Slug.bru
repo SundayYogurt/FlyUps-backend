@@ -1,0 +1,71 @@
+meta {
+  name: Get Public Project by Slug
+  type: http
+  seq: 47
+}
+
+get {
+  url: {{baseUrl}}/projects/slug/:slug
+  body: none
+  auth: inherit
+}
+
+params:path {
+  slug: 
+}
+
+example {
+  name: 200 Response
+  description: Project details
+  
+  request: {
+    url: {{baseUrl}}/projects/slug/:slug
+    method: GET
+    mode: none
+    params:path: {
+      slug: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
+
+example {
+  name: 404 Response
+  description: Project not found
+  
+  request: {
+    url: {{baseUrl}}/projects/slug/:slug
+    method: GET
+    mode: none
+    params:path: {
+      slug: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 404
+      text: Not Found
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

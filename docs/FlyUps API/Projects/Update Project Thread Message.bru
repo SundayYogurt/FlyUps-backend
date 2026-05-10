@@ -1,0 +1,43 @@
+meta {
+  name: Update Project Thread Message
+  type: http
+  seq: 12
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/messages/:message_id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  message_id: 
+}
+
+example {
+  name: 200 Response
+  description: Message updated
+  
+  request: {
+    url: {{baseUrl}}/pioneer/projects/messages/:message_id
+    method: PATCH
+    mode: none
+    params:path: {
+      message_id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}

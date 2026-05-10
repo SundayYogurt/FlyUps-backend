@@ -177,7 +177,18 @@ func (s *profitPoolService) GetDetail(poolID uint) (*dto.ProfitPoolDetail, error
 			pd.Email = user.Email
 		}
 		if banks, err := s.userRepo.FindBankByUserId(p.BoosterUserID); err == nil && len(banks) > 0 {
-			b := banks[0]
+			var b domain.BankAccount
+			found := false
+			for _, bank := range banks {
+				if bank.IsDefault {
+					b = bank
+					found = true
+					break
+				}
+			}
+			if !found {
+				b = banks[0]
+			}
 			pd.BankAccount = &dto.DisbursementBankAccount{
 				BankName:      b.BankName,
 				AccountName:   b.AccountName,

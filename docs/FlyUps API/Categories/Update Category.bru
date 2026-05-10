@@ -1,0 +1,43 @@
+meta {
+  name: Update Category
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/admin/categories/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 
+}
+
+example {
+  name: 200 Response
+  description: Category updated
+  
+  request: {
+    url: {{baseUrl}}/admin/categories/:id
+    method: PUT
+    mode: none
+    params:path: {
+      id: 
+    }
+  }
+  
+  response: {
+    status: {
+      code: 200
+      text: OK
+    }
+  
+    body: {
+      type: text
+      content: '''
+  
+      '''
+    }
+  }
+}
