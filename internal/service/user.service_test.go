@@ -25,6 +25,11 @@ type mockUserRepository struct {
 	mock.Mock
 }
 
+func (m *mockUserRepository) FindAdminUserIDs() ([]uint, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (m *mockUserRepository) FindUniversityByUserId(userID uint) (*domain.User, error) {
 	args := m.Called(userID)
 	if args.Get(0) != nil {
@@ -987,7 +992,6 @@ func TestGetAllPendingStatusCardIDRequests_Error(t *testing.T) {
 
 	repo.AssertExpectations(t)
 }
-
 
 // ─── SuspendUser ─────────────────────────────────────────────────────────────
 

@@ -120,18 +120,6 @@ func GenerateRandomToken(length int) (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-func GenerateSlug(title string) string {
-
-	slug := strings.ToLower(title)
-
-	re := regexp.MustCompile(`[^a-z0-9]+`)
-	slug = re.ReplaceAllString(slug, "-")
-
-	slug = strings.Trim(slug, "-")
-
-	return slug
-}
-
 func Sha256Hex(s string) string {
 	sum := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(sum[:])
@@ -150,13 +138,6 @@ func GetMilestonePercent(phase int) (int, error) {
 	default:
 		return 0, errors.New("invalid milestone phase")
 	}
-}
-
-func CalculateMinInvest(goal float64) float64 {
-	if goal <= 0 {
-		return 0
-	}
-	return goal * 0.01
 }
 
 var stateTransitions = map[domain.ProjectState][]domain.ProjectState{
@@ -202,31 +183,20 @@ func IsValidStateTransition(oldState, newState domain.ProjectState) bool {
 	return false
 }
 
-func IsValidStatusForState(state domain.ProjectState, status domain.ProjectStatus) bool {
-	switch state {
-	case domain.StateDraft:
-		return status == domain.StatusActive
-
-	case domain.StateFunding:
-		return status == domain.StatusActive
-
-	case domain.StateExecuting:
-		return status == domain.StatusActive
-
-	case domain.StateClosed:
-		return status == domain.StatusFunded || status == domain.StatusFailed
-
-	case domain.StateCancelled:
-		return status == domain.StatusCancelled
-	}
-
-	return true
-}
-
 func IsUniqueConstraintError(err error) bool {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		return pgErr.Code == "23505" // unique_violation
 	}
 	return false
+}
+
+func GenerateProjectSlug(title string, id uint) string {
+	slug := strings.ToLower(title)
+	// แทนที่ space และ special chars
+	re := regexp.MustCompile(`[^a-z0-9\u0E00-\u0E7F]+`)
+	slug = re.ReplaceAllString(slug, "-")
+	slug = strings.Trim(slug, "-")
+	// เพิ่ม id ต่อท้ายกันซ้ำ
+	return fmt.Sprintf("%s-%d", slug, id)
 }

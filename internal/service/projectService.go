@@ -33,6 +33,7 @@ type ProjectService interface {
 	GetNewProjects() ([]domain.Project, error)
 	GetProjectEndingSoon() ([]domain.Project, error)
 	GetExecutingProjects() ([]domain.Project, error)
+	GetPublicProjectBySlug(slug string) (*domain.Project, error)
 
 	// MEDIA
 	AttachProjectMedia(ctx context.Context, projectID uint, url string, mediaTypes []domain.MediaType, user domain.User) error
@@ -584,12 +585,12 @@ func (s *projectService) CreateMilestone(projectID uint, input dto.CreateMilesto
 	percent, _ := helper.GetMilestonePercent(phaseNo)
 
 	milestone := &domain.Milestone{
-		ProjectID:      projectID,
-		PhaseNo:        phaseNo,
-		SortOrder:      phaseNo,
-		PercentRelease: percent,
-		Status:         domain.MilestoneDraft,
-		DueDate:        input.DueDate,
+		ProjectID:       projectID,
+		PhaseNo:         phaseNo,
+		SortOrder:       phaseNo,
+		PercentRelease:  percent,
+		Status:          domain.MilestoneDraft,
+		DueDate:         input.DueDate,
 		OriginalDueDate: input.DueDate,
 	}
 
@@ -1751,17 +1752,18 @@ func (s *projectService) ApproveProject(projectID uint) error {
 	p.State = domain.StateFunding
 	p.Status = domain.StatusActive
 	p.Visibility = domain.VisibilityPublic
+	p.Slug = helper.GenerateProjectSlug(p.Title, p.ID)
 	_, err = s.projectRepo.UpdateProject(p)
 	if err != nil {
 		return err
 	}
-
 	// เมื่อแอดมิน approve โปรเจกต์: เปลี่ยน milestone จาก draft -> waiting
 	milestones, err := s.projectRepo.FindMilestonesByProjectID(p.ID)
 	if err == nil {
 		for i := range milestones {
 			if milestones[i].Status == domain.MilestoneDraft {
 				milestones[i].Status = domain.MilestoneWaiting
+
 				_ = s.projectRepo.UpdateMilestone(&milestones[i])
 			}
 		}
@@ -2089,7 +2091,7 @@ func (s *projectService) AutoProjectLifecycleTick(now time.Time) error {
 		if err != nil {
 			return err
 		}
-		
+
 		overdue := false
 		for j := range milestones {
 			m := &milestones[j]
@@ -2150,7 +2152,7 @@ func (s *projectService) AutoProjectLifecycleTick(now time.Time) error {
 			if _, err := s.projectRepo.UpdateProject(p); err != nil {
 				return err
 			}
-			
+
 			if s.notifSvc != nil {
 				relatedID := p.ID
 				relatedType := "project"
@@ -2810,4 +2812,24 @@ func (s *projectService) GetCancelPreview(projectID uint) (*dto.CancelPreviewRes
 		return nil, errors.New("investment service unavailable")
 	}
 	return s.investmentSvc.GetCancelPreview(projectID)
+}
+
+func (s *projectService) GetPublicProjectBySlug(slug string) (*domain.Project, error) {
+	if slug == "" {
+		return nil, errors.New("slug is required")
+	}
+
+	project, err := s.projectRepo.FindProjectBySlug(slug)
+	if err != nil {
+		return nil, errors.New("project not found")
+	}
+	
+	if project.Visibility != domain.VisibilityPublic {
+		return nil, errors.New("project not found")
+	}
+	if project.State != domain.StateFunding && project.State != domain.StateExecuting {
+		return nil, errors.New("project not found")
+	}
+
+	return project, nil
 }

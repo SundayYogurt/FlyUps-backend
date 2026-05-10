@@ -42,6 +42,7 @@ type ProjectRepository interface {
 	FindInvestorIDsByProjectID(projectID uint) ([]uint, error)
 	ExistsProjectByOwnerAndStates(userID uint, states []domain.ProjectState) (bool, error)
 	FindProjectsCancelRequest() ([]domain.Project, error)
+	FindProjectBySlug(slug string) (*domain.Project, error)
 
 	FindMediaByProjectID(projectID uint) ([]domain.ProjectMedia, error)
 	FindMediaByID(id uint) (*domain.ProjectMedia, error)
@@ -116,6 +117,37 @@ type ProjectRepository interface {
 
 type projectRepository struct {
 	db *gorm.DB
+}
+
+func (p *projectRepository) FindProjectBySlug(slug string) (*domain.Project, error) {
+	var project domain.Project
+
+	err := p.db.Model(&domain.Project{}).
+		Preload("Category").
+		Preload("Owner").
+		Preload("Owner.StudentProfile.University").
+		Preload("Owner.IdCardVerification").
+		Preload("Owner.StudentCardVerification").
+		Preload("Media", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
+		Preload("Milestones", func(db *gorm.DB) *gorm.DB {
+			return db.Order("phase_no ASC")
+		}).
+		Preload("Stories", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
+		Preload("FAQs", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).
+		Where("slug = ?", slug).
+		First(&project).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &project, nil
 }
 
 func (p *projectRepository) HasCompletedMeeting(milestoneID uint) (bool, error) {
