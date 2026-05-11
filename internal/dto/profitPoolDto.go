@@ -14,6 +14,7 @@ type PioneerSubmitProfitRequest struct {
 	TotalAmount float64 `json:"total_amount" validate:"required,gt=0"`
 	TransferRef string  `json:"transfer_ref" validate:"required"`
 	QuarterNo   int     `json:"quarter_no" validate:"required,min=1,max=4"`
+	SlipImage   string  `json:"slip_image"`
 }
 
 type ConfirmInvestorPayoutRequest struct {
@@ -56,6 +57,7 @@ type MyProfitPayoutItem struct {
 	ID           uint       `json:"id"`
 	ProjectID    uint       `json:"project_id"`
 	ProjectTitle string     `json:"project_title"`
+	CoverImage   string     `json:"cover_image"`
 	QuarterNo    int        `json:"quarter_no"`
 	Amount       float64    `json:"amount"`
 	SharePct     float64    `json:"share_pct"`

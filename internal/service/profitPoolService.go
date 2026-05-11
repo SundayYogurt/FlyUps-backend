@@ -335,6 +335,7 @@ func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dt
 		PioneerUserID: pioneerID,
 		TotalAmount:   req.TotalAmount,
 		TransferRef:   req.TransferRef,
+		SlipImage:     req.SlipImage,
 		Status:        domain.ProfitPoolPending,
 		QuarterNo:     req.QuarterNo,
 	}
@@ -415,6 +416,7 @@ func (s *profitPoolService) GetMyProfitPayouts(userID uint) ([]dto.MyProfitPayou
 		}
 		if project, err := s.projectRepo.FindProjectByID(p.ProjectID); err == nil {
 			item.ProjectTitle = project.Title
+			item.CoverImage = project.CoverImage
 		}
 		items = append(items, item)
 	}
