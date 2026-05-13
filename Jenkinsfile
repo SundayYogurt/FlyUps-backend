@@ -47,6 +47,7 @@ pipeline {
             }
             steps {
                 sh """
+                    docker ps -q --filter "publish=3000" | xargs -r docker rm -f
                     docker pull ${DOCKER_IMAGE}:latest
                     docker compose -f ${COMPOSE_FILE} up -d --no-deps --force-recreate app
                     echo "✅ Deploy Done"
