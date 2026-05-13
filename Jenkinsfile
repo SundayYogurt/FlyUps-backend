@@ -2,58 +2,69 @@ pipeline {
     agent any
 
     environment {
-        PROJECT_NAME = "flyup_backend"
+        DOCKER_IMAGE = 'sundayyogurt/flyup'
+        DOCKER_TAG   = "${BUILD_NUMBER}"
+        COMPOSE_FILE = '/root/infra/backend/docker-compose.yml'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                // Clean workspace ก่อน checkout เพื่อป้องกัน git directory error
                 cleanWs()
                 checkout scm
             }
         }
 
-        stage('Build & Deploy') {
+        stage('Build & Push') {
             when {
                 expression {
-                    return env.GIT_BRANCH == 'origin/develop' || env.GIT_BRANCH == 'develop' || env.GIT_BRANCH == 'origin/main' || env.GIT_BRANCH == 'main'
+                    return env.GIT_BRANCH == 'origin/develop' || env.GIT_BRANCH == 'develop' ||
+                           env.GIT_BRANCH == 'origin/main'   || env.GIT_BRANCH == 'main'
                 }
             }
             steps {
-                sh '''
-                echo "🚀 Deploying..."
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-credentials',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh """
+                        echo "\$DOCKER_PASS" | docker login -u "\$DOCKER_USER" --password-stdin
+                        docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} -t ${DOCKER_IMAGE}:latest .
+                        docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
+                        docker push ${DOCKER_IMAGE}:latest
+                    """
+                }
+            }
+        }
 
-                # 🔥 kill container ที่แอบใช้ port 3000 (กันชน)
-                docker ps -q --filter "publish=3000" | xargs -r docker rm -f
-
-                # 🔥 ปิดของเก่า (ไม่ลบ DB)
-                docker compose --env-file /etc/flyup/.env -p $PROJECT_NAME down --remove-orphans
-
-                # 🔥 build + run ใหม่
-                docker compose --env-file /etc/flyup/.env -p $PROJECT_NAME up -d --build
-
-                # 🔥 ensure n8n (standalone) is running
-                cd /root/n8n && docker compose up -d && cd -
-
-                echo "⏳ Waiting for services to boot up..."
-                sleep 15
-
-                echo "✅ Deploy Done"
-                '''
+        stage('Deploy') {
+            when {
+                expression {
+                    return env.GIT_BRANCH == 'origin/develop' || env.GIT_BRANCH == 'develop' ||
+                           env.GIT_BRANCH == 'origin/main'   || env.GIT_BRANCH == 'main'
+                }
+            }
+            steps {
+                sh """
+                    docker pull ${DOCKER_IMAGE}:latest
+                    docker compose -f ${COMPOSE_FILE} up -d --no-deps --force-recreate app
+                    echo "✅ Deploy Done"
+                """
             }
         }
     }
 
     post {
+        always {
+            sh "docker logout || true"
+            sh "docker rmi ${DOCKER_IMAGE}:${DOCKER_TAG} || true"
+        }
         success {
             script {
-                echo "Deployment Successful!"
                 def payload = [
-                    job: env.JOB_NAME,
-                    status: "SUCCESS",
-                    url: env.BUILD_URL,
-                    build: env.BUILD_NUMBER
+                    job: env.JOB_NAME, status: "SUCCESS",
+                    url: env.BUILD_URL, build: env.BUILD_NUMBER
                 ]
                 try {
                     httpRequest acceptType: 'APPLICATION_JSON',
@@ -61,7 +72,7 @@ pipeline {
                                 httpMode: 'POST',
                                 requestBody: groovy.json.JsonOutput.toJson(payload),
                                 url: 'https://n8n.flyupapi.dev/webhook/jenkins-alert',
-                                validResponseCodes: '100:599' // ไม่ fail แม้ n8n จะ 502
+                                validResponseCodes: '100:599'
                 } catch (e) {
                     echo "Webhook notification failed (non-critical): ${e.message}"
                 }
@@ -69,12 +80,9 @@ pipeline {
         }
         failure {
             script {
-                echo "Deployment Failed!"
                 def payload = [
-                    job: env.JOB_NAME,
-                    status: "FAILURE",
-                    url: env.BUILD_URL,
-                    build: env.BUILD_NUMBER
+                    job: env.JOB_NAME, status: "FAILURE",
+                    url: env.BUILD_URL, build: env.BUILD_NUMBER
                 ]
                 try {
                     httpRequest acceptType: 'APPLICATION_JSON',
@@ -82,7 +90,7 @@ pipeline {
                                 httpMode: 'POST',
                                 requestBody: groovy.json.JsonOutput.toJson(payload),
                                 url: 'https://n8n.flyupapi.dev/webhook/jenkins-alert',
-                                validResponseCodes: '100:599' // ไม่ fail แม้ n8n จะ 502
+                                validResponseCodes: '100:599'
                 } catch (e) {
                     echo "Webhook notification failed (non-critical): ${e.message}"
                 }
