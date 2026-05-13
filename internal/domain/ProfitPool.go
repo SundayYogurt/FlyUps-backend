@@ -26,6 +26,7 @@ type ProfitPool struct {
 	PioneerUserID uint             `json:"pioneer_user_id" gorm:"index"`
 	TotalAmount   float64          `json:"total_amount"`
 	TransferRef   string           `json:"transfer_ref"`
+	SlipImage     string           `json:"slip_image" gorm:"default:''"`
 	Status        ProfitPoolStatus `json:"status" gorm:"default:'pending'"`
 	AdminNote     string           `json:"admin_note"`
 	QuarterNo     int              `json:"quarter_no" gorm:"default:0"` // 0 = unspecified, 1-4 = quarterly payment

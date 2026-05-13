@@ -94,9 +94,11 @@ func (r *investmentRepository) UpdateRefunded(investment *domain.Investment) err
 
 func (r *investmentRepository) ListByBoosterUserID(boosterUserID uint) ([]domain.Investment, error) {
 	inv := []domain.Investment{}
-
-	err := r.db.Where("booster_user_id = ?", boosterUserID).Order("created_at desc").Find(&inv).Error
-
+	err := r.db.
+		Preload("Project").
+		Where("booster_user_id = ?", boosterUserID).
+		Order("created_at desc").
+		Find(&inv).Error
 	return inv, err
 }
 

@@ -29,14 +29,14 @@ func SetupNotificationRoutes(rh *rest.RestHandler) {
 		rh:   rh,
 	}
 
-	priv := rh.App.Group("/notifications", rh.Middlewares.Authorize)
-	priv.Get("/", h.List)
-	priv.Post("/sse-token", h.IssueSSEToken) // short-lived one-time token for EventSource
-	priv.Patch("/read-all", h.MarkAllAsRead)
-	priv.Patch("/:id/read", h.MarkAsRead)
-
-	// SSE stream — NOT behind Authorize middleware; uses one-time sse_token instead
+	// SSE stream — no Authorize middleware; authenticated via one-time sse_token query param
 	rh.App.Get("/notifications/stream", h.Stream)
+
+	priv := rh.App.Group("/notifications")
+	priv.Get("/", rh.Middlewares.Authorize, h.List)
+	priv.Post("/sse-token", rh.Middlewares.Authorize, h.IssueSSEToken)
+	priv.Patch("/read-all", rh.Middlewares.Authorize, h.MarkAllAsRead)
+	priv.Patch("/:id/read", rh.Middlewares.Authorize, h.MarkAsRead)
 }
 
 // IssueSSEToken issues a short-lived (60s) one-time token for SSE connection.

@@ -42,9 +42,9 @@ func (h *BoosterBadgeHandler) GetBadgeCounts(ctx fiber.Ctx) error {
 		FROM milestones m
 		JOIN investments i ON i.project_id = m.project_id
 		WHERE i.booster_user_id = ?
-		  AND i.status = 'paid'
+		  AND i.status IN ('verified', 'paid')
 		  AND i.deleted_at IS NULL
-		  AND m.status = 'active'
+		  AND m.voting_open = true
 		  AND m.deleted_at IS NULL
 		  AND NOT EXISTS (
 		    SELECT 1 FROM milestone_votes mv
@@ -61,7 +61,7 @@ func (h *BoosterBadgeHandler) GetBadgeCounts(ctx fiber.Ctx) error {
 		JOIN milestones m ON m.id = mt.milestone_id
 		JOIN investments i ON i.project_id = m.project_id
 		WHERE i.booster_user_id = ?
-		  AND i.status = 'paid'
+		  AND i.status IN ('verified', 'paid')
 		  AND i.deleted_at IS NULL
 		  AND mt.status = 'open'
 		  AND mt.deleted_at IS NULL
