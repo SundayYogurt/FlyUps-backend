@@ -239,7 +239,7 @@ func (h *UserHandler) Signing(ctx fiber.Ctx) error {
 		return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "failed to set session"})
 	}
 
-	return ctx.Status(http.StatusOK).JSON(fiber.Map{"message": "login"})
+	return ctx.Status(http.StatusOK).JSON(fiber.Map{"message": "login", "token": token})
 }
 
 // ForgotPassword godoc
@@ -853,8 +853,8 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 		return ctx.Redirect().To(oauthFailedRedirect)
 	}
 
-	// token ใน URL ใช้แค่บอก frontend ว่า OAuth สำเร็จ (cookie ถูก set แล้ว)
-	redirectUrl := baseURL + "/?token=1"
+	// ส่ง token ใน URL เพื่อให้ frontend เก็บใน localStorage (รองรับ incognito / cross-origin)
+	redirectUrl := baseURL + "/?access_token=" + token
 	return ctx.Redirect().To(redirectUrl)
 }
 
@@ -884,8 +884,12 @@ func (h *UserHandler) setAuthCookies(ctx fiber.Ctx, accessToken string, userID u
 func (h *UserHandler) RefreshToken(ctx fiber.Ctx) error {
 	refreshToken := ctx.Cookies("refresh_token")
 	if refreshToken == "" {
+		refreshToken = ctx.Get("X-Refresh-Token")
+	}
+	if refreshToken == "" { // check อีกทีหลังลอง Header แล้ว
 		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "refresh_token missing"})
 	}
+
 	user, err := h.auth.VerifyRefreshToken(refreshToken)
 	if err != nil {
 		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "invalid or expired refresh token"})
@@ -897,7 +901,7 @@ func (h *UserHandler) RefreshToken(ctx fiber.Ctx) error {
 	if err := h.setAuthCookies(ctx, newAccessToken, user.ID, user.Email, user.Role); err != nil {
 		return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "failed to set session"})
 	}
-	return ctx.JSON(fiber.Map{"message": "token refreshed"})
+	return ctx.JSON(fiber.Map{"message": "token refreshed", "token": newAccessToken})
 }
 
 // SignOut godoc
@@ -910,8 +914,10 @@ func (h *UserHandler) RefreshToken(ctx fiber.Ctx) error {
 // @Router /user/signout [post]
 func (h *UserHandler) SignOut(ctx fiber.Ctx) error {
 	clearCookie := fiber.Cookie{Value: "", MaxAge: -1, SameSite: "None", Path: "/", HTTPOnly: true, Secure: true}
-	ac := clearCookie; ac.Name = "auth_token"
-	rc := clearCookie; rc.Name = "refresh_token"
+	ac := clearCookie
+	ac.Name = "auth_token"
+	rc := clearCookie
+	rc.Name = "refresh_token"
 	ctx.Cookie(&ac)
 	ctx.Cookie(&rc)
 	return ctx.JSON(fiber.Map{"message": "logout success"})
