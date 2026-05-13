@@ -51,7 +51,7 @@ func (a Auth) CreateHashedPassword(p string) (string, error) {
 		return "", errors.New("password must contain at least one uppercase letter")
 	}
 
-	//check ตัวใหญ่ (A-Z)
+	//check ตัวเล็ก (a-z)
 	lower := regexp.MustCompile(`[a-z]`)
 	if !lower.MatchString(p) {
 		return "", errors.New("password must contain at least one lowercase letter")

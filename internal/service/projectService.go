@@ -269,25 +269,10 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 		project.Softcap = *input.Softcap
 	}
 	if input.DurationDays != nil {
-		project.DurationDays = *input.DurationDays
-	}
-	if input.DurationMonths != nil {
-		if *input.DurationMonths > 48 {
-			return nil, errors.New("duration months must be less than 48 months")
-		}
-		project.DurationMonths = *input.DurationMonths
-	}
-	if input.DurationDays != nil {
-		project.DurationDays = *input.DurationDays
-	}
-	if input.DurationMonths != nil {
-		project.DurationMonths = *input.DurationMonths
-	}
-
-	if input.DurationDays != nil {
 		if *input.DurationDays <= 0 || *input.DurationDays > 60 {
 			return nil, errors.New("fundraising duration must be between 1 and 60 days")
 		}
+		project.DurationDays = *input.DurationDays
 
 		if project.State == domain.StateFunding && !project.FundingAt.IsZero() {
 			// ถ้าอยู่ในสถานะ funding แล้ว ให้ขยับวันจบนับจากวันที่เริ่ม funding (ระดมทุน)
@@ -296,6 +281,12 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 			// ล้างค่า EndDate หากยังไม่ได้รับ approve
 			project.EndDate = time.Time{}
 		}
+	}
+	if input.DurationMonths != nil {
+		if *input.DurationMonths > 48 {
+			return nil, errors.New("duration months must be less than 48 months")
+		}
+		project.DurationMonths = *input.DurationMonths
 	}
 
 	if input.DurationMonths != nil {

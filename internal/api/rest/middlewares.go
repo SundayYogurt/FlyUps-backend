@@ -67,10 +67,18 @@ func (m Middleware) AuthorizePioneer(ctx fiber.Ctx) error {
 		})
 	}
 
-	user, err := m.Auth.VerifyToken(token)
-	if err != nil {
+	userToken, err := m.Auth.VerifyToken(token)
+	if err != nil || userToken.ID == 0 {
 		return ctx.Status(401).JSON(fiber.Map{
 			"message": "authorization failed",
+		})
+	}
+
+	// โหลด user จริงจาก DB เพื่อเช็คสถานะล่าสุด
+	user, err := m.UserRepo.FindUserById(userToken.ID)
+	if err != nil {
+		return ctx.Status(401).JSON(fiber.Map{
+			"message": "user not found",
 		})
 	}
 
@@ -86,7 +94,7 @@ func (m Middleware) AuthorizePioneer(ctx fiber.Ctx) error {
 		})
 	}
 
-	ctx.Locals("user", user)
+	ctx.Locals("user", *user)
 
 	return ctx.Next()
 }
@@ -101,10 +109,18 @@ func (m Middleware) AuthorizePioneerAndBooster(ctx fiber.Ctx) error {
 		})
 	}
 
-	user, err := m.Auth.VerifyToken(token)
-	if err != nil {
+	userToken, err := m.Auth.VerifyToken(token)
+	if err != nil || userToken.ID == 0 {
 		return ctx.Status(401).JSON(fiber.Map{
 			"message": "authorization failed",
+		})
+	}
+
+	// โหลด user จริงจาก DB เพื่อเช็คสถานะล่าสุด
+	user, err := m.UserRepo.FindUserById(userToken.ID)
+	if err != nil {
+		return ctx.Status(401).JSON(fiber.Map{
+			"message": "user not found",
 		})
 	}
 
@@ -120,7 +136,7 @@ func (m Middleware) AuthorizePioneerAndBooster(ctx fiber.Ctx) error {
 		})
 	}
 
-	ctx.Locals("user", user)
+	ctx.Locals("user", *user)
 
 	return ctx.Next()
 }
@@ -135,10 +151,18 @@ func (m Middleware) AuthorizeAdmin(ctx fiber.Ctx) error {
 		})
 	}
 
-	user, err := m.Auth.VerifyToken(token)
-	if err != nil {
+	userToken, err := m.Auth.VerifyToken(token)
+	if err != nil || userToken.ID == 0 {
 		return ctx.Status(401).JSON(fiber.Map{
 			"message": "authorization failed",
+		})
+	}
+
+	// โหลด user จริงจาก DB เพื่อเช็คสถานะล่าสุด
+	user, err := m.UserRepo.FindUserById(userToken.ID)
+	if err != nil {
+		return ctx.Status(401).JSON(fiber.Map{
+			"message": "user not found",
 		})
 	}
 
@@ -148,7 +172,7 @@ func (m Middleware) AuthorizeAdmin(ctx fiber.Ctx) error {
 		})
 	}
 
-	ctx.Locals("user", user)
+	ctx.Locals("user", *user)
 
 	return ctx.Next()
 }
