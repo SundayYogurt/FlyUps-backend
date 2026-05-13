@@ -239,7 +239,7 @@ func (h *UserHandler) Signing(ctx fiber.Ctx) error {
 		return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "failed to set session"})
 	}
 
-	return ctx.Status(http.StatusOK).JSON(fiber.Map{"message": "login", "token": token})
+	return ctx.Status(http.StatusOK).JSON(fiber.Map{"message": "login"})
 }
 
 // ForgotPassword godoc
@@ -853,8 +853,8 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 		return ctx.Redirect().To(oauthFailedRedirect)
 	}
 
-	// ส่ง token ใน URL เพื่อให้ frontend เก็บใน localStorage (รองรับ incognito / cross-origin)
-	redirectUrl := baseURL + "/?access_token=" + token
+	// token ใน URL ใช้แค่บอก frontend ว่า OAuth สำเร็จ (cookie ถูก set แล้ว)
+	redirectUrl := baseURL + "/?token=1"
 	return ctx.Redirect().To(redirectUrl)
 }
 
@@ -880,12 +880,9 @@ func (h *UserHandler) setAuthCookies(ctx fiber.Ctx, accessToken string, userID u
 	return nil
 }
 
-// RefreshToken ออก access token ใหม่จาก refresh token (cookie หรือ X-Refresh-Token header)
+// RefreshToken ออก access token ใหม่จาก refresh token
 func (h *UserHandler) RefreshToken(ctx fiber.Ctx) error {
 	refreshToken := ctx.Cookies("refresh_token")
-	if refreshToken == "" {
-		refreshToken = ctx.Get("X-Refresh-Token")
-	}
 	if refreshToken == "" {
 		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "refresh_token missing"})
 	}
@@ -900,7 +897,7 @@ func (h *UserHandler) RefreshToken(ctx fiber.Ctx) error {
 	if err := h.setAuthCookies(ctx, newAccessToken, user.ID, user.Email, user.Role); err != nil {
 		return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "failed to set session"})
 	}
-	return ctx.JSON(fiber.Map{"message": "token refreshed", "token": newAccessToken})
+	return ctx.JSON(fiber.Map{"message": "token refreshed"})
 }
 
 // SignOut godoc
