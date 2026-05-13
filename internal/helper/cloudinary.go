@@ -26,6 +26,7 @@ func (c *CloudinaryService) UploadImage(ctx context.Context, file multipart.File
 
 	res, err := c.cld.Upload.Upload(ctx, file, uploader.UploadParams{
 		Folder: "flyup/projects",
+		Format: "webp",
 	})
 
 	if err != nil {
