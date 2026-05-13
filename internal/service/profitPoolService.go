@@ -416,7 +416,9 @@ func (s *profitPoolService) GetMyProfitPayouts(userID uint) ([]dto.MyProfitPayou
 		}
 		if project, err := s.projectRepo.FindProjectByID(p.ProjectID); err == nil {
 			item.ProjectTitle = project.Title
-			item.CoverImage = project.CoverImage
+			if project.CoverImage != nil {
+				item.CoverImage = *project.CoverImage
+			}
 		}
 		items = append(items, item)
 	}
