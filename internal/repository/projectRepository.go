@@ -82,6 +82,7 @@ type ProjectRepository interface {
 	FindMeetingsByInvestorID(investorUserID uint) ([]domain.Meeting, error)
 	FindVote(milestoneID uint, boosterUserID uint) (*domain.MilestoneVote, error)
 	ListVotesByMilestoneID(milestoneID uint) ([]domain.MilestoneVote, error)
+	DeleteVotesByMilestoneID(milestoneID uint) error
 	FindMeetingByMilestoneID(milestoneID uint) (*domain.Meeting, error)
 	HasCompletedMeeting(milestoneID uint) (bool, error)
 
@@ -699,6 +700,10 @@ func (p *projectRepository) UpdateMilestone(m *domain.Milestone) error {
 
 func (p *projectRepository) DeleteMilestone(id uint) error {
 	return p.db.Delete(&domain.Milestone{}, id).Error
+}
+
+func (p *projectRepository) DeleteVotesByMilestoneID(milestoneID uint) error {
+	return p.db.Where("milestone_id = ?", milestoneID).Delete(&domain.MilestoneVote{}).Error
 }
 
 func (p *projectRepository) UpsertMilestoneVote(vote *domain.MilestoneVote) error {

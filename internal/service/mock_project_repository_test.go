@@ -145,6 +145,11 @@ func (_m *ProjectRepository) ListVotesByMilestoneID(milestoneID uint) ([]domain.
 	return args.Get(0).([]domain.MilestoneVote), args.Error(1)
 }
 
+func (_m *ProjectRepository) DeleteVotesByMilestoneID(milestoneID uint) error {
+	args := _m.Called(milestoneID)
+	return args.Error(0)
+}
+
 func (_m *ProjectRepository) HasCompletedMeeting(milestoneID uint) (bool, error) {
 	args := _m.Called(milestoneID)
 	return args.Bool(0), args.Error(1)

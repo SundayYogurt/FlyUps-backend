@@ -1898,6 +1898,20 @@ func (_m *MockProjectRepository) ListVotesByMilestoneID(milestoneID uint) ([]dom
 	return r0, r1
 }
 
+// DeleteVotesByMilestoneID provides a mock function with given fields: milestoneID
+func (_m *MockProjectRepository) DeleteVotesByMilestoneID(milestoneID uint) error {
+	ret := _m.Called(milestoneID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteVotesByMilestoneID")
+	}
+
+	if rf, ok := ret.Get(0).(func(uint) error); ok {
+		return rf(milestoneID)
+	}
+	return ret.Error(0)
+}
+
 // SaveMeeting provides a mock function with given fields: meeting
 func (_m *MockProjectRepository) SaveMeeting(meeting *domain.Meeting) error {
 	ret := _m.Called(meeting)
