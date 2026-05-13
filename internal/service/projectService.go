@@ -820,6 +820,11 @@ func (s *projectService) OpenMilestoneVoting(milestoneID uint, user domain.User)
 		return nil, errors.New("please create meeting first")
 	}
 
+	// clear votes from any previous round before opening a new one
+	if err := s.projectRepo.DeleteVotesByMilestoneID(milestoneID); err != nil {
+		return nil, errors.New("failed to clear previous votes")
+	}
+
 	now := time.Now().UTC()
 	m.VotingOpen = true
 	m.VotingOpenedAt = &now
