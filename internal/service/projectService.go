@@ -2300,16 +2300,21 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 
 			dateStr := m.Date.Format("02 Jan 2006")
 			timeStr := m.Time.Format("15:04")
+			pioneerName := user.FirstName + " " + user.LastName
 
 			if err := s.emailClient.SendMeetingEmail(
 				email,
-				"Meeting Invitation",  // title
-				dateStr,               // date
-				timeStr,               // time
-				string(m.MeetingType), // แปลงเป็น string
-				m.Link,                // *string
-				m.Place,               // *string
+				"Meeting Invitation",
+				dateStr,
+				timeStr,
+				string(m.MeetingType),
+				m.Link,
+				m.Place,
 				m.Description,
+				project.Title,
+				milestone.PhaseNo,
+				milestone.Title,
+				pioneerName,
 			); err != nil {
 				log.Printf("send meeting email error: %v", err)
 			}

@@ -10,7 +10,7 @@ import (
 type NotificationClient interface {
 	SendVerifyEmail(to string, verifyLink string) error
 	SendResetPasswordEmail(to string, resetLink string) error
-	SendMeetingEmail(to string, title string, date string, time string, meetingType string, link *string, place *string, description *string) error
+	SendMeetingEmail(to string, title string, date string, time string, meetingType string, link *string, place *string, description *string, projectTitle string, phaseNo int, milestoneTitle string, pioneerName string) error
 	SendUpdateMeetingEmail(to string, title string, date string, time string, meetingType string, link *string, place *string, status string) error
 	SendMilestoneVoteResultEmail(to, projectTitle string, phaseNo int, phaseTitle string, approved bool) error
 	SendUserSuspendedEmail(to string, reason string) error
@@ -184,106 +184,122 @@ func (n notificationClient) SendResetPasswordEmail(to string, resetLink string) 
 	return err
 }
 
-func (n notificationClient) SendMeetingEmail(to string, title string, date string, time string, meetingType string, link *string, place *string, description *string) error {
+func (n notificationClient) SendMeetingEmail(to string, title string, date string, time string, meetingType string, link *string, place *string, description *string, projectTitle string, phaseNo int, milestoneTitle string, pioneerName string) error {
 
 	var detail string
-
 	if meetingType == "online" && link != nil {
 		detail = `
 		<tr>
-			<td style="font-size:16px;color:#555;padding-bottom:20px;">
-				Meeting Type: Online<br>
-				Link: <a href="` + *link + `">Join Meeting</a>
+			<td style="font-size:15px;color:#555;padding-bottom:20px;">
+				<b>Meeting Type:</b> Online<br>
+				<b>Link:</b> <a href="` + *link + `" style="color:#2563eb;">Join Meeting</a>
 			</td>
 		</tr>`
 	} else if meetingType == "onsite" && place != nil {
+		desc := ""
+		if description != nil {
+			desc = "<br><b>Description:</b> " + *description
+		}
 		detail = `
 		<tr>
-			<td style="font-size:16px;color:#555;padding-bottom:20px;">
-				Meeting Type: Onsite<br>
-				Location: ` + *place + `<br>
-				Description: ` + *description + `
+			<td style="font-size:15px;color:#555;padding-bottom:20px;">
+				<b>Meeting Type:</b> Onsite<br>
+				<b>Location:</b> ` + *place + desc + `
 			</td>
 		</tr>`
+	} else if meetingType == "hybrid" {
+		linkPart := ""
+		if link != nil {
+			linkPart = `<b>Link:</b> <a href="` + *link + `" style="color:#2563eb;">Join Meeting</a><br>`
+		}
+		placePart := ""
+		if place != nil {
+			placePart = "<b>Location:</b> " + *place + "<br>"
+		}
+		detail = `
+		<tr>
+			<td style="font-size:15px;color:#555;padding-bottom:20px;">
+				<b>Meeting Type:</b> Hybrid<br>
+				` + linkPart + placePart + `
+			</td>
+		</tr>`
+	}
+
+	viewLink := "#"
+	if link != nil {
+		viewLink = *link
 	}
 
 	params := &resend.SendEmailRequest{
 		From:    n.config.EmailFrom,
 		To:      []string{to},
-		Subject: "Meeting Invitation",
-		Html: `
-<!DOCTYPE html>
+		Subject: fmt.Sprintf("Meeting Invitation — %s (Phase %d)", projectTitle, phaseNo),
+		Html: fmt.Sprintf(`<!DOCTYPE html>
 <html>
-<head>
-<meta charset="UTF-8">
-</head>
+<head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f6f9fc;font-family:Arial,Helvetica,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f6f9fc;padding:40px 0;">
-    <tr>
-      <td align="center">
-        <table width="500" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;padding:40px;text-align:center;">
-          
-          <!-- Logo -->
-          <tr>
-            <td style="padding-bottom:20px;">
-              <img src="https://drive.google.com/uc?export=view&id=1yVzLRSBcGAG0c2eLfaSFNOd9MmLFUKUP">
-            </td>
-          </tr>
+  <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f6f9fc;padding:40px 0;">
+    <tr><td align="center">
+      <table width="500" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;padding:40px;text-align:center;">
 
-          <!-- Title -->
-          <tr>
-            <td style="font-size:24px;font-weight:bold;color:#333;padding-bottom:10px;">
-              ` + title + `
-            </td>
-          </tr>
+        <!-- Logo -->
+        <tr><td style="padding-bottom:20px;">
+          <img src="https://drive.google.com/uc?export=view&id=1yVzLRSBcGAG0c2eLfaSFNOd9MmLFUKUP">
+        </td></tr>
 
-          <!-- Date Time -->
-          <tr>
-            <td style="font-size:16px;color:#555;padding-bottom:20px;">
-              Date: ` + date + `<br>
-              Time: ` + time + `
-            </td>
-          </tr>
+        <!-- Title -->
+        <tr><td style="font-size:24px;font-weight:bold;color:#333;padding-bottom:6px;">
+          Meeting Invitation
+        </td></tr>
 
+        <!-- Project + Phase + Milestone info -->
+        <tr><td style="background:#f0f4ff;border-radius:8px;padding:16px;margin-bottom:16px;text-align:left;font-size:15px;color:#333;">
+          <table width="100%%" cellpadding="4" cellspacing="0">
+            <tr>
+              <td style="color:#6b7280;width:140px;">Project</td>
+              <td style="font-weight:bold;">%s</td>
+            </tr>
+            <tr>
+              <td style="color:#6b7280;">Phase</td>
+              <td style="font-weight:bold;">Phase %d — %s</td>
+            </tr>
+            <tr>
+              <td style="color:#6b7280;">Scheduled by</td>
+              <td style="font-weight:bold;">%s</td>
+            </tr>
+          </table>
+        </td></tr>
 
-			<!-- Voting Notice -->
-			<tr>
-  			<td style="font-size:14px;color:#92400e;background:#fef3c7;padding:12px;border-radius:6px;">
-    			<b>Note:</b> This meeting includes a voting session. Please be prepared to participate.
- 			 </td>
-			</tr>
+        <!-- Date Time -->
+        <tr><td style="font-size:15px;color:#555;padding:16px 0 8px 0;">
+          <b>Date:</b> %s &nbsp;&nbsp; <b>Time:</b> %s
+        </td></tr>
 
-          ` + detail + `
+        <!-- Meeting detail (type/link/place) -->
+        %s
 
-          <!-- Button -->
-          <tr>
-            <td>
-              <a href="` + func() string {
-			if link != nil {
-				return *link
-			}
-			return "#"
-		}() + `" 
-                 style="background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:6px;font-size:16px;font-weight:bold;display:inline-block;">
-                 View Details
-              </a>
-            </td>
-          </tr>
+        <!-- Voting Notice -->
+        <tr><td style="font-size:14px;color:#92400e;background:#fef3c7;padding:12px;border-radius:6px;text-align:left;">
+          <b>Note:</b> This meeting includes a voting session. Please be prepared to participate.
+        </td></tr>
 
-          <!-- Footer -->
-          <tr>
-            <td style="font-size:12px;color:#aaa;padding-top:20px;">
-              © 2026 FlyUp. All rights reserved.
-            </td>
-          </tr>
+        <!-- Button -->
+        <tr><td style="padding-top:24px;">
+          <a href="%s" style="background:#2563eb;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:6px;font-size:16px;font-weight:bold;display:inline-block;">
+            View Details
+          </a>
+        </td></tr>
 
-        </table>
-      </td>
-    </tr>
+        <!-- Footer -->
+        <tr><td style="font-size:12px;color:#aaa;padding-top:24px;">
+          © 2026 FlyUp. All rights reserved.
+        </td></tr>
+
+      </table>
+    </td></tr>
   </table>
 </body>
-</html>
-`,
+</html>`, projectTitle, phaseNo, milestoneTitle, pioneerName, date, time, detail, viewLink),
 	}
 
 	_, err := n.client.Emails.Send(params)
