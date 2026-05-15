@@ -144,11 +144,11 @@ func NewProjectService(
 	return &projectService{
 		projectRepo:      projectRepo,
 		disbursementRepo: disbursementRepo,
-		userRepo:      userRepo,
-		cld:           cld,
-		notifSvc:      notifSvc,
-		emailClient:   emailClient,
-		investmentSvc: investmentSvc,
+		userRepo:         userRepo,
+		cld:              cld,
+		notifSvc:         notifSvc,
+		emailClient:      emailClient,
+		investmentSvc:    investmentSvc,
 	}
 }
 
@@ -423,7 +423,14 @@ func (s *projectService) GetPublicProjectByID(id uint) (*domain.Project, error) 
 	if project.Visibility != domain.VisibilityPublic {
 		return nil, errors.New("not public")
 	}
-	if project.State != domain.StateFunding && project.State != domain.StateExecuting {
+
+	allowedStates := map[domain.ProjectState]bool{
+		domain.StateFunding:   true,
+		domain.StateExecuting: true,
+		domain.StateSuspended: true,
+	}
+
+	if !allowedStates[project.State] {
 		return nil, errors.New("not public")
 	}
 
@@ -2832,12 +2839,22 @@ func (s *projectService) GetPublicProjectBySlug(slug string) (*domain.Project, e
 	if err != nil {
 		return nil, errors.New("project not found")
 	}
-	
+
 	if project.Visibility != domain.VisibilityPublic {
 		return nil, errors.New("project not found")
 	}
-	if project.State != domain.StateFunding && project.State != domain.StateExecuting {
-		return nil, errors.New("project not found")
+	//if project.State != domain.StateFunding && project.State != domain.StateExecuting {
+	//	return nil, errors.New("project not found")
+	//}
+
+	allowedStates := map[domain.ProjectState]bool{
+		domain.StateFunding:   true,
+		domain.StateExecuting: true,
+		domain.StateSuspended: true,
+	}
+
+	if !allowedStates[project.State] {
+		return nil, errors.New("not public")
 	}
 
 	return project, nil

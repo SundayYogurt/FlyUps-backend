@@ -246,6 +246,7 @@ func (p *projectRepository) FindMeetingsByInvestorID(investorUserID uint) ([]dom
 		Joins("JOIN projects ON projects.id = milestones.project_id").
 		Joins("JOIN investments ON investments.project_id = projects.id").
 		Where("investments.booster_user_id = ? AND investments.status = ?", investorUserID, "verified").
+		Group("meetings.id").
 		Preload("Milestone").
 		Find(&meetings).Error
 	return meetings, err
