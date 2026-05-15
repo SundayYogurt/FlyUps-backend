@@ -140,7 +140,15 @@ func (s *investmentService) GenerateContractHTML(boosterUserID uint, investmentI
 		NetAmount:    investment.PrincipalAmount,
 		ProfitShare:  investment.ProfitSharePct,
 		PaidAt:       paidAt,
-		GeneratedAt:  time.Now().Format("02 January 2006 15:04"),
+		GeneratedAt:  func() string {
+			thaiMonths := [13]string{"", "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"}
+			loc, err := time.LoadLocation("Asia/Bangkok")
+			if err != nil {
+				loc = time.FixedZone("ICT", 7*60*60)
+			}
+			now := time.Now().In(loc)
+			return fmt.Sprintf("%d %s %d เวลา %02d:%02d น.", now.Day(), thaiMonths[now.Month()], now.Year()+543, now.Hour(), now.Minute())
+		}(),
 	}
 
 	const tmpl = `<!DOCTYPE html>

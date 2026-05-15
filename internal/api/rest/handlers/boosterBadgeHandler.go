@@ -50,7 +50,6 @@ func (h *BoosterBadgeHandler) GetBadgeCounts(ctx fiber.Ctx) error {
 		    SELECT 1 FROM milestone_votes mv
 		    WHERE mv.milestone_id = m.id
 		      AND mv.booster_user_id = ?
-		      AND mv.deleted_at IS NULL
 		  )
 	`, user.ID, user.ID).Scan(&counts.PendingVotes)
 
