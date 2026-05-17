@@ -464,8 +464,29 @@ func (s *projectService) UpdateProjectStatus(projectID uint, newState domain.Pro
 		return err
 	}
 
+	// ถ้ากำลัง unsuspend ให้ restore จาก previous state/status อัตโนมัติ
+	// ไม่ใช้ค่าที่ frontend ส่งมา เพื่อป้องกัน state ผิด
+	if project.State == domain.StateSuspended && newState != domain.StateSuspended {
+		if project.PreviousState != nil {
+			newState = *project.PreviousState
+		}
+		if project.PreviousStatus != nil {
+			newStatus = *project.PreviousStatus
+		}
+		project.PreviousState = nil
+		project.PreviousStatus = nil
+	}
+
 	if !helper.IsValidStateTransition(project.State, newState) {
 		return errors.New("invalid state transition")
+	}
+
+	// ถ้ากำลัง suspend ให้บันทึก state/status ปัจจุบันไว้ก่อน
+	if newState == domain.StateSuspended {
+		prevState := project.State
+		prevStatus := project.Status
+		project.PreviousState = &prevState
+		project.PreviousStatus = &prevStatus
 	}
 
 	project.State = newState

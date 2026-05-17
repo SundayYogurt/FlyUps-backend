@@ -192,6 +192,11 @@ type UpdateMeetingRequest struct {
 	About       string             `json:"about"`
 }
 
+type UpdateProjectStatusRequest struct {
+	State  string `json:"state"`
+	Status string `json:"status"`
+}
+
 type CancelProjectRequest struct {
 	Reason            string `json:"reason" validate:"required,min=20"`
 	CancelDescription string `json:"description,omitempty"`
