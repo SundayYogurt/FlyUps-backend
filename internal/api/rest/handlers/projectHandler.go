@@ -1449,7 +1449,7 @@ func (h *ProjectHandler) GetProjectsByCategory(ctx fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "Project ID"
-// @Param request body object true "Status Update Data"
+// @Param request body dto.UpdateProjectStatusRequest true "Status Update Data"
 // @Success 200 {object} object "Status updated"
 // @Router /admin/projects/{id}/status [patch]
 func (h *ProjectHandler) UpdateProjectStatus(ctx fiber.Ctx) error {
@@ -1461,10 +1461,7 @@ func (h *ProjectHandler) UpdateProjectStatus(ctx fiber.Ctx) error {
 	if err != nil {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
-	var body struct {
-		State  string `json:"state"`
-		Status string `json:"status"`
-	}
+	var body dto.UpdateProjectStatusRequest
 	if err := ctx.Bind().Body(&body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}

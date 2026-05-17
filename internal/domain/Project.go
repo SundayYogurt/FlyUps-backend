@@ -49,6 +49,8 @@ type Project struct {
 	Risk              *string           `json:"risk,omitempty"`
 	State             ProjectState      `json:"state"`
 	Status            ProjectStatus     `json:"status"`
+	PreviousState     *ProjectState     `json:"previous_state,omitempty"`
+	PreviousStatus    *ProjectStatus    `json:"previous_status,omitempty"`
 	Visibility        ProjectVisibility `json:"visibility"`
 	FundingGoal       float64           `json:"funding_goal"`
 	Softcap           float64           `json:"softcap"`
