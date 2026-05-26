@@ -20,9 +20,10 @@ import (
 const errInvalidProjectID = "invalid project id"
 
 type ProjectHandler struct {
-	svc       service.ProjectService
-	validator *validator.Validate
-	auth      helper.Auth
+	svc         service.ProjectService
+	validator   *validator.Validate
+	auth        helper.Auth
+	adminLogSvc service.AdminLogService
 }
 
 func SetupProjectRoutes(rh *rest.RestHandler) {
@@ -40,9 +41,10 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	)
 
 	handler := ProjectHandler{
-		svc:       svc,
-		validator: rh.Validator,
-		auth:      rh.Auth,
+		svc:         svc,
+		validator:   rh.Validator,
+		auth:        rh.Auth,
+		adminLogSvc: rh.AdminLogSvc,
 	}
 
 	// Platform Stats
@@ -353,6 +355,8 @@ func (h *ProjectHandler) ApproveCancel(ctx fiber.Ctx) error {
 		return rest.InternalError(ctx, err)
 	}
 
+	pid := uint(id)
+	h.adminLogSvc.LogAction(user.ID, domain.AdminActionApproveCancel, domain.TargetTypeProject, &pid, nil)
 	return rest.SuccessResponse(ctx, "project cancelled successfully", nil)
 }
 
@@ -384,6 +388,8 @@ func (h *ProjectHandler) RejectCancel(ctx fiber.Ctx) error {
 		return rest.InternalError(ctx, err)
 	}
 
+	pid := uint(id)
+	h.adminLogSvc.LogAction(user.ID, domain.AdminActionRejectCancel, domain.TargetTypeProject, &pid, nil)
 	return rest.SuccessResponse(ctx, "reject project cancelled successfully", nil)
 }
 
@@ -1347,6 +1353,7 @@ func (h *ProjectHandler) AdminGetMilestoneDetail(ctx fiber.Ctx) error {
 // @Success 200 {object} object "Milestone marked as paid"
 // @Router /admin/projects/milestones/{milestone_id}/approve [patch]
 func (h *ProjectHandler) AdminApproveMilestoneSubmission(ctx fiber.Ctx) error {
+	admin := h.auth.GetCurrentUser(ctx)
 	milestoneID, err := strconv.Atoi(ctx.Params("milestone_id"))
 	if err != nil || milestoneID <= 0 {
 		return rest.BadRequestError(ctx, "invalid milestone id")
@@ -1356,6 +1363,8 @@ func (h *ProjectHandler) AdminApproveMilestoneSubmission(ctx fiber.Ctx) error {
 	if err != nil {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
 	}
+	mid := uint(milestoneID)
+	h.adminLogSvc.LogAction(admin.ID, domain.AdminActionApproveMilestone, domain.TargetTypeMilestone, &mid, nil)
 	return rest.SuccessResponse(ctx, "milestone approved (ready for voting)", m)
 }
 
@@ -1371,6 +1380,7 @@ func (h *ProjectHandler) AdminApproveMilestoneSubmission(ctx fiber.Ctx) error {
 // @Success 200 {object} object "Milestone rejected"
 // @Router /admin/projects/milestones/{milestone_id}/reject [patch]
 func (h *ProjectHandler) AdminRejectMilestoneSubmission(ctx fiber.Ctx) error {
+	admin := h.auth.GetCurrentUser(ctx)
 	milestoneID, err := strconv.Atoi(ctx.Params("milestone_id"))
 	if err != nil || milestoneID <= 0 {
 		return rest.BadRequestError(ctx, "invalid milestone id")
@@ -1385,6 +1395,8 @@ func (h *ProjectHandler) AdminRejectMilestoneSubmission(ctx fiber.Ctx) error {
 	if err != nil {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
 	}
+	mid := uint(milestoneID)
+	h.adminLogSvc.LogAction(admin.ID, domain.AdminActionRejectMilestone, domain.TargetTypeMilestone, &mid, body.Reason)
 	return rest.SuccessResponse(ctx, "milestone rejected", m)
 }
 
@@ -2021,6 +2033,7 @@ func (h *ProjectHandler) SubmitForReview(ctx fiber.Ctx) error {
 // @Success 200 {object} object "Project approved"
 // @Router /admin/projects/{id}/approve [patch]
 func (h *ProjectHandler) ApproveProject(ctx fiber.Ctx) error {
+	admin := h.auth.GetCurrentUser(ctx)
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
@@ -2028,6 +2041,8 @@ func (h *ProjectHandler) ApproveProject(ctx fiber.Ctx) error {
 	if err := h.svc.ApproveProject(uint(id)); err != nil {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
 	}
+	pid := uint(id)
+	h.adminLogSvc.LogAction(admin.ID, domain.AdminActionApproveProject, domain.TargetTypeProject, &pid, nil)
 	return rest.SuccessResponse(ctx, "project approved", nil)
 }
 
@@ -2042,6 +2057,7 @@ func (h *ProjectHandler) ApproveProject(ctx fiber.Ctx) error {
 // @Success 200 {object} object "Project rejected"
 // @Router /admin/projects/{id}/reject [patch]
 func (h *ProjectHandler) RejectProject(ctx fiber.Ctx) error {
+	admin := h.auth.GetCurrentUser(ctx)
 	id, err := strconv.Atoi(ctx.Params("id"))
 	if err != nil {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
@@ -2049,6 +2065,8 @@ func (h *ProjectHandler) RejectProject(ctx fiber.Ctx) error {
 	if err := h.svc.RejectProject(uint(id)); err != nil {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
 	}
+	pid := uint(id)
+	h.adminLogSvc.LogAction(admin.ID, domain.AdminActionRejectProject, domain.TargetTypeProject, &pid, nil)
 	return rest.SuccessResponse(ctx, "project rejected", nil)
 }
 

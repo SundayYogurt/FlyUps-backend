@@ -93,6 +93,9 @@ func StartServer(cfg config.AppConfig) {
 		&domain.ChatSession{},
 		&domain.ChatMessage{},
 		&domain.ChatAction{},
+
+		// admin logs
+		&domain.AdminLog{},
 	)
 
 	if err != nil {
@@ -183,6 +186,8 @@ func StartServer(cfg config.AppConfig) {
 
 	validate := validator.New()
 
+	adminLogSvc := service.NewAdminLogService(repository.NewAdminLogRepository(db))
+
 	rh := &rest.RestHandler{
 		App:          app,
 		DB:           db,
@@ -194,6 +199,7 @@ func StartServer(cfg config.AppConfig) {
 		Cloudinary:   cloudinarySvc,
 		NotifSvc:     notifSvc,
 		Cache:        cacheClient,
+		AdminLogSvc:  adminLogSvc,
 	}
 
 	// Background lifecycle job:
@@ -254,6 +260,7 @@ func setupRoutes(rh *rest.RestHandler) {
 	handlers.SetupBoosterBadgeRoutes(rh)
 	handlers.SetupFinancialRoutes(rh)
 	handlers.SetupProjectFinancialRoutes(rh)
+	handlers.SetupAdminLogRoutes(rh)
 }
 
 func HealthCheck(ctx fiber.Ctx) error {
