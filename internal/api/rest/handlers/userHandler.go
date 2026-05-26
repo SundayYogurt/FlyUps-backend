@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"flyup/internal/api/rest"
+	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/helper"
 	"log"
@@ -25,6 +26,7 @@ type UserHandler struct {
 	auth        helper.Auth
 	googleOAuth *oauth2.Config
 	config      config.AppConfig
+	adminLogSvc service.AdminLogService
 }
 
 func SetupUserRoutes(rh *rest.RestHandler) {
@@ -50,6 +52,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 		auth:        rh.Auth,
 		googleOAuth: googleOAuth,
 		config:      rh.Config,
+		adminLogSvc: rh.AdminLogSvc,
 	}
 
 	pubRoutes := app.Group("/")
@@ -602,6 +605,9 @@ func (h *UserHandler) ApproveStudentCard(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, err.Error())
 	}
 
+	uid := uint(userID)
+	h.adminLogSvc.LogAction(admin.ID, domain.AdminActionApproveStudentCard, domain.TargetTypeUser, &uid, nil)
+
 	return rest.SuccessResponse(ctx, "student card approved", map[string]interface{}{
 		"user_id": userID,
 	})
@@ -635,6 +641,9 @@ func (h *UserHandler) ApproveCardID(ctx fiber.Ctx) error {
 	if err != nil {
 		return rest.BadRequestError(ctx, err.Error())
 	}
+
+	uid := uint(userID)
+	h.adminLogSvc.LogAction(admin.ID, domain.AdminActionApproveIDCard, domain.TargetTypeUser, &uid, nil)
 
 	return rest.SuccessResponse(ctx, "id card approved", map[string]interface{}{
 		"user_id": userID,
@@ -670,6 +679,9 @@ func (h *UserHandler) RejectStudentCard(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, err.Error())
 	}
 
+	uid := uint(userID)
+	h.adminLogSvc.LogAction(admin.ID, domain.AdminActionRejectStudentCard, domain.TargetTypeUser, &uid, nil)
+
 	return rest.SuccessResponse(ctx, "student card rejected", map[string]interface{}{
 		"user_id": userID,
 	})
@@ -703,6 +715,9 @@ func (h *UserHandler) RejectCardID(ctx fiber.Ctx) error {
 	if err != nil {
 		return rest.BadRequestError(ctx, err.Error())
 	}
+
+	uid := uint(userID)
+	h.adminLogSvc.LogAction(admin.ID, domain.AdminActionRejectIDCard, domain.TargetTypeUser, &uid, nil)
 
 	return rest.SuccessResponse(ctx, "id card rejected", map[string]interface{}{
 		"user_id": userID,
@@ -748,6 +763,10 @@ func (h *UserHandler) SuspendUser(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, err.Error())
 	}
 
+	uid := uint(userID)
+	note := req.Reason
+	h.adminLogSvc.LogAction(admin.ID, domain.AdminActionSuspendUser, domain.TargetTypeUser, &uid, &note)
+
 	return rest.SuccessResponse(ctx, "user suspended", nil)
 }
 
@@ -778,6 +797,9 @@ func (h *UserHandler) RollbackUser(ctx fiber.Ctx) error {
 	if err := h.svc.RollbackActiveUser(uint(userID)); err != nil {
 		return rest.BadRequestError(ctx, err.Error())
 	}
+
+	uid := uint(userID)
+	h.adminLogSvc.LogAction(admin.ID, domain.AdminActionRollbackUser, domain.TargetTypeUser, &uid, nil)
 
 	return rest.SuccessResponse(ctx, "user come back to active!", nil)
 }
