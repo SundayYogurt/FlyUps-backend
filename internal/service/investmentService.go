@@ -1284,9 +1284,14 @@ func (s *investmentService) handlePaymentFailed(intentID string) {
 // // helper functions
 
 func validateAmount(project *domain.Project, amount float64) error {
-	effectiveMin := math.Max(project.MinInvestAmount, project.FundingGoal*0.01)
-	if amount < effectiveMin {
-		return fmt.Errorf("minimum investment is ฿%.0f (1%% of funding goal)", effectiveMin)
+	// ถ้าระดมทุนถึง softcap แล้ว → ยกเว้นขั้นต่ำ
+	// เพื่อให้นักลงทุนสามารถลงทุนยอด remaining ที่เหลือได้แม้จะน้อยกว่า minInvestAmount
+	softcapReached := project.Softcap > 0 && project.CurrentFunding >= project.Softcap
+	if !softcapReached {
+		effectiveMin := math.Max(project.MinInvestAmount, project.FundingGoal*0.01)
+		if amount < effectiveMin {
+			return fmt.Errorf("minimum investment is ฿%.0f (1%% of funding goal)", effectiveMin)
+		}
 	}
 
 	if project.MaxInvestAmount > 0 && amount > project.MaxInvestAmount {
