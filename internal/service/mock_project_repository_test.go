@@ -172,6 +172,62 @@ func (_m *ProjectRepository) FindPublicProjects(filter dto.PublicProjectFilter) 
 }
 
 
+// CountFundedProjects provides a mock function with given fields:
+func (_m *ProjectRepository) CountFundedProjects() (int64, error) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountFundedProjects")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (int64, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() int64); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// CountPassedMilestones provides a mock function with given fields:
+func (_m *ProjectRepository) CountPassedMilestones() (int64, error) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountPassedMilestones")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (int64, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() int64); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // CountProjectsByCategoryID provides a mock function with given fields: categoryID
 func (_m *ProjectRepository) CountProjectsByCategoryID(categoryID uint) (int64, error) {
 	ret := _m.Called(categoryID)

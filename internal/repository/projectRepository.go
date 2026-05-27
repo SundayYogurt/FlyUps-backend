@@ -114,6 +114,10 @@ type ProjectRepository interface {
 	CreateFAQ(faq *domain.ProjectFAQ) error
 	UpdateFAQ(faq *domain.ProjectFAQ) error
 	DeleteFAQ(faqID uint) error
+
+	// Stats
+	CountFundedProjects() (int64, error)
+	CountPassedMilestones() (int64, error)
 }
 
 type projectRepository struct {
@@ -1049,4 +1053,20 @@ func (p *projectRepository) FindInvestorIDsByProjectID(projectID uint) ([]uint, 
 		Pluck("investments.booster_user_id", &ids).Error
 
 	return ids, err
+}
+
+func (p *projectRepository) CountFundedProjects() (int64, error) {
+	var count int64
+	err := p.db.Model(&domain.Project{}).
+		Where("state IN ?", []string{string(domain.StateExecuting), string(domain.StateClosed)}).
+		Count(&count).Error
+	return count, err
+}
+
+func (p *projectRepository) CountPassedMilestones() (int64, error) {
+	var count int64
+	err := p.db.Model(&domain.Milestone{}).
+		Where("status IN ?", []string{string(domain.MilestoneApproved), string(domain.MilestonePaid)}).
+		Count(&count).Error
+	return count, err
 }

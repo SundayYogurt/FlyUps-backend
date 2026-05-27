@@ -72,6 +72,14 @@ func (m *mockInvestmentRepo) ListInvestedProjectsByUserID(boosterUserID uint) ([
 	args := m.Called(boosterUserID)
 	return args.Get(0).([]dto.InvestedProjectItem), args.Error(1)
 }
+func (m *mockInvestmentRepo) SumTotalFunding() (float64, error) {
+	args := m.Called()
+	return args.Get(0).(float64), args.Error(1)
+}
+func (m *mockInvestmentRepo) CountUniqueBoosters() (int64, error) {
+	args := m.Called()
+	return args.Get(0).(int64), args.Error(1)
+}
 
 // ─── Mock: TransactionRepository ────────────────────────────────────────────
 
