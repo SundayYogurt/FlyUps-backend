@@ -51,6 +51,13 @@ type ProjectResponse struct {
 	OwnerProfile    *ProjectOwnerProfile `json:"owner_profile,omitempty"`
 }
 
+type PlatformStatsResponse struct {
+	FundedProjects   int64   `json:"funded_projects"`
+	TotalFunding     float64 `json:"total_funding"`
+	UniqueBoosters   int64   `json:"unique_boosters"`
+	PassedMilestones int64   `json:"passed_milestones"`
+}
+
 type ProjectOwnerProfile struct {
 	FirstName    string  `json:"first_name"`
 	LastName     string  `json:"last_name"`

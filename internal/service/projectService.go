@@ -109,6 +109,7 @@ type ProjectService interface {
 	GetCancelRequest() ([]domain.Project, error)
 	GetCancelPreview(projectID uint) (*dto.CancelPreviewResponse, error)
 	AdminListProjects(filter dto.AdminProjectFilter) ([]domain.Project, error)
+	GetPlatformStats() (*dto.PlatformStatsResponse, error)
 
 	//meeting
 	Meeting(input dto.CreateMeetingRequest, userID uint) (*domain.Meeting, error)
@@ -2879,4 +2880,33 @@ func (s *projectService) GetPublicProjectBySlug(slug string) (*domain.Project, e
 	}
 
 	return project, nil
+}
+
+func (s *projectService) GetPlatformStats() (*dto.PlatformStatsResponse, error) {
+	fundedProjects, err := s.projectRepo.CountFundedProjects()
+	if err != nil {
+		return nil, err
+	}
+
+	totalFunding, err := s.investmentSvc.GetTotalFunding()
+	if err != nil {
+		return nil, err
+	}
+
+	uniqueBoosters, err := s.investmentSvc.GetUniqueBoostersCount()
+	if err != nil {
+		return nil, err
+	}
+
+	passedMilestones, err := s.projectRepo.CountPassedMilestones()
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.PlatformStatsResponse{
+		FundedProjects:   fundedProjects,
+		TotalFunding:     totalFunding,
+		UniqueBoosters:   uniqueBoosters,
+		PassedMilestones: passedMilestones,
+	}, nil
 }

@@ -47,6 +47,9 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 		adminLogSvc: rh.AdminLogSvc,
 	}
 
+	// Platform Stats
+	app.Get("/stats", handler.GetPlatformStats)
+
 	// Public Project
 	pub := app.Group("/projects")
 	pub.Get("/", handler.GetPublicProjects)
@@ -191,6 +194,22 @@ func (h *ProjectHandler) GetPublicProjectBySlug(ctx fiber.Ctx) error {
 		return rest.ErrorMessage(ctx, http.StatusNotFound, err)
 	}
 	return rest.SuccessResponse(ctx, "success", h.toProjectDetailResponse(proj))
+}
+
+// GetPlatformStats godoc
+// @Summary Get Platform Statistics
+// @Description Get overall platform stats: funded projects, total funding raised, unique boosters, and passed milestones
+// @Tags Projects
+// @Produce json
+// @Success 200 {object} object "Platform statistics"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /stats [get]
+func (h *ProjectHandler) GetPlatformStats(ctx fiber.Ctx) error {
+	stats, err := h.svc.GetPlatformStats()
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+	return rest.SuccessResponse(ctx, "success", stats)
 }
 
 // GetNewProjects godoc

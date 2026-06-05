@@ -22,6 +22,8 @@ type InvestmentRepository interface {
 	IncrementProjectFunding(projectID uint, amount float64) error
 	ListInvestorsByProjectID(projectID uint) ([]dto.ProjectInvestorItem, error)
 	ListInvestedProjectsByUserID(boosterUserID uint) ([]dto.InvestedProjectItem, error)
+	SumTotalFunding() (float64, error)
+	CountUniqueBoosters() (int64, error)
 }
 
 type investmentRepository struct {
@@ -154,4 +156,22 @@ func (r *investmentRepository) ListInvestedProjectsByUserID(boosterUserID uint) 
 		Order("first_invested_at DESC").
 		Scan(&result).Error
 	return result, err
+}
+
+func (r *investmentRepository) SumTotalFunding() (float64, error) {
+	var total float64
+	err := r.db.Model(&domain.Investment{}).
+		Where("status = ?", string(domain.InvestmentVerified)).
+		Select("COALESCE(SUM(principal_amount), 0)").
+		Scan(&total).Error
+	return total, err
+}
+
+func (r *investmentRepository) CountUniqueBoosters() (int64, error) {
+	var count int64
+	err := r.db.Model(&domain.Investment{}).
+		Where("status = ?", string(domain.InvestmentVerified)).
+		Distinct("booster_user_id").
+		Count(&count).Error
+	return count, err
 }

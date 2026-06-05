@@ -51,6 +51,8 @@ type InvestmentService interface {
 	RefundProjectInvestments(project domain.Project)
 	GetCancelPreview(projectID uint) (*dto.CancelPreviewResponse, error)
 	FinalizeVotingIfExpired(milestoneID uint) error
+	GetTotalFunding() (float64, error)
+	GetUniqueBoostersCount() (int64, error)
 }
 
 type investmentService struct {
@@ -1327,4 +1329,12 @@ func generateReferenceNumber() (string, error) {
 	}
 
 	return "INV-" + strings.ToUpper(string(result)), nil
+}
+
+func (s *investmentService) GetTotalFunding() (float64, error) {
+	return s.investmentRepo.SumTotalFunding()
+}
+
+func (s *investmentService) GetUniqueBoostersCount() (int64, error) {
+	return s.investmentRepo.CountUniqueBoosters()
 }

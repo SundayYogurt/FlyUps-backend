@@ -114,6 +114,10 @@ type ProjectRepository interface {
 	CreateFAQ(faq *domain.ProjectFAQ) error
 	UpdateFAQ(faq *domain.ProjectFAQ) error
 	DeleteFAQ(faqID uint) error
+
+	// Stats
+	CountFundedProjects() (int64, error)
+	CountPassedMilestones() (int64, error)
 }
 
 type projectRepository struct {
@@ -348,7 +352,7 @@ func (p *projectRepository) FindProjectRecommendations() ([]domain.Project, erro
 		Order(`
 		current_funding / 
 		GREATEST(EXTRACT(EPOCH FROM (NOW() - created_at)), 3600) DESC
-	`).
+	`).Limit(3).
 		Find(&projects).Error
 
 	if err != nil {
@@ -362,6 +366,7 @@ func (p *projectRepository) FindNewProjects() ([]domain.Project, error) {
 	// เรียงตามวันที่เปิดให้ระดมทุน (funding_at) ล่าสุด
 	err := p.db.Where("state = ? AND visibility = ?", domain.StateFunding, domain.VisibilityPublic).
 		Order("funding_at DESC").
+		Limit(3).
 		Find(&projects).Error
 
 	if err != nil {
@@ -375,6 +380,7 @@ func (p *projectRepository) FindProjectEndingSoon() ([]domain.Project, error) {
 	// ดึงโปรเจกต์ที่ยังไม่หมดเวลา แต่ใกล้จะถึงวัน EndDate ที่สุด
 	err := p.db.Where("state = ? AND visibility = ? AND end_date > ?", domain.StateFunding, domain.VisibilityPublic, time.Now()).
 		Order("end_date ASC").
+		Limit(3).
 		Find(&projects).Error
 
 	if err != nil {
@@ -1049,4 +1055,20 @@ func (p *projectRepository) FindInvestorIDsByProjectID(projectID uint) ([]uint, 
 		Pluck("investments.booster_user_id", &ids).Error
 
 	return ids, err
+}
+
+func (p *projectRepository) CountFundedProjects() (int64, error) {
+	var count int64
+	err := p.db.Model(&domain.Project{}).
+		Where("state IN ?", []string{string(domain.StateExecuting), string(domain.StateClosed)}).
+		Count(&count).Error
+	return count, err
+}
+
+func (p *projectRepository) CountPassedMilestones() (int64, error) {
+	var count int64
+	err := p.db.Model(&domain.Milestone{}).
+		Where("status IN ?", []string{string(domain.MilestoneApproved), string(domain.MilestonePaid)}).
+		Count(&count).Error
+	return count, err
 }
