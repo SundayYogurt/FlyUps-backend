@@ -352,7 +352,7 @@ func (p *projectRepository) FindProjectRecommendations() ([]domain.Project, erro
 		Order(`
 		current_funding / 
 		GREATEST(EXTRACT(EPOCH FROM (NOW() - created_at)), 3600) DESC
-	`).Limit(3).
+	`).Limit(4).
 		Find(&projects).Error
 
 	if err != nil {
