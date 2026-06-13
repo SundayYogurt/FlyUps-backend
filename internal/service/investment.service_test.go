@@ -552,7 +552,6 @@ func TestApproveRefund_Success(t *testing.T) {
 	inv := &domain.Investment{ID: 1, ProjectID: 5, Status: domain.InvestmentRefundPending, TotalAmount: 1000}
 	investRepo.On("FindByID", uint(1)).Return(inv, nil)
 	investRepo.On("UpdateRefunded", mock.AnythingOfType("*domain.Investment")).Return(nil)
-	investRepo.On("IncrementProjectFunding", uint(5), -float64(1000)).Return(nil)
 
 	err := svc.ApproveRefund(1)
 

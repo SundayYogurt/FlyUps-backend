@@ -466,10 +466,6 @@ func (s *investmentService) ApproveRefund(investmentID uint) error {
 		return errors.New("failed to approve refund")
 	}
 
-	if err := s.investmentRepo.IncrementProjectFunding(investment.ProjectID, -investment.TotalAmount); err != nil {
-		log.Printf("[ApproveRefund] decrement current_funding error: %v", err)
-	}
-
 	return nil
 }
 
@@ -497,7 +493,20 @@ func (s *investmentService) RefundProjectInvestments(project domain.Project) {
 		totalFunding += inv.TotalAmount
 	}
 
-	remaining := project.CurrentFunding
+	// เงินที่เบิกจ่ายให้ pioneer ไปแล้ว (confirmed) ไม่อยู่ใน escrow แล้ว ไม่สามารถคืนผ่าน Stripe ได้
+	var totalDisbursed float64
+	if disbursements, err := s.disbursementRepo.ListByProjectID(project.ID); err == nil {
+		for _, d := range disbursements {
+			if d.Status == domain.DisbursementConfirmed {
+				totalDisbursed += d.Amount
+			}
+		}
+	}
+
+	remaining := project.CurrentFunding - totalDisbursed
+	if remaining < 0 {
+		remaining = 0
+	}
 	if totalFunding == 0 || remaining == 0 {
 		return
 	}
@@ -629,7 +638,10 @@ func (s *investmentService) GetCancelPreview(projectID uint) (*dto.CancelPreview
 		return nil, err
 	}
 
-	remaining := project.CurrentFunding
+	remaining := project.CurrentFunding - totalDisbursed
+	if remaining < 0 {
+		remaining = 0
+	}
 	var totalInvested float64
 	for _, inv := range investments {
 		totalInvested += inv.TotalAmount
@@ -1281,6 +1293,20 @@ func (s *investmentService) handlePaymentFailed(intentID string) {
 
 	_ = s.transactionRepo.UpdateStatus(txn.ID, domain.TransactionFailed)
 	_ = s.investmentRepo.UpdateStatus(txn.InvestmentID, domain.InvestmentRejected)
+
+	// notify booster ว่าการชำระเงินไม่สำเร็จ/QR หมดอายุ เพื่อให้รู้ว่าต้องทำรายการใหม่
+	if s.notifSvc != nil {
+		investment, err := s.investmentRepo.FindByID(txn.InvestmentID)
+		if err != nil {
+			log.Printf("[Webhook] investment not found: %v", err)
+			return
+		}
+		relatedID := investment.ProjectID
+		relatedType := "project"
+		if err := s.notifSvc.CreateAndPush(investment.BoosterUserID, domain.NotifPaymentFailed, "การชำระเงินไม่สำเร็จ", "การชำระเงินสำหรับการลงทุนของคุณไม่สำเร็จ หรือ QR Code หมดอายุ กรุณาทำรายการใหม่", &relatedID, &relatedType); err != nil {
+			log.Printf("[Webhook] send notification error: %v", err)
+		}
+	}
 }
 
 // // helper functions
