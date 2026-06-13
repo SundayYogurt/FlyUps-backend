@@ -466,10 +466,6 @@ func (s *investmentService) ApproveRefund(investmentID uint) error {
 		return errors.New("failed to approve refund")
 	}
 
-	if err := s.investmentRepo.IncrementProjectFunding(investment.ProjectID, -investment.TotalAmount); err != nil {
-		log.Printf("[ApproveRefund] decrement current_funding error: %v", err)
-	}
-
 	return nil
 }
 
