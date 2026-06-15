@@ -27,6 +27,7 @@ func SetupProfitPoolRoutes(rh *rest.RestHandler) {
 		repository.NewProjectRepository(rh.DB),
 		repository.NewInvestmentRepository(rh.DB),
 		repository.NewUserRepository(rh.DB),
+		rh.InvestmentSvc,
 		rh.NotifSvc,
 	)
 	h := &ProfitPoolHandler{svc, rh.Validator, rh.Auth}

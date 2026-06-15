@@ -6,6 +6,7 @@ import (
 	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/repository"
+	"log"
 	"math"
 	"time"
 )
@@ -23,11 +24,12 @@ type ProfitPoolService interface {
 }
 
 type profitPoolService struct {
-	repo        repository.ProfitPoolRepository
-	projectRepo repository.ProjectRepository
-	investRepo  repository.InvestmentRepository
-	userRepo    repository.UserRepository
-	notifSvc    NotificationService
+	repo          repository.ProfitPoolRepository
+	projectRepo   repository.ProjectRepository
+	investRepo    repository.InvestmentRepository
+	userRepo      repository.UserRepository
+	investmentSvc InvestmentService
+	notifSvc      NotificationService
 }
 
 func NewProfitPoolService(
@@ -35,15 +37,20 @@ func NewProfitPoolService(
 	projectRepo repository.ProjectRepository,
 	investRepo repository.InvestmentRepository,
 	userRepo repository.UserRepository,
+	investmentSvc InvestmentService,
 	notifSvc NotificationService,
 ) ProfitPoolService {
-	return &profitPoolService{repo, projectRepo, investRepo, userRepo, notifSvc}
+	return &profitPoolService{repo, projectRepo, investRepo, userRepo, investmentSvc, notifSvc}
 }
 
 func (s *profitPoolService) Create(adminID uint, req dto.CreateProfitPoolRequest) (*dto.ProfitPoolDetail, error) {
 	project, err := s.projectRepo.FindProjectByID(req.ProjectID)
 	if err != nil {
 		return nil, errors.New("project not found")
+	}
+
+	if err := s.investmentSvc.SyncProjectPrincipalAmounts(req.ProjectID); err != nil {
+		log.Printf("[ProfitPool.Create] sync principal amounts error: %v", err)
 	}
 
 	investors, err := s.investRepo.ListInvestorsByProjectID(req.ProjectID)
@@ -319,6 +326,10 @@ func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dt
 	project, err := s.validatePioneerProjectForProfit(pioneerID, projectID, req.QuarterNo)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := s.investmentSvc.SyncProjectPrincipalAmounts(projectID); err != nil {
+		log.Printf("[ProfitPool.PioneerSubmit] sync principal amounts error: %v", err)
 	}
 
 	investors, err := s.investRepo.ListInvestorsByProjectID(projectID)
