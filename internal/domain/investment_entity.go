@@ -6,6 +6,16 @@ import (
 	"gorm.io/gorm"
 )
 
+type InvestmentStatus string
+
+const (
+	InvestmentPending       InvestmentStatus = "pending_payment"
+	InvestmentVerified      InvestmentStatus = "verified"
+	InvestmentRejected      InvestmentStatus = "rejected"
+	InvestmentRefundPending InvestmentStatus = "refund_pending"
+	InvestmentRefunded      InvestmentStatus = "refunded"
+)
+
 type Investment struct {
 	ID              uint             `json:"id"`
 	ReferenceNumber string           `json:"reference_number" gorm:"uniqueIndex"`
@@ -23,4 +33,15 @@ type Investment struct {
 	RefundNote      string           `json:"refund_note"`
 	RefundedAt      *time.Time       `json:"refunded_at,omitempty"`
 	gorm.Model
+}
+
+// ProjectInvestment is a lightweight summary of an investment scoped to a project view.
+type ProjectInvestment struct {
+	ID              uint             `json:"id"`
+	ProjectID       uint             `json:"project_id"`
+	BoosterUserID   uint             `json:"booster_user_id"`
+	PrincipalAmount float64          `json:"principal_amount"`
+	TotalAmount     float64          `json:"total_amount"`
+	Status          InvestmentStatus `json:"status"`
+	CreatedAt       time.Time        `json:"created_at"`
 }

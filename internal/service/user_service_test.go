@@ -244,6 +244,17 @@ func (m *mockAuth) CreateHashedPassword(pw string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
+func (m *mockAuth) GenerateRefreshToken(userID uint, email string, role string) (string, error) {
+	args := m.Called(userID, email, role)
+	return args.String(0), args.Error(1)
+}
+
+func (m *mockAuth) VerifyRefreshToken(token string) (domain.User, error) {
+	args := m.Called(token)
+	user, _ := args.Get(0).(domain.User)
+	return user, args.Error(1)
+}
+
 func (m *mockAuth) GenerateCode() (string, error) {
 	args := m.Called()
 	return args.String(0), args.Error(1)
@@ -465,7 +476,7 @@ func TestSigning_Success(t *testing.T) {
 	auth.On("VerifyPassword", "password123", "hashed_password").Return(nil)
 	auth.On("GenerateToken", uint(2), "test@test.com", "pioneer").Return("mock.jwt.token", nil)
 
-	token, err := svc.Signing("test@test.com", "password123")
+	token, _, _, err := svc.Signing("test@test.com", "password123")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "mock.jwt.token", token)

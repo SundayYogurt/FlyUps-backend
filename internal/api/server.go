@@ -3,7 +3,7 @@ package api
 import (
 	"flyup/config"
 	"flyup/internal/api/rest"
-	"flyup/internal/api/rest/handlers"
+	"flyup/internal/api/rest/handler"
 	"flyup/internal/domain"
 	"flyup/internal/helper"
 	"flyup/internal/repository"
@@ -246,21 +246,21 @@ func StartServer(cfg config.AppConfig) {
 }
 
 func setupRoutes(rh *rest.RestHandler) {
-	handlers.SetupUserRoutes(rh)
-	handlers.SetupProjectRoutes(rh)
-	handlers.SetupInvestmentRoutes(rh)
-	handlers.SetupDisbursementRoutes(rh)
-	handlers.SetupUploadRoutes(rh)
-	handlers.SetupNotificationRoutes(rh)
-	handlers.SetupComplaintRoutes(rh)
-	handlers.SetupProfitPoolRoutes(rh)
-	handlers.SetupChatRoutes(rh)
-	handlers.SetupAdminBadgeRoutes(rh)
-	handlers.SetupPioneerBadgeRoutes(rh)
-	handlers.SetupBoosterBadgeRoutes(rh)
-	handlers.SetupFinancialRoutes(rh)
-	handlers.SetupProjectFinancialRoutes(rh)
-	handlers.SetupAdminLogRoutes(rh)
+	handler.SetupUserRoutes(rh)
+	handler.SetupProjectRoutes(rh)
+	handler.SetupInvestmentRoutes(rh)
+	handler.SetupDisbursementRoutes(rh)
+	handler.SetupUploadRoutes(rh)
+	handler.SetupNotificationRoutes(rh)
+	handler.SetupComplaintRoutes(rh)
+	handler.SetupProfitPoolRoutes(rh)
+	handler.SetupChatRoutes(rh)
+	handler.SetupAdminBadgeRoutes(rh)
+	handler.SetupPioneerBadgeRoutes(rh)
+	handler.SetupBoosterBadgeRoutes(rh)
+	handler.SetupFinancialRoutes(rh)
+	handler.SetupProjectFinancialRoutes(rh)
+	handler.SetupAdminLogRoutes(rh)
 }
 
 func HealthCheck(ctx fiber.Ctx) error {
