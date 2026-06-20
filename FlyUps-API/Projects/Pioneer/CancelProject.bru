@@ -1,0 +1,21 @@
+meta {
+  name: Cancel Project
+  type: http
+  seq: 25
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/1/cancel
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "reason": "Project cancelled due to funding issues"
+  }
+}

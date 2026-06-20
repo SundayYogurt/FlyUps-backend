@@ -1,0 +1,22 @@
+meta {
+  name: Create Project Thread
+  type: http
+  seq: 18
+}
+
+post {
+  url: {{baseUrl}}/pioneer/projects/1/threads
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "New discussion thread",
+    "content": "Thread content here"
+  }
+}

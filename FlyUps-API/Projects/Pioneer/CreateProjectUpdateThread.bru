@@ -1,0 +1,22 @@
+meta {
+  name: Create Project Update Thread
+  type: http
+  seq: 19
+}
+
+post {
+  url: {{baseUrl}}/pioneer/projects/1/updates/1/threads
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Comment on update",
+    "content": "Thread content"
+  }
+}

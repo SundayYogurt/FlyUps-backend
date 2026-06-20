@@ -1,0 +1,21 @@
+meta {
+  name: Submit Cancel Project
+  type: http
+  seq: 12
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/1/submit-cancel
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "reason": "Cannot continue due to team issues"
+  }
+}

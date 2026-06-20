@@ -1,0 +1,23 @@
+meta {
+  name: Verify ID Card
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/user/id-verify
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "id_card_url": "https://cloudinary.com/sample-id.jpg",
+    "selfie_url": "https://cloudinary.com/sample-selfie.jpg",
+    "declare_truth": true
+  }
+}

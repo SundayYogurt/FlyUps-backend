@@ -1,0 +1,26 @@
+meta {
+  name: Create Meeting
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/pioneer/projects/meeting
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "project_id": 1,
+    "milestone_id": 1,
+    "title": "Milestone Review Meeting",
+    "description": "Review progress on milestone 1",
+    "meeting_url": "https://zoom.us/j/123456",
+    "scheduled_at": "2026-07-01T10:00:00Z"
+  }
+}

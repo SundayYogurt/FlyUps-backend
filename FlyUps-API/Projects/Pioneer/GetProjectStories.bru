@@ -1,0 +1,15 @@
+meta {
+  name: Get Project Stories
+  type: http
+  seq: 35
+}
+
+get {
+  url: {{baseUrl}}/pioneer/projects/1/stories
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

@@ -1,0 +1,22 @@
+meta {
+  name: Create Project FAQ
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{baseUrl}}/pioneer/projects/1/faqs
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "question": "What is this project about?",
+    "answer": "This project aims to..."
+  }
+}

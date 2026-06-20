@@ -1,0 +1,15 @@
+meta {
+  name: Get Pioneer Badge Counts
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/pioneer/badges
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

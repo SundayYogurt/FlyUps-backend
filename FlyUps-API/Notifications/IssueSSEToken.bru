@@ -1,0 +1,15 @@
+meta {
+  name: Issue SSE Token
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/notifications/sse-token
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

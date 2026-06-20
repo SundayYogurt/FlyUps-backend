@@ -1,0 +1,23 @@
+meta {
+  name: Create University
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/admin/create-university
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "name": "Chulalongkorn University",
+    "short_name": "CU",
+    "country": "Thailand"
+  }
+}

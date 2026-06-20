@@ -1,0 +1,21 @@
+meta {
+  name: Reject Complaint
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/admin/complaints/1/reject
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "reason": "Complaint not valid"
+  }
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Suspend User
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/admin/suspend-user/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "reason": "Violated terms of service"
+  }
+}

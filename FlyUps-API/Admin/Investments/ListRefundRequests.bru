@@ -1,0 +1,15 @@
+meta {
+  name: List Refund Requests
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/admin/investments/refund-requests
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

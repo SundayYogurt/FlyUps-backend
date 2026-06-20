@@ -1,0 +1,15 @@
+meta {
+  name: Get Projects Financial
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/admin/financial/projects
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

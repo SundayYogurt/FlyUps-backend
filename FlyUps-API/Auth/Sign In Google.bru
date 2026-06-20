@@ -1,0 +1,17 @@
+meta {
+  name: Sign In Google
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/auth/google
+  body: json
+  auth: none
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.token) {
+    bru.setEnvVar("token", res.body.token);
+  }
+}

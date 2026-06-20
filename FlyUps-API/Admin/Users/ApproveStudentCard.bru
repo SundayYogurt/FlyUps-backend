@@ -1,0 +1,15 @@
+meta {
+  name: Approve Student Card
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{baseUrl}}/admin/approve-student-card/1
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

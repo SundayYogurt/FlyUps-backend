@@ -1,0 +1,21 @@
+meta {
+  name: Update Thread Message
+  type: http
+  seq: 23
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/messages/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "content": "Updated message content"
+  }
+}

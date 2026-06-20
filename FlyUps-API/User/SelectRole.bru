@@ -1,0 +1,21 @@
+meta {
+  name: Select Role
+  type: http
+  seq: 10
+}
+
+patch {
+  url: {{baseUrl}}/user/role
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "role": "booster"
+  }
+}

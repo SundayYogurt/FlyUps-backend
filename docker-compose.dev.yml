@@ -21,13 +21,13 @@ services:
     container_name: flyup-postgres
     restart: always
     environment:
-      POSTGRES_USER: ${user}
-      POSTGRES_PASSWORD: ${password}
-      POSTGRES_DB: ${dbname}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5434:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U root -d flyup"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 10

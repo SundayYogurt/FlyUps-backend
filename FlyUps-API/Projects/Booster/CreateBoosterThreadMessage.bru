@@ -1,0 +1,21 @@
+meta {
+  name: Create Booster Thread Message
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/booster/projects/threads/1/messages
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "content": "Message from booster"
+  }
+}

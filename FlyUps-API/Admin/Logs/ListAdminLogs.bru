@@ -1,0 +1,26 @@
+meta {
+  name: List Admin Logs
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/admin/logs
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+params:query {
+  page: 1
+  page_size: 20
+  admin_id:
+  action:
+  target_type:
+  target_id:
+  from:
+  to:
+}

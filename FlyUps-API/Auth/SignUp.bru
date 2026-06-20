@@ -1,0 +1,23 @@
+meta {
+  name: Sign Up
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/Signup
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "role": "pioneer",
+    "first_name": "Test",
+    "last_name": "User",
+    "email": "test@ku.th",
+    "phone": "0812345678",
+    "password": "Password123@",
+    "accept_terms": true
+  }
+}

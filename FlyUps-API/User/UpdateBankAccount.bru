@@ -1,0 +1,23 @@
+meta {
+  name: Update Bank Account
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/user/update-bank/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "bank_name": "ไทยพาณิชย์",
+    "account_name": "Test User",
+    "account_number": "9876543210"
+  }
+}

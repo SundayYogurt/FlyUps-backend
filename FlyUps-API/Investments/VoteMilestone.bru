@@ -1,0 +1,21 @@
+meta {
+  name: Vote Milestone
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/investments/milestones/1/vote
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "vote": "approve"
+  }
+}

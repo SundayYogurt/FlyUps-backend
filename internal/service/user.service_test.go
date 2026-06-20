@@ -26,8 +26,8 @@ type mockUserRepository struct {
 }
 
 func (m *mockUserRepository) FindAdminUserIDs() ([]uint, error) {
-	//TODO implement me
-	panic("implement me")
+	args := m.Called()
+	return args.Get(0).([]uint), args.Error(1)
 }
 
 func (m *mockUserRepository) FindUniversityByUserId(userID uint) (*domain.User, error) {
@@ -412,7 +412,7 @@ func TestGoogleSignin_NewUser_Success(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 
-	// Mock Google Token Request
+	// Mock Google Token Requesty
 	httpmock.RegisterResponder("POST", "https://oauth2.googleapis.com/token",
 		httpmock.NewStringResponder(200, `{"access_token": "mock_token", "token_type": "Bearer"}`))
 

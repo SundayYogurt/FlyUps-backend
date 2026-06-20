@@ -1,0 +1,30 @@
+meta {
+  name: Update Project
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "My Awesome Project",
+    "description": "Project description here",
+    "category_id": 1,
+    "funding_goal": 100000,
+    "softcap": 50000,
+    "min_invest_amount": 500,
+    "max_invest_amount": 50000,
+    "profit_share_pct": 10,
+    "duration_days": 30,
+    "risk": "Medium risk description"
+  }
+}

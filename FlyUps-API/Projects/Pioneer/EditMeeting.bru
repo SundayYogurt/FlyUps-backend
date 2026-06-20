@@ -1,0 +1,23 @@
+meta {
+  name: Edit Meeting
+  type: http
+  seq: 32
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/meeting/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Updated meeting title",
+    "scheduled_at": "2025-12-01T10:00:00Z",
+    "meeting_url": "https://zoom.us/j/updated"
+  }
+}

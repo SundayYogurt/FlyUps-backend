@@ -1,0 +1,19 @@
+meta {
+  name: List Submitted Milestones
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/admin/projects/milestones/submitted
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+params:query {
+  project_id:
+}

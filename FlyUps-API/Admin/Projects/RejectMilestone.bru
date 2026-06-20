@@ -1,0 +1,21 @@
+meta {
+  name: Reject Milestone Submission
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/admin/projects/milestones/1/reject
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "reason": "Evidence not sufficient"
+  }
+}

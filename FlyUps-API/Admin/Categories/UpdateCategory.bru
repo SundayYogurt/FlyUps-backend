@@ -1,0 +1,22 @@
+meta {
+  name: Update Category
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/admin/categories/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "name": "Technology Updated",
+    "description": "Updated description"
+  }
+}

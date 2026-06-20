@@ -1,0 +1,15 @@
+meta {
+  name: List My Complaints
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/complaints/me
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
