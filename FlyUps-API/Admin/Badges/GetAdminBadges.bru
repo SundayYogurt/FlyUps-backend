@@ -1,0 +1,15 @@
+meta {
+  name: Get Admin Badge Counts
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/admin/badges
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

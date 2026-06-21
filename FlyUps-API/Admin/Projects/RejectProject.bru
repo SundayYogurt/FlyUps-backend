@@ -1,0 +1,21 @@
+meta {
+  name: Reject Project
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/admin/projects/1/reject
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "reason": "Project does not meet requirements"
+  }
+}

@@ -1,0 +1,15 @@
+meta {
+  name: Refund Investment
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/investments/1/refund
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

@@ -1,0 +1,15 @@
+meta {
+  name: Admin List Complaints
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/admin/complaints
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

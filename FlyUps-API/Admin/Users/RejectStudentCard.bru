@@ -1,0 +1,21 @@
+meta {
+  name: Reject Student Card
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/admin/reject-student-card/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "reason": "Image is unclear"
+  }
+}

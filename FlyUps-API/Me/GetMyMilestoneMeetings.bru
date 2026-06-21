@@ -1,0 +1,15 @@
+meta {
+  name: Get My Milestone Meetings
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/me/milestones/1/meetings
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

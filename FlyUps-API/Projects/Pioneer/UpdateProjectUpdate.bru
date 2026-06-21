@@ -1,0 +1,22 @@
+meta {
+  name: Update Project Update
+  type: http
+  seq: 13
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/updates/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Updated title",
+    "content": "Updated content"
+  }
+}

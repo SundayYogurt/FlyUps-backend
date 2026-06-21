@@ -1,0 +1,15 @@
+meta {
+  name: Get My Profit Payouts
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/me/profit-payouts
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

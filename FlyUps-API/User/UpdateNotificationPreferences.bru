@@ -1,0 +1,25 @@
+meta {
+  name: Update Notification Preferences
+  type: http
+  seq: 12
+}
+
+patch {
+  url: {{baseUrl}}/user/notification-preferences
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "notification_preferences": {
+      "investment_update": true,
+      "milestone_vote": true,
+      "project_approved": true
+    }
+  }
+}

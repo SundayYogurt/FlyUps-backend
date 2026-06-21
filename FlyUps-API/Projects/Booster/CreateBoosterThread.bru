@@ -1,0 +1,22 @@
+meta {
+  name: Create Booster Thread
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/booster/projects/1/threads
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Investor question",
+    "content": "Thread content from booster"
+  }
+}

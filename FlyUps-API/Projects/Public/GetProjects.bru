@@ -1,0 +1,19 @@
+meta {
+  name: Get Public Projects
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/projects
+  body: none
+  auth: none
+}
+
+params:query {
+  search:
+  category_id:
+  sort: newest
+  min_goal:
+  max_goal:
+}

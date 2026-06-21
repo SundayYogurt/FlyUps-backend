@@ -1,0 +1,23 @@
+meta {
+  name: File Complaint
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/complaints
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "project_id": 1,
+    "reason": "misleading_information",
+    "description": "The project description doesn't match reality"
+  }
+}

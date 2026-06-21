@@ -1,0 +1,15 @@
+meta {
+  name: List Pending Disbursements
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/admin/disbursements/pending
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

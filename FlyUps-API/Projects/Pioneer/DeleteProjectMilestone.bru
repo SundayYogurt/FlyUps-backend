@@ -1,0 +1,15 @@
+meta {
+  name: Delete Project Milestone
+  type: http
+  seq: 31
+}
+
+delete {
+  url: {{baseUrl}}/pioneer/projects/milestones/1
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

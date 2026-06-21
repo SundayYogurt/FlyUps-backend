@@ -1,0 +1,15 @@
+meta {
+  name: Get Booster Badge Counts
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/booster/badges
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

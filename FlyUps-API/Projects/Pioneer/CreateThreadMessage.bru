@@ -1,0 +1,21 @@
+meta {
+  name: Create Thread Message
+  type: http
+  seq: 22
+}
+
+post {
+  url: {{baseUrl}}/pioneer/projects/threads/1/messages
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "content": "Message content here"
+  }
+}

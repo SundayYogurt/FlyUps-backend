@@ -1,0 +1,15 @@
+meta {
+  name: Delete Project Story
+  type: http
+  seq: 37
+}
+
+delete {
+  url: {{baseUrl}}/pioneer/projects/stories/1
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

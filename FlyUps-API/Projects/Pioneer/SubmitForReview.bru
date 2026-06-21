@@ -1,0 +1,15 @@
+meta {
+  name: Submit Project For Review
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/1/submit
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

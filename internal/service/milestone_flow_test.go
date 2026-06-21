@@ -50,6 +50,7 @@ func TestOpenMilestoneVoting_Success(t *testing.T) {
 	projRepo.On("FindProjectByID", projectID).Return(p, nil)
 	projRepo.On("FindMeetingByMilestoneID", milestoneID).Return(&domain.Meeting{ID: 1, MilestoneID: milestoneID}, nil)
 	projRepo.On("UpdateMilestone", mock.AnythingOfType("*domain.Milestone")).Return(nil)
+	projRepo.On("DeleteVotesByMilestoneID", uint(11)).Return(nil)
 
 	res, err := svc.OpenMilestoneVoting(milestoneID, user)
 	assert.NoError(t, err)
@@ -65,11 +66,11 @@ func TestCloseProject_FundingToExecuting_AndActivatePhaseOne(t *testing.T) {
 	user := domain.User{ID: 1}
 	projectID := uint(200)
 	p := &domain.Project{
-		ID:            projectID,
-		OwnerUserID:   user.ID,
-		State:         domain.StateFunding,
-		Status:        domain.StatusActive,
-		FundingGoal:   1000,
+		ID:             projectID,
+		OwnerUserID:    user.ID,
+		State:          domain.StateFunding,
+		Status:         domain.StatusActive,
+		FundingGoal:    1000,
 		CurrentFunding: 1000,
 	}
 	milestones := []domain.Milestone{
@@ -140,8 +141,8 @@ func TestVoteMilestone_AutoPaidOnMajorityApprove(t *testing.T) {
 	projRepo.On("UpdateMilestone", mock.AnythingOfType("*domain.Milestone")).Return(nil)
 	projRepo.On("CloseMeetingsByMilestoneID", milestoneID).Return(nil)
 	// reject count still queried if majority approve not met, but here it is met (6000*2 > 10000)
-	//projRepo.On("SumMilestoneVotes", milestoneID, domain.MilestoneVoteReject).Return(float64(0), nil) 
-	
+	//projRepo.On("SumMilestoneVotes", milestoneID, domain.MilestoneVoteReject).Return(float64(0), nil)
+
 	// disbursement creation path invoked after majority approve
 	disbRepo.On("FindByMilestoneID", milestoneID).Return(nil, gorm.ErrRecordNotFound)
 	projRepo.On("FindProjectByID", projectID).Return(project, nil)
@@ -251,4 +252,3 @@ func TestSubmitMilestone_Phase2_FailsWhenPrevNotPaid(t *testing.T) {
 	assert.Nil(t, res)
 	assert.Equal(t, "previous milestone must be paid before submitting this phase", err.Error())
 }
-

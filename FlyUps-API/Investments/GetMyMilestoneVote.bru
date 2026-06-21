@@ -1,0 +1,15 @@
+meta {
+  name: Get My Milestone Vote
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/investments/milestones/1/my-vote
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

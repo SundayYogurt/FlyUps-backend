@@ -1,0 +1,15 @@
+meta {
+  name: Get User Banks
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/admin/user-banks/1
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

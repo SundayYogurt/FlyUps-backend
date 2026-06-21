@@ -1,0 +1,22 @@
+meta {
+  name: Create Project Update
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/pioneer/projects/1/updates
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Progress Update #1",
+    "content": "We have completed the first phase of development..."
+  }
+}

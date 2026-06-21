@@ -1,0 +1,15 @@
+meta {
+  name: Approve Project
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/admin/projects/1/approve
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

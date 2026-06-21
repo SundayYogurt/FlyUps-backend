@@ -1,0 +1,21 @@
+meta {
+  name: Reject Cancel Project
+  type: http
+  seq: 15
+}
+
+patch {
+  url: {{baseUrl}}/admin/projects/1/reject-cancel
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "reason": "Cancel request rejected"
+  }
+}

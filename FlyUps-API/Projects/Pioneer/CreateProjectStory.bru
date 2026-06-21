@@ -1,0 +1,22 @@
+meta {
+  name: Create Project Story
+  type: http
+  seq: 34
+}
+
+post {
+  url: {{baseUrl}}/pioneer/projects/1/stories
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Our story",
+    "content": "This is the story of our project..."
+  }
+}
