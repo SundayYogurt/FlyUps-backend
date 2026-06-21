@@ -118,7 +118,8 @@ func TestCloseProject_ExecutingToClosed_WhenAllPaid(t *testing.T) {
 func TestVoteMilestone_AutoPaidOnMajorityApprove(t *testing.T) {
 	projRepo := new(ProjectRepository)
 	disbRepo := new(mockDisbursementRepo)
-	svc := NewInvestmentService(projRepo, nil, nil, nil, disbRepo, "", "", nil, nil)
+	investRepo := new(mockInvestmentRepo)
+	svc := NewInvestmentService(projRepo, investRepo, nil, nil, disbRepo, "", "", nil, nil)
 
 	milestoneID := uint(301)
 	projectID := uint(401)
@@ -145,6 +146,7 @@ func TestVoteMilestone_AutoPaidOnMajorityApprove(t *testing.T) {
 	// disbursement creation path invoked after majority approve
 	disbRepo.On("FindByMilestoneID", milestoneID).Return(nil, gorm.ErrRecordNotFound)
 	projRepo.On("FindProjectByID", projectID).Return(project, nil)
+	investRepo.On("FindVerifiedByProjectID", projectID).Return([]domain.Investment{}, nil)
 	disbRepo.On("Create", mock.AnythingOfType("*domain.Disbursement")).Return(nil)
 	// activate next phase
 	projRepo.On("FindMilestonesByProjectID", projectID).Return([]domain.Milestone{}, nil)

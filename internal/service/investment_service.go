@@ -53,6 +53,9 @@ type InvestmentService interface {
 	FinalizeVotingIfExpired(milestoneID uint) error
 	GetTotalFunding() (float64, error)
 	GetUniqueBoostersCount() (int64, error)
+	// SyncProjectPrincipalAmounts ดึงค่าธรรมเนียม Stripe จริงมาคำนวณ PrincipalAmount ใหม่
+	// ให้กับ investment ที่ webhook ยังดึงค่าธรรมเนียมไม่สำเร็จ (NetAmount = 0)
+	SyncProjectPrincipalAmounts(projectID uint) error
 }
 
 type investmentService struct {
@@ -367,6 +370,15 @@ func (s *investmentService) RefundInvestment(boosterUserID uint, investmentID ui
 		return nil, errors.New("refund is only allowed while project project is in funding state")
 	}
 
+	// ถ้าตอน webhook ยังดึงค่าธรรมเนียม Stripe ไม่สำเร็จ (balance_transaction ยังไม่พร้อม)
+	// ให้ลองดึงใหม่ตอนขอ refund เพื่อให้ PrincipalAmount หักค่าธรรมเนียม Stripe จริงเสมอ
+	txn, err := s.transactionRepo.FindByInvestmentID(investment.ID)
+	if err != nil {
+		return nil, errors.New("transaction not found")
+	}
+
+	s.refreshPrincipalFromStripe(investment, txn)
+
 	refundAmount := investment.PrincipalAmount
 
 	now := time.Now()
@@ -392,6 +404,55 @@ func (s *investmentService) RefundInvestment(boosterUserID uint, investmentID ui
 		TotalPaid:       investment.TotalAmount,
 		FeesDeducted:    math.Round(feesDeducted*100) / 100,
 	}, nil
+}
+
+// refreshPrincipalFromStripe ดึงค่าธรรมเนียม Stripe จริงมาคำนวณ PrincipalAmount ใหม่
+// เฉพาะกรณีที่ webhook ตอนจ่ายเงินยังไม่สามารถดึง balance_transaction ได้ (NetAmount = 0)
+// คืนค่า true ถ้ามีการอัปเดต PrincipalAmount
+func (s *investmentService) refreshPrincipalFromStripe(investment *domain.Investment, txn *domain.Transaction) bool {
+	if txn.NetAmount > 0 {
+		return false
+	}
+
+	stripe.Key = s.stripeSecretKey
+	stripeFee, stripeFeeVAT, netAmount := s.fetchStripeFeesFromIntent(txn.StripePaymentIntentID)
+	if netAmount <= 0 {
+		return false
+	}
+
+	if err := s.transactionRepo.UpdateStripeFeesAndNet(txn.ID, stripeFee, stripeFeeVAT, netAmount); err != nil {
+		log.Printf("[refreshPrincipalFromStripe] update stripe fees error: %v", err)
+	}
+	investment.PrincipalAmount = math.Round((netAmount-investment.PlatformFee-investment.VATAmount)*100) / 100
+	return true
+}
+
+// SyncProjectPrincipalAmounts ไล่ดู investment ที่ verified ทั้งหมดของโปรเจกต์
+// แล้วอัปเดต PrincipalAmount ให้หักค่าธรรมเนียม Stripe จริง สำหรับรายการที่ webhook
+// ดึงค่าธรรมเนียมไม่สำเร็จตอนจ่ายเงิน — ใช้ก่อนคำนวณสัดส่วนปันผล เพื่อให้นักลงทุนทุกคน
+// ใช้ฐาน PrincipalAmount ที่คำนวณด้วยสูตรเดียวกัน
+func (s *investmentService) SyncProjectPrincipalAmounts(projectID uint) error {
+	investments, err := s.investmentRepo.FindVerifiedByProjectID(projectID)
+	if err != nil {
+		return err
+	}
+
+	for i := range investments {
+		inv := &investments[i]
+		txn, err := s.transactionRepo.FindByInvestmentID(inv.ID)
+		if err != nil {
+			log.Printf("[SyncProjectPrincipalAmounts] transaction not found for investment %d: %v", inv.ID, err)
+			continue
+		}
+
+		if s.refreshPrincipalFromStripe(inv, txn) {
+			if err := s.investmentRepo.UpdatePaid(inv); err != nil {
+				log.Printf("[SyncProjectPrincipalAmounts] update investment %d error: %v", inv.ID, err)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (s *investmentService) ListRefundRequests() ([]dto.RefundRequestItem, error) {
@@ -458,12 +519,52 @@ func (s *investmentService) ApproveRefund(investmentID uint) error {
 		return errors.New("investment is not pending refund")
 	}
 
+	txn, err := s.transactionRepo.FindByInvestmentID(investment.ID)
+	if err != nil {
+		return errors.New("transaction not found")
+	}
+
+	// ยิง Stripe Refund จริง — ก่อนหน้านี้ ApproveRefund แค่เปลี่ยน status ในฐานข้อมูล
+	// โดยไม่ได้คืนเงินผ่าน Stripe เลย ทำให้ booster ไม่ได้รับเงินคืนจริง
+	stripe.Key = s.stripeSecretKey
+	refundAmountSatang := int64(math.Round(investment.RefundAmount * 100))
+	if _, err := refund.New(&stripe.RefundParams{
+		PaymentIntent: stripe.String(txn.StripePaymentIntentID),
+		Amount:        stripe.Int64(refundAmountSatang),
+	}); err != nil {
+		log.Printf("[ApproveRefund] stripe refund failed for investment %d: %v", investment.ID, err)
+		return fmt.Errorf("stripe refund failed: %v", err)
+	}
+
 	now := time.Now()
 	investment.Status = domain.InvestmentRefunded
 	investment.RefundedAt = &now
 
 	if err := s.investmentRepo.UpdateRefunded(investment); err != nil {
 		return errors.New("failed to approve refund")
+	}
+
+	// notify booster ว่าคำขอคืนเงินได้รับการอนุมัติแล้ว
+	if s.notifSvc != nil {
+		relatedID := investment.ProjectID
+		relatedType := "project"
+		body := fmt.Sprintf("คำขอคืนเงินจำนวน %.2f บาท ของคุณได้รับการอนุมัติแล้ว เงินจะถูกโอนเข้าช่องทางการชำระเงินเดิมภายในไม่กี่วัน หากชำระผ่าน PromptPay กรุณาตรวจสอบอีเมลจาก Stripe เพื่อกรอกข้อมูลบัญชีธนาคารสำหรับรับเงินคืน", investment.RefundAmount)
+		if err := s.notifSvc.CreateAndPush(investment.BoosterUserID, domain.NotifProjectStatus, "คำขอคืนเงินได้รับการอนุมัติ", body, &relatedID, &relatedType); err != nil {
+			log.Printf("[ApproveRefund] send notification error: %v", err)
+		}
+	}
+
+	// ส่งอีเมลแจ้ง booster ว่าคำขอคืนเงินได้รับการอนุมัติแล้ว
+	if s.emailClient != nil {
+		if user, err := s.userRepo.FindUserById(investment.BoosterUserID); err == nil {
+			projectTitle := ""
+			if p, err := s.projectRepo.FindProjectByID(investment.ProjectID); err == nil {
+				projectTitle = p.Title
+			}
+			if err := s.emailClient.SendRefundApprovedEmail(user.Email, projectTitle, investment.RefundAmount); err != nil {
+				log.Printf("[ApproveRefund] send email error: %v", err)
+			}
+		}
 	}
 
 	return nil
@@ -477,6 +578,10 @@ func (s *investmentService) RefundProjectInvestments(project domain.Project) {
 		}
 	}()
 
+	if err := s.SyncProjectPrincipalAmounts(project.ID); err != nil {
+		log.Printf("[RefundProjectInvestments] sync principal amounts error: %v", err)
+	}
+
 	investments, err := s.investmentRepo.FindVerifiedByProjectID(project.ID)
 	if err != nil {
 		log.Printf("[RefundProjectInvestments] find investments error: %v", err)
@@ -487,13 +592,14 @@ func (s *investmentService) RefundProjectInvestments(project domain.Project) {
 		return
 	}
 
-	// รวมยอดที่ต้องคืน
-	var totalFunding float64
+	// รวมยอด PrincipalAmount (สุทธิหลังหักค่าธรรมเนียม Stripe + ค่าธรรมเนียมแพลตฟอร์ม + VAT)
+	// เพื่อใช้เป็นฐานคำนวณสัดส่วนคืนเงิน ให้สอดคล้องกับฐานที่ใช้คำนวณ disbursement ให้ pioneer
+	var totalPrincipal float64
 	for _, inv := range investments {
-		totalFunding += inv.TotalAmount
+		totalPrincipal += inv.PrincipalAmount
 	}
 
-	// เงินที่เบิกจ่ายให้ pioneer ไปแล้ว (confirmed) ไม่อยู่ใน escrow แล้ว ไม่สามารถคืนผ่าน Stripe ได้
+	// เงินที่เบิกจ่ายให้ pioneer ไปแล้ว (confirmed) คำนวณจากฐาน PrincipalAmount เช่นกัน ไม่อยู่ใน escrow แล้ว ไม่สามารถคืนผ่าน Stripe ได้
 	var totalDisbursed float64
 	if disbursements, err := s.disbursementRepo.ListByProjectID(project.ID); err == nil {
 		for _, d := range disbursements {
@@ -503,11 +609,11 @@ func (s *investmentService) RefundProjectInvestments(project domain.Project) {
 		}
 	}
 
-	remaining := project.CurrentFunding - totalDisbursed
+	remaining := totalPrincipal - totalDisbursed
 	if remaining < 0 {
 		remaining = 0
 	}
-	if totalFunding == 0 || remaining == 0 {
+	if totalPrincipal == 0 || remaining == 0 {
 		return
 	}
 
@@ -525,14 +631,14 @@ func (s *investmentService) RefundProjectInvestments(project domain.Project) {
 		if i == len(investments)-1 {
 			refundAmount = remaining - totalRefunded
 		} else {
-			ratio := inv.TotalAmount / totalFunding
+			ratio := inv.PrincipalAmount / totalPrincipal
 			refundAmount = math.Round(ratio*remaining*100) / 100
 			totalRefunded += refundAmount
 		}
 
-		// กัน refund เกินยอดที่จ่ายจริง
-		if refundAmount > inv.TotalAmount {
-			refundAmount = inv.TotalAmount
+		// กัน refund เกินยอดสุทธิที่นักลงทุนพึงได้รับ
+		if refundAmount > inv.PrincipalAmount {
+			refundAmount = inv.PrincipalAmount
 		}
 		if refundAmount <= 0 {
 			continue
@@ -632,26 +738,31 @@ func (s *investmentService) GetCancelPreview(projectID uint) (*dto.CancelPreview
 		})
 	}
 
-	// use same logic as RefundProjectInvestments
+	if err := s.SyncProjectPrincipalAmounts(projectID); err != nil {
+		log.Printf("[GetCancelPreview] sync principal amounts error: %v", err)
+	}
+
+	// use same logic as RefundProjectInvestments — ใช้ฐาน PrincipalAmount (สุทธิหลังหักค่าธรรมเนียม)
 	investments, err := s.investmentRepo.FindVerifiedByProjectID(projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	remaining := project.CurrentFunding - totalDisbursed
+	var totalPrincipal float64
+	for _, inv := range investments {
+		totalPrincipal += inv.PrincipalAmount
+	}
+
+	remaining := totalPrincipal - totalDisbursed
 	if remaining < 0 {
 		remaining = 0
-	}
-	var totalInvested float64
-	for _, inv := range investments {
-		totalInvested += inv.TotalAmount
 	}
 
 	previewInvestors := make([]dto.CancelPreviewInvestor, 0, len(investments))
 	// aggregate by booster_user_id
 	type aggEntry struct {
 		dto.CancelPreviewInvestor
-		totalAmount float64
+		principalAmount float64
 	}
 	aggMap := make(map[uint]*aggEntry)
 
@@ -663,11 +774,11 @@ func (s *investmentService) GetCancelPreview(projectID uint) (*dto.CancelPreview
 					UserID:      inv.BoosterUserID,
 					TotalAmount: inv.TotalAmount,
 				},
-				totalAmount: inv.TotalAmount,
+				principalAmount: inv.PrincipalAmount,
 			}
 		} else {
 			e.TotalAmount += inv.TotalAmount
-			e.totalAmount += inv.TotalAmount
+			e.principalAmount += inv.PrincipalAmount
 		}
 	}
 
@@ -680,8 +791,8 @@ func (s *investmentService) GetCancelPreview(projectID uint) (*dto.CancelPreview
 			entry.Email = u.Email
 		}
 		var refundAmount float64
-		if totalInvested > 0 {
-			ratio := entry.totalAmount / totalInvested
+		if totalPrincipal > 0 {
+			ratio := entry.principalAmount / totalPrincipal
 			refundAmount = math.Round(ratio*remaining*100) / 100
 		}
 		entry.RefundAmount = refundAmount
@@ -1112,7 +1223,24 @@ func (s *investmentService) createDisbursementForMilestone(m *domain.Milestone) 
 		return
 	}
 
-	amount := project.CurrentFunding * float64(m.PercentRelease) / 100.0
+	if err := s.SyncProjectPrincipalAmounts(m.ProjectID); err != nil {
+		log.Printf("[createDisbursement] sync principal amounts error: %v", err)
+	}
+
+	investments, err := s.investmentRepo.FindVerifiedByProjectID(m.ProjectID)
+	if err != nil {
+		log.Printf("[createDisbursement] list investments failed: %v", err)
+		return
+	}
+
+	var totalPrincipal float64
+	for _, inv := range investments {
+		totalPrincipal += inv.PrincipalAmount
+	}
+
+	// ใช้ยอด PrincipalAmount (หักค่าธรรมเนียม Stripe + ค่าธรรมเนียมแพลตฟอร์ม + VAT แล้ว) เป็นฐาน
+	// เพื่อไม่ให้ฝั่งแพลตฟอร์มต้องแบกรับค่าธรรมเนียมเหล่านี้เองตอนโอนเงินให้ pioneer
+	amount := totalPrincipal * float64(m.PercentRelease) / 100.0
 
 	d := &domain.Disbursement{
 		MilestoneID:    m.ID,

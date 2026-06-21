@@ -459,9 +459,11 @@ func TestRefundInvestment_Success(t *testing.T) {
 		ReferenceNumber: "INV-ABCDEFGH",
 	}
 	project := &domain.Project{ID: 5, State: domain.StateFunding}
+	txn := &domain.Transaction{ID: 7, InvestmentID: 1, NetAmount: 970}
 
 	investRepo.On("FindByID", uint(1)).Return(inv, nil)
 	projectRepo.On("FindProjectByID", uint(5)).Return(project, nil)
+	txnRepo.On("FindByInvestmentID", uint(1)).Return(txn, nil)
 	investRepo.On("UpdateRefunded", mock.AnythingOfType("*domain.Investment")).Return(nil)
 	investRepo.On("IncrementProjectFunding", uint(5), -float64(1000)).Return(nil)
 
@@ -520,6 +522,26 @@ func TestRefundInvestment_NotVerified(t *testing.T) {
 	assert.EqualError(t, err, "only verified investments can be refunded")
 }
 
+func TestRefundInvestment_TransactionNotFound(t *testing.T) {
+	projectRepo := new(ProjectRepository)
+	investRepo := new(mockInvestmentRepo)
+	txnRepo := new(mockTransactionRepo)
+	userRepo := new(mockUserRepository)
+
+	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
+
+	inv := &domain.Investment{ID: 1, BoosterUserID: 10, ProjectID: 5, Status: domain.InvestmentVerified, TotalAmount: 1000}
+	project := &domain.Project{ID: 5, State: domain.StateFunding}
+
+	investRepo.On("FindByID", uint(1)).Return(inv, nil)
+	projectRepo.On("FindProjectByID", uint(5)).Return(project, nil)
+	txnRepo.On("FindByInvestmentID", uint(1)).Return(&domain.Transaction{}, errors.New("not found"))
+
+	_, err := svc.RefundInvestment(10, 1, "test note")
+
+	assert.EqualError(t, err, "transaction not found")
+}
+
 func TestRefundInvestment_ProjectNotInFunding(t *testing.T) {
 	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
@@ -540,24 +562,6 @@ func TestRefundInvestment_ProjectNotInFunding(t *testing.T) {
 }
 
 // ─── ApproveRefund ────────────────────────────────────────────────────────────
-
-func TestApproveRefund_Success(t *testing.T) {
-	projectRepo := new(ProjectRepository)
-	investRepo := new(mockInvestmentRepo)
-	txnRepo := new(mockTransactionRepo)
-	userRepo := new(mockUserRepository)
-
-	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
-
-	inv := &domain.Investment{ID: 1, ProjectID: 5, Status: domain.InvestmentRefundPending, TotalAmount: 1000}
-	investRepo.On("FindByID", uint(1)).Return(inv, nil)
-	investRepo.On("UpdateRefunded", mock.AnythingOfType("*domain.Investment")).Return(nil)
-
-	err := svc.ApproveRefund(1)
-
-	assert.NoError(t, err)
-	investRepo.AssertExpectations(t)
-}
 
 func TestApproveRefund_InvestmentNotFound(t *testing.T) {
 	projectRepo := new(ProjectRepository)
@@ -590,7 +594,7 @@ func TestApproveRefund_NotRefundPending(t *testing.T) {
 	assert.EqualError(t, err, "investment is not pending refund")
 }
 
-func TestApproveRefund_DBUpdateError(t *testing.T) {
+func TestApproveRefund_TransactionNotFound(t *testing.T) {
 	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)
 	txnRepo := new(mockTransactionRepo)
@@ -600,11 +604,11 @@ func TestApproveRefund_DBUpdateError(t *testing.T) {
 
 	inv := &domain.Investment{ID: 1, ProjectID: 5, Status: domain.InvestmentRefundPending, TotalAmount: 1000}
 	investRepo.On("FindByID", uint(1)).Return(inv, nil)
-	investRepo.On("UpdateRefunded", mock.AnythingOfType("*domain.Investment")).Return(errors.New("db error"))
+	txnRepo.On("FindByInvestmentID", uint(1)).Return(&domain.Transaction{}, errors.New("not found"))
 
 	err := svc.ApproveRefund(1)
 
-	assert.EqualError(t, err, "failed to approve refund")
+	assert.EqualError(t, err, "transaction not found")
 }
 
 // ─── ListRefundRequests ───────────────────────────────────────────────────────

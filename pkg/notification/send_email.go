@@ -15,6 +15,7 @@ type NotificationClient interface {
 	SendMilestoneVoteResultEmail(to, projectTitle string, phaseNo int, phaseTitle string, approved bool) error
 	SendUserSuspendedEmail(to string, reason string) error
 	SendMilestoneReminderEmail(to string, projectTitle string, phaseNo int, dueDate string, daysLeft int) error
+	SendRefundApprovedEmail(to string, projectTitle string, amount float64) error
 }
 
 type notificationClient struct {
@@ -564,6 +565,44 @@ func (n notificationClient) SendMilestoneReminderEmail(to string, projectTitle s
   </table>
 </body>
 </html>`, projectTitle, phaseNo, daysLeft, dueDate),
+	}
+
+	_, err := n.client.Emails.Send(params)
+	return err
+}
+
+func (n notificationClient) SendRefundApprovedEmail(to string, projectTitle string, amount float64) error {
+	params := &resend.SendEmailRequest{
+		From:    n.config.EmailFrom,
+		To:      []string{to},
+		Subject: fmt.Sprintf("คำขอคืนเงินได้รับการอนุมัติ — %s", projectTitle),
+		Html: fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f6f9fc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f6f9fc;padding:40px 0;">
+    <tr><td align="center">
+      <table width="500" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;padding:40px;text-align:center;">
+        <tr><td style="padding-bottom:20px;">
+          <img src="https://drive.google.com/uc?export=view&id=1yVzLRSBcGAG0c2eLfaSFNOd9MmLFUKUP">
+        </td></tr>
+        <tr><td style="font-size:22px;font-weight:bold;color:#333;padding-bottom:8px;">คำขอคืนเงินได้รับการอนุมัติแล้ว</td></tr>
+        <tr><td style="font-size:15px;color:#555;padding-bottom:20px;">
+          คำขอคืนเงินของคุณสำหรับโปรเจกต์ <b>%s</b> ได้รับการอนุมัติแล้ว
+        </td></tr>
+        <tr><td style="font-size:20px;font-weight:bold;color:#16a34a;padding:16px 24px;border-radius:8px;background:#f0fdf4;display:inline-block;">
+          ยอดคืนเงิน ฿%.2f
+        </td></tr>
+        <tr><td style="font-size:14px;color:#666;padding-top:16px;padding-bottom:16px;">เงินจะถูกโอนเข้าช่องทางการชำระเงินเดิมของคุณภายในไม่กี่วัน</td></tr>
+        <tr><td style="font-size:13px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px;text-align:left;">
+          <b>หมายเหตุ:</b> หากคุณชำระเงินผ่าน PromptPay ระบบจาก Stripe จะส่งอีเมลแยกต่างหากเพื่อให้คุณกรอกข้อมูลบัญชีธนาคารสำหรับรับเงินคืน กรุณาตรวจสอบอีเมล (รวมถึงโฟลเดอร์ Junk/Spam) และกรอกข้อมูลภายในเวลาที่กำหนด เพื่อให้การคืนเงินดำเนินการสำเร็จ
+        </td></tr>
+        <tr><td style="font-size:12px;color:#aaa;padding-top:24px;">© 2026 FlyUp. All rights reserved.</td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`, projectTitle, amount),
 	}
 
 	_, err := n.client.Emails.Send(params)
