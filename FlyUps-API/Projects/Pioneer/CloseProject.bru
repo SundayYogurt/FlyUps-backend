@@ -1,0 +1,15 @@
+meta {
+  name: Close Project
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/1/close
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

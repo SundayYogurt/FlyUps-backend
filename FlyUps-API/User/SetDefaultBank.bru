@@ -1,0 +1,15 @@
+meta {
+  name: Set Default Bank Account
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/user/set-default-bank/1
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

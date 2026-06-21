@@ -1,0 +1,15 @@
+meta {
+  name: Delete Project Update
+  type: http
+  seq: 14
+}
+
+delete {
+  url: {{baseUrl}}/pioneer/projects/updates/1
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

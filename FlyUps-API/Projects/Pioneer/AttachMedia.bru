@@ -1,0 +1,28 @@
+meta {
+  name: Attach Project Media
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/pioneer/projects/1/media
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  [
+    {
+      "url": "https://cloudinary.com/cover.jpg",
+      "type": ["cover"]
+    },
+    {
+      "url": "https://cloudinary.com/gallery1.jpg",
+      "type": ["gallery"]
+    }
+  ]
+}

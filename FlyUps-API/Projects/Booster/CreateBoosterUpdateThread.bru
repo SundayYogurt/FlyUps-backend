@@ -1,0 +1,22 @@
+meta {
+  name: Create Booster Update Thread
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/booster/projects/1/updates/1/threads
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Comment on update",
+    "content": "Booster thread content"
+  }
+}

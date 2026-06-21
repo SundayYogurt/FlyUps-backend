@@ -1,0 +1,15 @@
+meta {
+  name: Get Projects Pending Review
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/admin/projects/pending-review
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

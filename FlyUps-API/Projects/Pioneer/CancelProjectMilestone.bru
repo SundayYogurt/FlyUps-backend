@@ -1,0 +1,15 @@
+meta {
+  name: Cancel Project Milestone
+  type: http
+  seq: 30
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/milestones/1/cancel
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

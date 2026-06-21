@@ -1,0 +1,24 @@
+meta {
+  name: Sign In
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/signin
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "test@ku.th",
+    "password": "Password123@"
+  }
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.token) {
+    bru.setEnvVar("token", res.body.token);
+  }
+}

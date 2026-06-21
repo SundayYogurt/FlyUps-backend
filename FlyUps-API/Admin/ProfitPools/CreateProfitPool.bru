@@ -1,0 +1,23 @@
+meta {
+  name: Create Profit Pool
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/admin/profit-pools
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "project_id": 1,
+    "total_profit": 50000,
+    "description": "Q2 2026 profit distribution"
+  }
+}

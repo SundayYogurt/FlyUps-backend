@@ -1,0 +1,23 @@
+meta {
+  name: Update University
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/admin/update-university/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "name": "Chulalongkorn University Updated",
+    "short_name": "CU",
+    "country": "Thailand"
+  }
+}

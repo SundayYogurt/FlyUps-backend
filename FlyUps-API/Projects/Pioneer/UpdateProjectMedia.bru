@@ -1,0 +1,22 @@
+meta {
+  name: Update Project Media
+  type: http
+  seq: 27
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/media/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "caption": "Updated caption",
+    "order": 1
+  }
+}

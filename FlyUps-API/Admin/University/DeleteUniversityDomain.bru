@@ -1,0 +1,15 @@
+meta {
+  name: Delete University Domain
+  type: http
+  seq: 8
+}
+
+delete {
+  url: {{baseUrl}}/admin/delete-university-domain/1
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

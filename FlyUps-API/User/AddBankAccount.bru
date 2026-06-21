@@ -1,0 +1,24 @@
+meta {
+  name: Add Bank Account
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/user/add-bank
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "bank_name": "กสิกรไทย",
+    "account_name": "Test User",
+    "account_number": "1234567890",
+    "is_default": true
+  }
+}

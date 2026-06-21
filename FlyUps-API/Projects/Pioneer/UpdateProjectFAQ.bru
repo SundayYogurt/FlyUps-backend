@@ -1,0 +1,22 @@
+meta {
+  name: Update Project FAQ
+  type: http
+  seq: 16
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/faqs/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "question": "Updated question?",
+    "answer": "Updated answer"
+  }
+}

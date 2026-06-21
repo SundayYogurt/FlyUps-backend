@@ -1,0 +1,21 @@
+meta {
+  name: Reject ID Card
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/admin/reject-id-card/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "reason": "ID card is expired"
+  }
+}

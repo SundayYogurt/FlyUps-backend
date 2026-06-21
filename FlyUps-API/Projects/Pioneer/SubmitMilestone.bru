@@ -1,0 +1,24 @@
+meta {
+  name: Submit Milestone
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/milestones/1/submit
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "summary": "We completed the prototype successfully",
+    "criteria_met": ["criterion1", "criterion2"],
+    "attachment_urls": ["https://cloudinary.com/evidence.pdf"],
+    "external_links": ["https://github.com/myproject"]
+  }
+}

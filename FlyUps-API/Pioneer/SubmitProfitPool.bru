@@ -1,0 +1,22 @@
+meta {
+  name: Submit Profit Pool (Pioneer)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/pioneer/profit-pools/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "total_profit": 100000,
+    "description": "Quarterly profit distribution"
+  }
+}

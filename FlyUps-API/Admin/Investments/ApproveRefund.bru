@@ -1,0 +1,15 @@
+meta {
+  name: Approve Refund
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{baseUrl}}/admin/investments/1/approve-refund
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Create University Domain
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/admin/create-university-domain/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "domain": "chula.ac.th"
+  }
+}

@@ -1,0 +1,15 @@
+meta {
+  name: Get Milestone Voters
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/pioneer/investments/milestones/1/voters
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

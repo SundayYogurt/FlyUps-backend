@@ -1,0 +1,15 @@
+meta {
+  name: Get Pending Cancel Requests
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/admin/projects/cancel-request
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

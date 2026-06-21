@@ -1,0 +1,15 @@
+meta {
+  name: Get My Investor Meetings
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/me/investor-meetings
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

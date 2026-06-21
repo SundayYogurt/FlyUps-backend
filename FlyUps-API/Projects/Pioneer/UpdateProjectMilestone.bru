@@ -1,0 +1,23 @@
+meta {
+  name: Update Project Milestone
+  type: http
+  seq: 29
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/milestones/1
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "title": "Updated milestone title",
+    "description": "Updated description",
+    "target_amount": 50000
+  }
+}

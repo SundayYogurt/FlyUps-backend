@@ -1,0 +1,15 @@
+meta {
+  name: Mark All As Read
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{baseUrl}}/notifications/read-all
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

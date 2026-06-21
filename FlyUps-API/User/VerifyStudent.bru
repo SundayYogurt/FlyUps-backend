@@ -1,0 +1,23 @@
+meta {
+  name: Verify Student
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/user/student-verify
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "student_card_url": "https://cloudinary.com/sample-card.jpg",
+    "declare_truth": true,
+    "accept_pioneer_terms": true
+  }
+}

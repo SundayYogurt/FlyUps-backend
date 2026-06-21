@@ -1,0 +1,15 @@
+meta {
+  name: Confirm Disbursement
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/admin/disbursements/1/confirm
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

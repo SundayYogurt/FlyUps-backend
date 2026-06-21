@@ -1,0 +1,15 @@
+meta {
+  name: Get My Payouts (Pioneer)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/pioneer/payouts
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

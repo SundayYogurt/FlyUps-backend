@@ -1,0 +1,15 @@
+meta {
+  name: Refresh Token
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/auth/refresh
+  body: none
+  auth: none
+}
+
+headers {
+  X-Refresh-Token: YOUR_REFRESH_TOKEN
+}

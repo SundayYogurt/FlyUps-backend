@@ -1,0 +1,15 @@
+meta {
+  name: Get Cancel Preview
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/admin/projects/1/cancel-preview
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

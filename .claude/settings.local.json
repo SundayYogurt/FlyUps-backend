@@ -4,7 +4,18 @@
       "Bash(git add:*)",
       "Bash(go build *)",
       "Bash(git checkout *)",
-      "Bash(git commit -m 'feat: add admin action log API endpoint *)"
+      "Bash(git commit -m 'feat: add admin action log API endpoint *)",
+      "Bash(go test *)",
+      "Bash(git commit -m ' *)",
+      "Bash(docker compose *)",
+      "Bash(xargs grep -l \"VoteMilestoneRequest\\|MilestoneVote\")",
+      "Bash(Get-ChildItem -Path \"D:\\\\go\\\\ecommerce-go-grpc\" -Directory)",
+      "Bash(Format-Table -Property Name)",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\FlyUps-backend\" -Directory | ForEach-Object { $_.FullName })",
+      "Bash(xargs grep -l '\"flyup/internal/service\"')",
+      "Read(//mnt/d/**)",
+      "Bash(xargs grep -l '\"flyup/internal/api/rest/handlers\"')",
+      "Bash(xargs grep -l 'rest\\..*Error\\|rest\\..*Response\\|rest\\..*Success')"
     ]
   }
 }

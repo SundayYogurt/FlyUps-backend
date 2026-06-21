@@ -1,0 +1,23 @@
+meta {
+  name: Admin List Projects
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/admin/projects
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+params:query {
+  search:
+  category_id:
+  state:
+  status:
+  visibility:
+}

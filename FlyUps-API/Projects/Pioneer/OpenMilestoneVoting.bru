@@ -1,0 +1,15 @@
+meta {
+  name: Open Milestone Voting
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/pioneer/projects/milestones/1/open-vote
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}

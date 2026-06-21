@@ -1,0 +1,15 @@
+meta {
+  name: Get My Project Meetings
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/me/projects/1/meetings
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
