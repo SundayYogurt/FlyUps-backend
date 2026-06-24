@@ -1,4 +1,4 @@
-package service
+package services
 
 import (
 	"errors"
@@ -414,4 +414,81 @@ func TestConfirm_UpdateDBError(t *testing.T) {
 	_, err := svc.Confirm(1, 42, dto.ConfirmDisbursementRequest{TransferRef: "X"})
 
 	assert.EqualError(t, err, "failed to confirm disbursement")
+}
+
+// ListMyPayouts
+
+func TestListMyPayouts_Success(t *testing.T) {
+	disbRepo := new(mockDisbursementRepo)
+	projRepo := new(ProjectRepository)
+	userRepo := new(mockUserRepository)
+	svc := newTestDisbursementService(disbRepo, projRepo, userRepo)
+
+	disbs := []domain.Disbursement{
+		{ID: 1, MilestoneID: 2, ProjectID: 10, PioneerUserID: 5, PhaseNo: 1, PercentRelease: 30, Amount: 30000, Status: domain.DisbursementConfirmed},
+	}
+	disbRepo.On("ListByPioneerID", uint(5)).Return(disbs, nil)
+	// milestone check for allComplete
+	projRepo.On("FindMilestonesByProjectID", uint(10)).Return([]domain.Milestone{
+		{ID: 2, Status: domain.MilestonePaid},
+	}, nil)
+	projRepo.On("FindProjectByID", uint(10)).Return(&domain.Project{ID: 10, Title: "Project A"}, nil)
+
+	items, err := svc.ListMyPayouts(5)
+
+	assert.NoError(t, err)
+	assert.Len(t, items, 1)
+	assert.Equal(t, "Project A", items[0].ProjectTitle)
+	assert.True(t, items[0].AllPhasesComplete)
+}
+
+func TestListMyPayouts_NotAllPhasesComplete(t *testing.T) {
+	disbRepo := new(mockDisbursementRepo)
+	projRepo := new(ProjectRepository)
+	userRepo := new(mockUserRepository)
+	svc := newTestDisbursementService(disbRepo, projRepo, userRepo)
+
+	disbs := []domain.Disbursement{
+		{ID: 1, ProjectID: 10, PioneerUserID: 5, PhaseNo: 1, Amount: 30000, Status: domain.DisbursementPending},
+	}
+	disbRepo.On("ListByPioneerID", uint(5)).Return(disbs, nil)
+	projRepo.On("FindMilestonesByProjectID", uint(10)).Return([]domain.Milestone{
+		{ID: 2, Status: domain.MilestonePaid},
+		{ID: 3, Status: domain.MilestoneActive}, // ยังไม่ paid
+	}, nil)
+	projRepo.On("FindProjectByID", uint(10)).Return(&domain.Project{ID: 10, Title: "Project A"}, nil)
+
+	items, err := svc.ListMyPayouts(5)
+
+	assert.NoError(t, err)
+	assert.Len(t, items, 1)
+	assert.False(t, items[0].AllPhasesComplete)
+}
+
+func TestListMyPayouts_Empty(t *testing.T) {
+	disbRepo := new(mockDisbursementRepo)
+	projRepo := new(ProjectRepository)
+	userRepo := new(mockUserRepository)
+	svc := newTestDisbursementService(disbRepo, projRepo, userRepo)
+
+	disbRepo.On("ListByPioneerID", uint(5)).Return([]domain.Disbursement{}, nil)
+
+	items, err := svc.ListMyPayouts(5)
+
+	assert.NoError(t, err)
+	assert.Empty(t, items)
+}
+
+func TestListMyPayouts_RepoError(t *testing.T) {
+	disbRepo := new(mockDisbursementRepo)
+	projRepo := new(ProjectRepository)
+	userRepo := new(mockUserRepository)
+	svc := newTestDisbursementService(disbRepo, projRepo, userRepo)
+
+	disbRepo.On("ListByPioneerID", uint(5)).Return([]domain.Disbursement(nil), errors.New("db error"))
+
+	items, err := svc.ListMyPayouts(5)
+
+	assert.Error(t, err)
+	assert.Nil(t, items)
 }

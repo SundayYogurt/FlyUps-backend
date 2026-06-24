@@ -7,7 +7,7 @@ import (
 	"flyup/internal/domain"
 	"flyup/internal/helper"
 	"flyup/internal/repository"
-	"flyup/internal/service"
+	"flyup/internal/services"
 	"flyup/pkg/notification"
 	"flyup/pkg/redis"
 	"log"
@@ -31,7 +31,7 @@ func StartServer(cfg config.AppConfig) {
 		log.Fatalf("database connection error %v\n", err)
 	}
 	log.Println("database connected")
-	
+
 	// FIX: ป้องกันปัญหา Duplicate Slug ตอนทำ Migration (กรณีมีข้อมูลเดิมอยู่แล้ว)
 	// เราจะเพิ่ม column slug แบบธรรมดาก่อน (ถ้ายังไม่มี) แล้วไล่แก้ตัวที่ว่างให้มีค่า
 	_ = db.Exec("ALTER TABLE projects ADD COLUMN IF NOT EXISTS slug text DEFAULT ''")
@@ -153,7 +153,7 @@ func StartServer(cfg config.AppConfig) {
 	app.Get("/swagger*", swaggerUI)
 
 	notificationClient := notification.NewNotificationClient(cfg)
-	notifSvc := service.NewNotificationService(repository.NewNotificationRepository(db))
+	notifSvc := services.NewNotificationService(repository.NewNotificationRepository(db))
 	auth := helper.SetupAuth(cfg.AppSecret)
 	userRepo := repository.NewUserRepository(db)
 	middleware := rest.SetupMiddleware(auth, userRepo)
@@ -186,7 +186,7 @@ func StartServer(cfg config.AppConfig) {
 
 	validate := validator.New()
 
-	adminLogSvc := service.NewAdminLogService(repository.NewAdminLogRepository(db))
+	adminLogSvc := services.NewAdminLogService(repository.NewAdminLogRepository(db))
 
 	rh := &rest.RestHandler{
 		App:          app,
@@ -207,7 +207,7 @@ func StartServer(cfg config.AppConfig) {
 	investmentRepo := repository.NewInvestmentRepository(db)
 	transactionRepo := repository.NewTransactionRepository(db)
 	disbursementRepo := repository.NewDisbursementRepository(db)
-	investmentSvc := service.NewInvestmentService(
+	investmentSvc := services.NewInvestmentService(
 		repository.NewProjectRepository(db),
 		investmentRepo,
 		transactionRepo,
@@ -219,7 +219,7 @@ func StartServer(cfg config.AppConfig) {
 		notificationClient,
 	)
 	rh.InvestmentSvc = investmentSvc
-	projectSvc := service.NewProjectService(
+	projectSvc := services.NewProjectService(
 		repository.NewProjectRepository(db),
 		repository.NewUserRepository(db),
 		cloudinarySvc,

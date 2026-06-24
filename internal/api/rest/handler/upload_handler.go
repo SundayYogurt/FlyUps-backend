@@ -2,20 +2,24 @@ package handler
 
 import (
 	"flyup/internal/api/rest"
-	"flyup/internal/service"
+	"flyup/internal/services"
 	"mime/multipart"
 
 	"github.com/gofiber/fiber/v3"
 )
 
 type UploadHandler struct {
-	svc service.UploadService
+	svc services.UploadService
+}
+
+func NewUploadHandler(svc services.UploadService) *UploadHandler {
+	return &UploadHandler{svc: svc}
 }
 
 func SetupUploadRoutes(rh *rest.RestHandler) {
 	app := rh.App
 
-	uploadSvc := service.NewUploadService(rh.Cloudinary)
+	uploadSvc := services.NewUploadService(rh.Cloudinary)
 
 	handler := UploadHandler{
 		svc: uploadSvc,

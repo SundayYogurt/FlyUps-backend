@@ -37,3 +37,10 @@ func SuccessResponse(ctx fiber.Ctx, msg string, data interface{}) error {
 		"data":    data,
 	})
 }
+
+func CreatedResponse(ctx fiber.Ctx, msg string, data interface{}) error {
+	return ctx.Status(http.StatusCreated).JSON(fiber.Map{
+		"message": msg,
+		"data":    data,
+	})
+}

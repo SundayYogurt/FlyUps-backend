@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"fmt"
 	"flyup/internal/api/rest"
 	"flyup/internal/helper"
-	"flyup/internal/service"
+	"flyup/internal/services"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -17,7 +17,7 @@ import (
 )
 
 type NotificationHandler struct {
-	svc  service.NotificationService
+	svc  services.NotificationService
 	auth helper.Auth
 	rh   *rest.RestHandler
 }

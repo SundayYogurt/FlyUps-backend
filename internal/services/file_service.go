@@ -1,4 +1,4 @@
-package service
+package services
 
 import (
 	"context"
@@ -55,7 +55,7 @@ func (s *uploadService) UploadFile(ctx context.Context, file multipart.File, fil
 		contentType == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
 			contentType == "application/vnd.ms-excel" ||
 			contentType == "application/zip"
-	
+
 	isPdfExt := ext == ".pdf"
 	isPdfMime := contentType == "application/pdf"
 

@@ -1,4 +1,4 @@
-package service
+package services
 
 import (
 	"errors"
@@ -15,7 +15,7 @@ type ChatService interface {
 	ConfirmAction(userID uint, req dto.ConfirmChatActionRequest) (*dto.ConfirmChatActionResponse, error)
 }
 
-// ChatAIClient เป็น interface ที่ service รู้จัก
+// ChatAIClient เป็น interface ที่ services รู้จัก
 // ทำให้ swap implementation หรือ mock ใน test ได้
 type ChatAIClient interface {
 	GenerateReply(input ChatAIInput) (*ChatAIOutput, error)
@@ -453,7 +453,7 @@ func (s *chatService) executeQueryAction(userID uint, aiOutput *ChatAIOutput) (s
 	}
 }
 
-// executeAction เรียก service จริงตาม action type
+// executeAction เรียก services จริงตาม action type
 func (s *chatService) executeAction(userID uint, action *domain.ChatAction) (string, error) {
 	switch action.Type {
 
@@ -585,7 +585,7 @@ func (s *chatService) validateAIOutput(output *ChatAIOutput) error {
 		output.ActionType = ""
 	}
 
-	// Query actions ไม่มี reply จาก AI — service จะ fill เอง
+	// Query actions ไม่มี reply จาก AI — services จะ fill เอง
 	isQueryAction := output.RequiresAction && (output.ActionType == domain.ChatActionTypeGetInvestments ||
 		output.ActionType == domain.ChatActionTypeGetProjects ||
 		output.ActionType == domain.ChatActionTypeGetProjectDetail ||

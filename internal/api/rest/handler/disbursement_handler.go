@@ -5,7 +5,7 @@ import (
 	"flyup/internal/dto"
 	"flyup/internal/helper"
 	"flyup/internal/repository"
-	"flyup/internal/service"
+	"flyup/internal/services"
 	"net/http"
 	"strconv"
 
@@ -14,13 +14,13 @@ import (
 )
 
 type DisbursementHandler struct {
-	svc       service.DisbursementService
+	svc       services.DisbursementService
 	validator *validator.Validate
 	auth      helper.Auth
 }
 
 func SetupDisbursementRoutes(rh *rest.RestHandler) {
-	svc := service.NewDisbursementService(
+	svc := services.NewDisbursementService(
 		repository.NewDisbursementRepository(rh.DB),
 		repository.NewProjectRepository(rh.DB),
 		repository.NewUserRepository(rh.DB),

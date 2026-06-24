@@ -6,7 +6,7 @@ import (
 	"flyup/internal/dto"
 	"flyup/internal/helper"
 	"flyup/internal/repository"
-	"flyup/internal/service"
+	"flyup/internal/services"
 	"net/http"
 	"strconv"
 
@@ -15,13 +15,13 @@ import (
 )
 
 type ComplaintHandler struct {
-	svc       service.ComplaintService
+	svc       services.ComplaintService
 	validator *validator.Validate
 	auth      helper.Auth
 }
 
 func SetupComplaintRoutes(rh *rest.RestHandler) {
-	svc := service.NewComplaintService(
+	svc := services.NewComplaintService(
 		repository.NewComplaintRepository(rh.DB),
 		repository.NewProjectRepository(rh.DB),
 	)
