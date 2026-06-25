@@ -246,6 +246,10 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 		return nil, errors.New("admin cannot invest")
 	}
 
+	if user.Role == "pioneer" {
+		return nil, errors.New("pioneer cannot invest")
+	}
+
 	if user.IdCardVerification == nil || user.IdCardVerification.Status != domain.VerifyStatusApproved {
 		return nil, errors.New("identity verification required before investing")
 	}
@@ -258,7 +262,7 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 		return nil, errors.New("internal server error")
 	}
 
-	if project.OwnerUserID == boosterUserID {
+	if project.OwnerUserID == user.ID {
 		return nil, errors.New("cannot invest in your own project")
 	}
 

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -204,16 +205,34 @@ func GenerateProjectSlug(title string, id uint) string {
 	return fmt.Sprintf("%s-%d", slug, id)
 }
 
+var qrHTTPClient = &http.Client{Timeout: 10 * time.Second}
+
 func FetchQRBase64(qrURL string) (string, error) {
-	resp, err := http.Get(qrURL)
+	req, err := http.NewRequest(http.MethodGet, qrURL, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", "FlyUp/1.0")
+	req.Header.Set("Accept", "image/png,image/*")
+
+	resp, err := qrHTTPClient.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("qr fetch failed: status %d", resp.StatusCode)
+	}
+
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
-	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(data), nil
+
+	ct := resp.Header.Get("Content-Type")
+	if ct == "" {
+		ct = "image/png"
+	}
+	return "data:" + ct + ";base64," + base64.StdEncoding.EncodeToString(data), nil
 }

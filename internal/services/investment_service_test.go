@@ -279,6 +279,22 @@ func TestCreateInvestment_AdminCannotInvest(t *testing.T) {
 	projectRepo.AssertNotCalled(t, "FindProjectByID", mock.Anything)
 }
 
+func TestCreateInvestment_PioneerCannotInvest(t *testing.T) {
+	projectRepo := new(ProjectRepository)
+	investRepo := new(mockInvestmentRepo)
+	txnRepo := new(mockTransactionRepo)
+	userRepo := new(mockUserRepository)
+
+	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
+
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10, Role: "pioneer"}, nil)
+
+	_, err := svc.CreateInvestment(10, "pioneer@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 1000})
+
+	assert.EqualError(t, err, "pioneer cannot invest")
+	projectRepo.AssertNotCalled(t, "FindProjectByID", mock.Anything)
+}
+
 func TestCreateInvestment_OwnerCannotInvestSelf(t *testing.T) {
 	projectRepo := new(ProjectRepository)
 	investRepo := new(mockInvestmentRepo)

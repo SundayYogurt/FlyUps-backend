@@ -3,6 +3,7 @@ package handler
 import (
 	"flyup/internal/api/rest"
 	"flyup/internal/helper"
+	"flyup/internal/repository"
 	"flyup/internal/services"
 	"net/http"
 
@@ -15,7 +16,7 @@ type PioneerBadgeHandler struct {
 }
 
 func SetupPioneerBadgeRoutes(rh *rest.RestHandler) {
-	svc := services.NewPioneerBadgeService(rh.DB)
+	svc := services.NewPioneerBadgeService(repository.NewPioneerBadgeRepository(rh.DB))
 	h := &PioneerBadgeHandler{svc: svc, auth: rh.Auth}
 	rh.App.Get("/pioneer/badges", rh.Middlewares.Authorize, h.GetBadgeCounts)
 }
