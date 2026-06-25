@@ -3,6 +3,7 @@ package services
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
@@ -18,6 +19,7 @@ import (
 
 	"flyup/pkg/notification"
 
+	"github.com/skip2/go-qrcode"
 	"github.com/stripe/stripe-go/v85"
 	"github.com/stripe/stripe-go/v85/charge"
 	"github.com/stripe/stripe-go/v85/paymentintent"
@@ -314,7 +316,7 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 	}
 
 	// สร้าง Stripe QR Code
-	qrURL, intentID, clientSecret, expiresAt, err := s.createStripePromptPay(req.Amount, refNum, project.Title, boosterEmail)
+	qrURL, qrData, intentID, clientSecret, expiresAt, err := s.createStripePromptPay(req.Amount, refNum, project.Title, boosterEmail)
 	if err != nil {
 		// Stripe ล้มเหลว → mark investment เป็น rejected
 		_ = s.investmentRepo.UpdateStatus(investment.ID, domain.InvestmentRejected)
@@ -322,10 +324,9 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 		return nil, errors.New("failed to create payment QR code")
 	}
 
-	qrBase64, err := helper.FetchQRBase64(qrURL)
+	qrBase64, err := generateQRBase64(qrData)
 	if err != nil {
-		log.Printf("[CreateInvestment] fetch qr base64 error: %v", err)
-		// ไม่ต้อง fail ทั้ง flow ส่ง qrURL เปล่าไป
+		log.Printf("[CreateInvestment] generate qr base64 error: %v", err)
 	}
 
 	txn := &domain.Transaction{
@@ -347,9 +348,10 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 		InvestmentID:    investment.ID,
 		ReferenceNumber: refNum,
 		QRCodeImageURL:  qrURL,
+		QRCodeBase64:    qrBase64,
 		ExpiresAt:       expiresAt.Format(time.RFC3339),
 		TotalAmount:     req.Amount,
-		Title:           project.Title, // ตรงกับ Project.Title ของ friend
+		Title:           project.Title,
 	}, nil
 }
 
@@ -1269,7 +1271,7 @@ func (s *investmentService) createDisbursementForMilestone(m *domain.Milestone) 
 }
 
 // // เรียก Stripe API เพื่อสร้าง QR Code PromptPay
-func (s *investmentService) createStripePromptPay(amount float64, refNum string, projectTitle string, email string) (qrURL, intentID, clientSecret string, expiresAt time.Time, err error) {
+func (s *investmentService) createStripePromptPay(amount float64, refNum string, projectTitle string, email string) (qrURL, qrData, intentID, clientSecret string, expiresAt time.Time, err error) {
 	stripe.Key = s.stripeSecretKey
 
 	pm, err := paymentmethod.New(&stripe.PaymentMethodParams{
@@ -1279,7 +1281,7 @@ func (s *investmentService) createStripePromptPay(amount float64, refNum string,
 		},
 	})
 	if err != nil {
-		return "", "", "", time.Time{}, fmt.Errorf("create payment method error: %v", err)
+		return "", "", "", "", time.Time{}, fmt.Errorf("create payment method error: %v", err)
 	}
 
 	amountInSatang := int64(math.Round(amount * 100))
@@ -1292,22 +1294,31 @@ func (s *investmentService) createStripePromptPay(amount float64, refNum string,
 		Confirm:            stripe.Bool(true),
 		Metadata: map[string]string{
 			"reference_number": refNum,
-			"project_title":    projectTitle, // เปลี่ยนจาก project_name → project_title
+			"project_title":    projectTitle,
 		},
 	})
 	if err != nil {
-		return "", "", "", time.Time{}, fmt.Errorf("create payment intent error: %v", err)
+		return "", "", "", "", time.Time{}, fmt.Errorf("create payment intent error: %v", err)
 	}
 
 	if pi.NextAction == nil || pi.NextAction.PromptPayDisplayQRCode == nil {
-		return "", "", "", time.Time{}, errors.New("promptpay QR code not returned by Stripe")
+		return "", "", "", "", time.Time{}, errors.New("promptpay QR code not returned by Stripe")
 	}
 
 	return pi.NextAction.PromptPayDisplayQRCode.ImageURLPNG,
+		pi.NextAction.PromptPayDisplayQRCode.Data,
 		pi.ID,
 		pi.ClientSecret,
 		time.Now().Add(5 * time.Minute),
 		nil
+}
+
+func generateQRBase64(data string) (string, error) {
+	png, err := qrcode.Encode(data, qrcode.Medium, 512)
+	if err != nil {
+		return "", err
+	}
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(png), nil
 }
 
 func (s *investmentService) handlePaymentSucceeded(intentID string) {
