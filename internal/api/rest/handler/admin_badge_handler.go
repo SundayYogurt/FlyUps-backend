@@ -3,6 +3,7 @@ package handler
 import (
 	"flyup/internal/api/rest"
 	"flyup/internal/helper"
+	"flyup/internal/repository"
 	"flyup/internal/services"
 	"net/http"
 
@@ -15,7 +16,7 @@ type AdminBadgeHandler struct {
 }
 
 func SetupAdminBadgeRoutes(rh *rest.RestHandler) {
-	svc := services.NewAdminBadgeService(rh.DB)
+	svc := services.NewAdminBadgeService(repository.NewAdminBadgeRepository(rh.DB))
 	h := &AdminBadgeHandler{svc: svc, auth: rh.Auth}
 	rh.App.Get("/admin/badges", rh.Middlewares.AuthorizeAdmin, h.GetBadgeCounts)
 }

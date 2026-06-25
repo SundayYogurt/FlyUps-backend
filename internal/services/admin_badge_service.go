@@ -2,139 +2,119 @@ package services
 
 import (
 	"flyup/internal/dto"
+	"flyup/internal/repository"
 	"time"
-
-	"gorm.io/gorm"
 )
+
+// --- AdminBadgeService ---
 
 type AdminBadgeService interface {
 	GetCounts() (dto.AdminBadgeCounts, error)
 }
 
 type adminBadgeService struct {
-	db *gorm.DB
+	repo repository.AdminBadgeRepository
 }
 
-func NewAdminBadgeService(db *gorm.DB) AdminBadgeService {
-	return &adminBadgeService{db: db}
+func NewAdminBadgeService(repo repository.AdminBadgeRepository) AdminBadgeService {
+	return &adminBadgeService{repo: repo}
 }
 
 func (s *adminBadgeService) GetCounts() (dto.AdminBadgeCounts, error) {
 	var counts dto.AdminBadgeCounts
+	var err error
 
-	s.db.Table("projects").Where("state = ? AND deleted_at IS NULL", "pending_review").Count(&counts.PendingProjects)
-	s.db.Table("milestones").Where("status = ? AND deleted_at IS NULL", "submitted").Count(&counts.SubmittedMilestones)
-	s.db.Table("projects").Where("state = ? AND deleted_at IS NULL", "pending_cancel").Count(&counts.PendingCancelReqs)
-	s.db.Table("complaints").Where("status = ? AND deleted_at IS NULL", "open").Count(&counts.OpenComplaints)
-	s.db.Table("investments").Where("status = ? AND deleted_at IS NULL", "refund_pending").Count(&counts.PendingRefunds)
-	s.db.Table("disbursements").Where("status = ? AND deleted_at IS NULL", "pending").Count(&counts.PendingDisbursements)
-	s.db.Table("profit_pools").Where("status = ? AND deleted_at IS NULL", "pending").Count(&counts.PendingProfitPools)
-
-	var studentCard, idCard int64
-	s.db.Table("student_card_verifications").Where("status = ? AND deleted_at IS NULL", "pending").Count(&studentCard)
-	s.db.Table("id_card_verifications").Where("status = ? AND deleted_at IS NULL", "pending").Count(&idCard)
-	counts.PendingVerifications = studentCard + idCard
+	if counts.PendingProjects, err = s.repo.CountPendingProjects(); err != nil {
+		return counts, err
+	}
+	if counts.SubmittedMilestones, err = s.repo.CountSubmittedMilestones(); err != nil {
+		return counts, err
+	}
+	if counts.PendingCancelReqs, err = s.repo.CountPendingCancelReqs(); err != nil {
+		return counts, err
+	}
+	if counts.OpenComplaints, err = s.repo.CountOpenComplaints(); err != nil {
+		return counts, err
+	}
+	if counts.PendingRefunds, err = s.repo.CountPendingRefunds(); err != nil {
+		return counts, err
+	}
+	if counts.PendingDisbursements, err = s.repo.CountPendingDisbursements(); err != nil {
+		return counts, err
+	}
+	if counts.PendingProfitPools, err = s.repo.CountPendingProfitPools(); err != nil {
+		return counts, err
+	}
+	if counts.PendingVerifications, err = s.repo.CountPendingVerifications(); err != nil {
+		return counts, err
+	}
 
 	return counts, nil
 }
+
+// --- BoosterBadgeService ---
 
 type BoosterBadgeService interface {
 	GetCounts(userID uint) (dto.BoosterBadgeCounts, error)
 }
 
 type boosterBadgeService struct {
-	db *gorm.DB
+	repo repository.BoosterBadgeRepository
 }
 
-func NewBoosterBadgeService(db *gorm.DB) BoosterBadgeService {
-	return &boosterBadgeService{db: db}
+func NewBoosterBadgeService(repo repository.BoosterBadgeRepository) BoosterBadgeService {
+	return &boosterBadgeService{repo: repo}
 }
 
 func (s *boosterBadgeService) GetCounts(userID uint) (dto.BoosterBadgeCounts, error) {
 	var counts dto.BoosterBadgeCounts
 	today := time.Now().UTC().Format("2006-01-02")
 
-	s.db.Raw(`
-		SELECT COUNT(DISTINCT m.id)
-		FROM milestones m
-		JOIN investments i ON i.project_id = m.project_id
-		WHERE i.booster_user_id = ?
-		  AND i.status IN ('verified', 'paid')
-		  AND i.deleted_at IS NULL
-		  AND m.voting_open = true
-		  AND m.deleted_at IS NULL
-		  AND NOT EXISTS (
-		    SELECT 1 FROM milestone_votes mv
-		    WHERE mv.milestone_id = m.id
-		      AND mv.booster_user_id = ?
-		  )
-	`, userID, userID).Scan(&counts.PendingVotes)
-
-	s.db.Raw(`
-		SELECT COUNT(DISTINCT mt.id)
-		FROM meetings mt
-		JOIN milestones m ON m.id = mt.milestone_id
-		JOIN investments i ON i.project_id = m.project_id
-		WHERE i.booster_user_id = ?
-		  AND i.status IN ('verified', 'paid')
-		  AND i.deleted_at IS NULL
-		  AND mt.status = 'open'
-		  AND mt.deleted_at IS NULL
-		  AND mt.date >= ?
-	`, userID, today).Scan(&counts.UpcomingMeetings)
-
-	s.db.Table("investments").
-		Where("booster_user_id = ? AND status = ? AND deleted_at IS NULL", userID, "refund_pending").
-		Count(&counts.PendingRefunds)
-
-	s.db.Table("complaints").
-		Where("complainant_id = ? AND status = ? AND deleted_at IS NULL", userID, "open").
-		Count(&counts.OpenComplaints)
+	var err error
+	if counts.PendingVotes, err = s.repo.CountPendingVotes(userID); err != nil {
+		return counts, err
+	}
+	if counts.UpcomingMeetings, err = s.repo.CountUpcomingMeetings(userID, today); err != nil {
+		return counts, err
+	}
+	if counts.PendingRefunds, err = s.repo.CountPendingRefunds(userID); err != nil {
+		return counts, err
+	}
+	if counts.OpenComplaints, err = s.repo.CountOpenComplaints(userID); err != nil {
+		return counts, err
+	}
 
 	return counts, nil
 }
+
+// --- PioneerBadgeService ---
 
 type PioneerBadgeService interface {
 	GetCounts(userID uint) (dto.PioneerBadgeCounts, error)
 }
 
 type pioneerBadgeService struct {
-	db *gorm.DB
+	repo repository.PioneerBadgeRepository
 }
 
-func NewPioneerBadgeService(db *gorm.DB) PioneerBadgeService {
-	return &pioneerBadgeService{db: db}
+func NewPioneerBadgeService(repo repository.PioneerBadgeRepository) PioneerBadgeService {
+	return &pioneerBadgeService{repo: repo}
 }
 
 func (s *pioneerBadgeService) GetCounts(userID uint) (dto.PioneerBadgeCounts, error) {
 	var counts dto.PioneerBadgeCounts
 	today := time.Now().UTC().Format("2006-01-02")
 
-	s.db.Raw(`
-		SELECT COUNT(m.id)
-		FROM milestones m
-		JOIN projects p ON p.id = m.project_id
-		WHERE p.pioneer_user_id = ?
-		  AND p.deleted_at IS NULL
-		  AND m.status IN ('active', 'rejected')
-		  AND m.deleted_at IS NULL
-	`, userID).Scan(&counts.ActiveMilestones)
-
-	s.db.Raw(`
-		SELECT COUNT(mt.id)
-		FROM meetings mt
-		JOIN milestones m ON m.id = mt.milestone_id
-		JOIN projects p ON p.id = m.project_id
-		WHERE p.pioneer_user_id = ?
-		  AND p.deleted_at IS NULL
-		  AND mt.status = 'open'
-		  AND mt.deleted_at IS NULL
-		  AND mt.date >= ?
-	`, userID, today).Scan(&counts.UpcomingMeetings)
-
-	s.db.Table("disbursements").
-		Where("pioneer_user_id = ? AND status = ? AND deleted_at IS NULL", userID, "pending").
-		Count(&counts.PendingPayouts)
+	var err error
+	if counts.ActiveMilestones, err = s.repo.CountActiveMilestones(userID); err != nil {
+		return counts, err
+	}
+	if counts.UpcomingMeetings, err = s.repo.CountUpcomingMeetings(userID, today); err != nil {
+		return counts, err
+	}
+	if counts.PendingPayouts, err = s.repo.CountPendingPayouts(userID); err != nil {
+		return counts, err
+	}
 
 	return counts, nil
 }

@@ -244,17 +244,6 @@ func (m *mockAuth) CreateHashedPassword(pw string) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
-func (m *mockAuth) GenerateRefreshToken(userID uint, email string, role string) (string, error) {
-	args := m.Called(userID, email, role)
-	return args.String(0), args.Error(1)
-}
-
-func (m *mockAuth) VerifyRefreshToken(token string) (domain.User, error) {
-	args := m.Called(token)
-	user, _ := args.Get(0).(domain.User)
-	return user, args.Error(1)
-}
-
 func (m *mockAuth) GenerateCode() (string, error) {
 	args := m.Called()
 	return args.String(0), args.Error(1)
