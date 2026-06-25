@@ -1,4 +1,4 @@
-package service
+package services
 
 import (
 	"errors"
@@ -106,7 +106,7 @@ func (m *mockTransactionRepo) UpdateStripeFeesAndNet(id uint, stripeFee, stripeF
 	return args.Error(0)
 }
 
-// ─── Helper to build service ─────────────────────────────────────────────────
+// ─── Helper to build services ─────────────────────────────────────────────────
 
 func newTestInvestmentService(
 	projectRepo *ProjectRepository,
@@ -252,8 +252,8 @@ func TestCreateInvestment_ProjectNotFound(t *testing.T) {
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
 	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
-		ID: 10,
-		Role: "booster",
+		ID:                 10,
+		Role:               "booster",
 		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
 	}, nil)
 	projectRepo.On("FindProjectByID", uint(1)).Return(&domain.Project{}, gorm.ErrRecordNotFound)
@@ -288,8 +288,8 @@ func TestCreateInvestment_OwnerCannotInvestSelf(t *testing.T) {
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
 	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
-		ID: 10,
-		Role: "pioneer",
+		ID:                 10,
+		Role:               "pioneer",
 		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
 	}, nil)
 	project := &domain.Project{ID: 1, OwnerUserID: 10, State: domain.StateFunding}
@@ -309,8 +309,8 @@ func TestCreateInvestment_ProjectNotInFunding(t *testing.T) {
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
 	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
-		ID: 10,
-		Role: "booster",
+		ID:                 10,
+		Role:               "booster",
 		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
 	}, nil)
 	project := &domain.Project{ID: 1, State: domain.StateDraft}
@@ -330,8 +330,8 @@ func TestCreateInvestment_AmountBelowMin(t *testing.T) {
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
 	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
-		ID: 10,
-		Role: "booster",
+		ID:                 10,
+		Role:               "booster",
 		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
 	}, nil)
 	project := &domain.Project{
@@ -359,8 +359,8 @@ func TestCreateInvestment_AmountAboveMax(t *testing.T) {
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
 	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
-		ID: 10,
-		Role: "booster",
+		ID:                 10,
+		Role:               "booster",
 		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
 	}, nil)
 	project := &domain.Project{
@@ -387,8 +387,8 @@ func TestCreateInvestment_ExceedsMaxPerTransaction(t *testing.T) {
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
 	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
-		ID: 10,
-		Role: "booster",
+		ID:                 10,
+		Role:               "booster",
 		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
 	}, nil)
 	project := &domain.Project{
@@ -417,8 +417,8 @@ func TestCreateInvestment_ExceedsFundingGoal(t *testing.T) {
 	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
 
 	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
-		ID: 10,
-		Role: "booster",
+		ID:                 10,
+		Role:               "booster",
 		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
 	}, nil)
 	project := &domain.Project{

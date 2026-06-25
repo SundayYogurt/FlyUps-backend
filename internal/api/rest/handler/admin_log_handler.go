@@ -4,7 +4,7 @@ import (
 	"flyup/internal/api/rest"
 	"flyup/internal/dto"
 	"flyup/internal/helper"
-	"flyup/internal/service"
+	"flyup/internal/services"
 	"net/http"
 	"strconv"
 
@@ -12,7 +12,7 @@ import (
 )
 
 type AdminLogHandler struct {
-	svc  service.AdminLogService
+	svc  services.AdminLogService
 	auth helper.Auth
 }
 

@@ -446,7 +446,7 @@ go tool cover -html=coverage.out
 ### Run Specific Package Tests
 
 ```bash
-go test ./internal/service/...
+go test ./internal/services/...
 ```
 
 ### Test Structure

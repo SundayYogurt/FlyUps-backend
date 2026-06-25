@@ -6,7 +6,7 @@ import (
 	"flyup/internal/dto"
 	"flyup/internal/helper"
 	"flyup/internal/repository"
-	"flyup/internal/service"
+	"flyup/internal/services"
 	"net/http"
 	"strconv"
 
@@ -15,13 +15,13 @@ import (
 )
 
 type InvestmentHandler struct {
-	svc       service.InvestmentService
+	svc       services.InvestmentService
 	validator *validator.Validate
 	auth      helper.Auth
 }
 
 func SetupInvestmentRoutes(rh *rest.RestHandler) {
-	svc := service.NewInvestmentService(
+	svc := services.NewInvestmentService(
 		repository.NewProjectRepository(rh.DB),
 		repository.NewInvestmentRepository(rh.DB),
 		repository.NewTransactionRepository(rh.DB),

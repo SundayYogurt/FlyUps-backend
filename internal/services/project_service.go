@@ -1,4 +1,4 @@
-package service
+package services
 
 import (
 	"context"
@@ -2847,7 +2847,7 @@ func (s *projectService) GetCancelRequest() ([]domain.Project, error) {
 
 func (s *projectService) GetCancelPreview(projectID uint) (*dto.CancelPreviewResponse, error) {
 	if s.investmentSvc == nil {
-		return nil, errors.New("investment service unavailable")
+		return nil, errors.New("investment services unavailable")
 	}
 	return s.investmentSvc.GetCancelPreview(projectID)
 }

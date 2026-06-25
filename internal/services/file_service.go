@@ -1,4 +1,4 @@
-package service
+package services
 
 import (
 	"context"
@@ -20,8 +20,14 @@ type UploadService interface {
 	UploadFile(ctx context.Context, file multipart.File, fileHeader *multipart.FileHeader) (*UploadResult, error)
 }
 
+type cloudinaryClient interface {
+	UploadImage(ctx context.Context, file multipart.File) (string, error)
+	UploadVideo(ctx context.Context, file multipart.File) (string, error)
+	UploadRawFile(ctx context.Context, file multipart.File, ext string) (string, error)
+}
+
 type uploadService struct {
-	cld *helper.CloudinaryService
+	cld cloudinaryClient
 }
 
 func NewUploadService(cld *helper.CloudinaryService) UploadService {
@@ -55,7 +61,7 @@ func (s *uploadService) UploadFile(ctx context.Context, file multipart.File, fil
 		contentType == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
 			contentType == "application/vnd.ms-excel" ||
 			contentType == "application/zip"
-	
+
 	isPdfExt := ext == ".pdf"
 	isPdfMime := contentType == "application/pdf"
 

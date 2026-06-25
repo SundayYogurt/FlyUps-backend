@@ -1,4 +1,4 @@
-package service
+package services
 
 import (
 	"context"
@@ -365,7 +365,7 @@ func (m *mockCache) SetNX(ctx context.Context, key string, value interface{}, tt
 	return args.Bool(0), args.Error(1)
 }
 
-// newUserServiceWithCache สร้าง service พร้อม cache mock สำหรับ test
+// newUserServiceWithCache สร้าง services พร้อม cache mock สำหรับ test
 func newUserServiceWithCache(repo *mockUserRepository, urepo *mockUniversityRepo, auth *mockAuth, cfg config.AppConfig, notif NotificationService, c *mockCache) UserService {
 	return NewUserService(repo, urepo, auth, cfg, notif, c)
 }

@@ -3,10 +3,13 @@ package helper
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"flyup/internal/domain"
 	"fmt"
+	"io"
+	"net/http"
 	"regexp"
 	"strings"
 
@@ -199,4 +202,18 @@ func GenerateProjectSlug(title string, id uint) string {
 	slug = strings.Trim(slug, "-")
 	// เพิ่ม id ต่อท้ายกันซ้ำ
 	return fmt.Sprintf("%s-%d", slug, id)
+}
+
+func FetchQRBase64(qrURL string) (string, error) {
+	resp, err := http.Get(qrURL)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(data), nil
 }

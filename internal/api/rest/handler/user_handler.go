@@ -13,7 +13,7 @@ import (
 
 	"flyup/config"
 	"flyup/internal/repository"
-	"flyup/internal/service"
+	"flyup/internal/services"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
@@ -21,20 +21,37 @@ import (
 )
 
 type UserHandler struct {
-	svc         service.UserService
+	svc         services.UserService
 	validator   *validator.Validate
 	auth        helper.Auth
 	googleOAuth *oauth2.Config
 	config      config.AppConfig
-	adminLogSvc service.AdminLogService
+	adminLogSvc services.AdminLogService
+}
+
+func NewUserHandler(
+	svc services.UserService,
+	auth helper.Auth,
+	googleOAuth *oauth2.Config,
+	cfg config.AppConfig,
+	adminLogSvc services.AdminLogService,
+) *UserHandler {
+	return &UserHandler{
+		svc:         svc,
+		validator:   validator.New(),
+		auth:        auth,
+		googleOAuth: googleOAuth,
+		config:      cfg,
+		adminLogSvc: adminLogSvc,
+	}
 }
 
 func SetupUserRoutes(rh *rest.RestHandler) {
 
 	app := rh.App
 
-	// create an instance of user service & inject to handler
-	svc := service.NewUserService(
+	// create an instance of user services & inject to handler
+	svc := services.NewUserService(
 		repository.NewUserRepository(rh.DB),
 		repository.NewUniversityRepository(rh.DB),
 		rh.Auth,
@@ -56,7 +73,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	}
 
 	pubRoutes := app.Group("/")
-	pubRoutes.Post("/Signup", handler.SignUp)
+	pubRoutes.Post("/signup", handler.SignUp)
 	pubRoutes.Get("/verify-email", handler.VerifyEmail)
 	pubRoutes.Post("/signin", handler.Signing)
 	pubRoutes.Post("/forgot-password", handler.ForgotPassword)
@@ -157,7 +174,7 @@ func (h *UserHandler) SignUp(ctx fiber.Ctx) error {
 	}
 
 	// Success Response (201 Created)
-	return rest.SuccessResponse(ctx, msg, nil)
+	return rest.CreatedResponse(ctx, msg, nil)
 }
 
 // VerifyEmail godoc
@@ -360,7 +377,7 @@ func (h *UserHandler) UpdateProfile(ctx fiber.Ctx) error {
 
 	log.Printf("REQ: %+v", req)
 
-	// call service
+	// call services
 	if err := h.svc.UpdateProfile(user.ID, req); err != nil {
 		// business/input errors -> 400 เพื่อ debug ง่าย
 		errStr := err.Error()

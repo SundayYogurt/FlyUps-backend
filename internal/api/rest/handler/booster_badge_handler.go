@@ -3,28 +3,21 @@ package handler
 import (
 	"flyup/internal/api/rest"
 	"flyup/internal/helper"
-	"flyup/internal/repository"
+	"flyup/internal/services"
 	"net/http"
-	"time"
 
 	"github.com/gofiber/fiber/v3"
 )
 
 type BoosterBadgeHandler struct {
-	repo repository.BoosterBadgeRepository
+	svc  services.BoosterBadgeService
 	auth helper.Auth
 }
 
 func SetupBoosterBadgeRoutes(rh *rest.RestHandler) {
-	h := &BoosterBadgeHandler{repo: repository.NewBoosterBadgeRepository(rh.DB), auth: rh.Auth}
+	svc := services.NewBoosterBadgeService(rh.DB)
+	h := &BoosterBadgeHandler{svc: svc, auth: rh.Auth}
 	rh.App.Get("/booster/badges", rh.Middlewares.Authorize, h.GetBadgeCounts)
-}
-
-type BoosterBadgeCounts struct {
-	PendingVotes     int64 `json:"pending_votes"`
-	UpcomingMeetings int64 `json:"upcoming_meetings"`
-	PendingRefunds   int64 `json:"pending_refunds"`
-	OpenComplaints   int64 `json:"open_complaints"`
 }
 
 func (h *BoosterBadgeHandler) GetBadgeCounts(ctx fiber.Ctx) error {
@@ -33,13 +26,10 @@ func (h *BoosterBadgeHandler) GetBadgeCounts(ctx fiber.Ctx) error {
 		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
 	}
 
-	var counts BoosterBadgeCounts
-	today := time.Now().UTC().Format("2006-01-02")
-
-	counts.PendingVotes, _ = h.repo.CountPendingVotes(user.ID)
-	counts.UpcomingMeetings, _ = h.repo.CountUpcomingMeetings(user.ID, today)
-	counts.PendingRefunds, _ = h.repo.CountPendingRefunds(user.ID)
-	counts.OpenComplaints, _ = h.repo.CountOpenComplaints(user.ID)
+	counts, err := h.svc.GetCounts(user.ID)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
 
 	return rest.SuccessResponse(ctx, "success", counts)
 }

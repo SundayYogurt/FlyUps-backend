@@ -1,4 +1,4 @@
-package service
+package services
 
 import (
 	"bytes"
@@ -145,7 +145,7 @@ func (s *investmentService) GenerateContractHTML(boosterUserID uint, investmentI
 		NetAmount:    investment.PrincipalAmount,
 		ProfitShare:  investment.ProfitSharePct,
 		PaidAt:       paidAt,
-		GeneratedAt:  func() string {
+		GeneratedAt: func() string {
 			thaiMonths := [13]string{"", "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"}
 			loc, err := time.LoadLocation("Asia/Bangkok")
 			if err != nil {
@@ -318,11 +318,18 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 		return nil, errors.New("failed to create payment QR code")
 	}
 
+	qrBase64, err := helper.FetchQRBase64(qrURL)
+	if err != nil {
+		log.Printf("[CreateInvestment] fetch qr base64 error: %v", err)
+		// ไม่ต้อง fail ทั้ง flow ส่ง qrURL เปล่าไป
+	}
+
 	txn := &domain.Transaction{
 		InvestmentID:          investment.ID,
 		StripePaymentIntentID: intentID,
 		StripeClientSecret:    clientSecret,
 		QRCodeImageURL:        qrURL,
+		QRCodeBase64:          qrBase64,
 		ExpiresAt:             expiresAt,
 		Status:                domain.TransactionPending,
 	}
@@ -484,7 +491,7 @@ func (s *investmentService) ListRefundRequests() ([]dto.RefundRequestItem, error
 		if err == nil {
 			item.BoosterName = user.FirstName + " " + user.LastName
 			item.BoosterEmail = user.Email
-			
+
 			var defaultBank *domain.BankAccount
 			for _, b := range user.BankAccounts {
 				if b.IsDefault {
@@ -495,7 +502,7 @@ func (s *investmentService) ListRefundRequests() ([]dto.RefundRequestItem, error
 			if defaultBank == nil && len(user.BankAccounts) > 0 {
 				defaultBank = &user.BankAccounts[0]
 			}
-			
+
 			if defaultBank != nil {
 				item.BankAccount = &dto.RefundBankAccount{
 					BankName:      defaultBank.BankName,
@@ -902,7 +909,7 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 			m.Status = domain.MilestonePaid
 			m.VotingOpen = false
 			m.VotingClosedAt = &now
-			
+
 			// Calculate delay to shift upcoming milestones
 			var delay time.Duration
 			if m.OriginalDueDate != nil && now.After(*m.OriginalDueDate) {
@@ -975,18 +982,18 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 				m.VotingOpen = false
 				m.VotingClosedAt = &now
 				_ = s.projectRepo.CloseMeetingsByMilestoneID(m.ID)
-				
+
 				m.RetryCount += 1
 				if m.RetryCount > 1 {
 					m.Status = domain.MilestoneFailed
 					_ = s.projectRepo.UpdateMilestone(m)
-					
+
 					// Suspend project because retry failed
 					if p, pErr := s.projectRepo.FindProjectByID(m.ProjectID); pErr == nil {
 						p.State = domain.StateSuspended
 						p.Status = domain.StatusFailed
 						_, _ = s.projectRepo.UpdateProject(p)
-						
+
 						// Notify project suspension
 						if s.notifSvc != nil {
 							relatedID := p.ID

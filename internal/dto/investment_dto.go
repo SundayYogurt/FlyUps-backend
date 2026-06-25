@@ -36,6 +36,7 @@ type InvestmentResponse struct {
 	InvestmentID    uint    `json:"investment_id"`
 	ReferenceNumber string  `json:"reference_number"`
 	QRCodeImageURL  string  `json:"qr_code_image_url"`
+	QRCodeBase64    string  `json:"qr_code_base64"`
 	ExpiresAt       string  `json:"expires_at"`
 	TotalAmount     float64 `json:"total_amount"`
 	Title           string  `json:"title"`
