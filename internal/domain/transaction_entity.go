@@ -22,6 +22,7 @@ type Transaction struct {
 	StripePaymentIntentID string            `json:"stripe_payment_intent_id"`
 	StripeClientSecret    string            `json:"-"`
 	QRCodeImageURL        string            `json:"qr_code_image_url"`
+	QRCodeBase64          string            `json:"qr_code_base_64"`
 	ExpiresAt             time.Time         `json:"expires_at"`
 	Status                TransactionStatus `json:"status" gorm:"default:'pending'"`
 	StripeFee             float64           `json:"stripe_fee"`

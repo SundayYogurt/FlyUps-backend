@@ -318,11 +318,18 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 		return nil, errors.New("failed to create payment QR code")
 	}
 
+	qrBase64, err := helper.FetchQRBase64(qrURL)
+	if err != nil {
+		log.Printf("[CreateInvestment] fetch qr base64 error: %v", err)
+		// ไม่ต้อง fail ทั้ง flow ส่ง qrURL เปล่าไป
+	}
+
 	txn := &domain.Transaction{
 		InvestmentID:          investment.ID,
 		StripePaymentIntentID: intentID,
 		StripeClientSecret:    clientSecret,
 		QRCodeImageURL:        qrURL,
+		QRCodeBase64:          qrBase64,
 		ExpiresAt:             expiresAt,
 		Status:                domain.TransactionPending,
 	}
