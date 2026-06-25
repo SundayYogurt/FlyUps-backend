@@ -15,7 +15,8 @@
       "Bash(xargs grep -l '\"flyup/internal/service\"')",
       "Read(//mnt/d/**)",
       "Bash(xargs grep -l '\"flyup/internal/api/rest/handlers\"')",
-      "Bash(xargs grep -l 'rest\\..*Error\\|rest\\..*Response\\|rest\\..*Success')"
+      "Bash(xargs grep -l 'rest\\..*Error\\|rest\\..*Response\\|rest\\..*Success')",
+      "Bash(xargs grep -l \"PromptPayDisplayQRCode\")"
     ]
   }
 }
