@@ -5,7 +5,7 @@ import (
 	"flyup/internal/dto"
 	"flyup/internal/helper"
 	"flyup/internal/repository"
-	"flyup/internal/service"
+	"flyup/internal/services"
 	"net/http"
 	"strconv"
 
@@ -16,13 +16,13 @@ import (
 const errInvalidBody = "invalid request body"
 
 type ProfitPoolHandler struct {
-	svc       service.ProfitPoolService
+	svc       services.ProfitPoolService
 	validator *validator.Validate
 	auth      helper.Auth
 }
 
 func SetupProfitPoolRoutes(rh *rest.RestHandler) {
-	svc := service.NewProfitPoolService(
+	svc := services.NewProfitPoolService(
 		repository.NewProfitPoolRepository(rh.DB),
 		repository.NewProjectRepository(rh.DB),
 		repository.NewInvestmentRepository(rh.DB),

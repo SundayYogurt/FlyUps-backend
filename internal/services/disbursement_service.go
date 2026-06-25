@@ -1,11 +1,11 @@
-package service
+package services
 
 import (
 	"errors"
-	"fmt"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/repository"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"

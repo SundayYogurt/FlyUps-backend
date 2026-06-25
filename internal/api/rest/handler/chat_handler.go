@@ -5,29 +5,30 @@ import (
 	"flyup/internal/dto"
 	"flyup/internal/helper"
 	"flyup/internal/repository"
-	"flyup/internal/service"
+	"flyup/internal/services"
 	"net/http"
 
 	"github.com/gofiber/fiber/v3"
 )
+
 type ChatHandler struct {
-	chatService service.ChatService
+	chatService services.ChatService
 	auth        helper.Auth
 }
 
 func SetupChatRoutes(rh *rest.RestHandler) {
 	chatRepo := repository.NewChatRepository(rh.DB)
-	chatAIClient := service.NewChatAIClient(rh.Config.OpenAIAPIKey, rh.Config.OpenAIModel)
+	chatAIClient := services.NewChatAIClient(rh.Config.OpenAIAPIKey, rh.Config.OpenAIModel)
 
 	investmentRepo := repository.NewInvestmentRepository(rh.DB)
 	transactionRepo := repository.NewTransactionRepository(rh.DB)
 	disbursementRepo := repository.NewDisbursementRepository(rh.DB)
 	userRepo := repository.NewUserRepository(rh.DB)
 	notifRepo := repository.NewNotificationRepository(rh.DB)
-	notifSvc := service.NewNotificationService(notifRepo)
+	notifSvc := services.NewNotificationService(notifRepo)
 	projectRepo := repository.NewProjectRepository(rh.DB)
 
-	investmentSvc := service.NewInvestmentService(
+	investmentSvc := services.NewInvestmentService(
 		projectRepo,
 		investmentRepo,
 		transactionRepo,
@@ -39,7 +40,7 @@ func SetupChatRoutes(rh *rest.RestHandler) {
 		rh.Notification,
 	)
 
-	projectSvc := service.NewProjectService(
+	projectSvc := services.NewProjectService(
 		projectRepo,
 		repository.NewUserRepository(rh.DB),
 		rh.Cloudinary,
@@ -49,19 +50,19 @@ func SetupChatRoutes(rh *rest.RestHandler) {
 		disbursementRepo,
 	)
 
-	disburseSvc := service.NewDisbursementService(
+	disburseSvc := services.NewDisbursementService(
 		disbursementRepo,
 		projectRepo,
 		userRepo,
 		notifSvc,
 	)
 
-	complaintSvc := service.NewComplaintService(
+	complaintSvc := services.NewComplaintService(
 		repository.NewComplaintRepository(rh.DB),
 		projectRepo,
 	)
 
-	chatService := service.NewChatService(chatRepo, chatAIClient, investmentSvc, projectSvc, notifSvc, disburseSvc, complaintSvc)
+	chatService := services.NewChatService(chatRepo, chatAIClient, investmentSvc, projectSvc, notifSvc, disburseSvc, complaintSvc)
 	chatHandler := NewChatHandler(chatService, rh.Auth)
 
 	chat := rh.App.Group("/chat", rh.Middlewares.Authorize)
@@ -69,7 +70,7 @@ func SetupChatRoutes(rh *rest.RestHandler) {
 	chat.Post("/actions/confirm", chatHandler.ConfirmAction)
 }
 
-func NewChatHandler(chatService service.ChatService, auth helper.Auth) *ChatHandler {
+func NewChatHandler(chatService services.ChatService, auth helper.Auth) *ChatHandler {
 	return &ChatHandler{
 		chatService: chatService,
 		auth:        auth,
@@ -113,4 +114,3 @@ func (h *ChatHandler) ConfirmAction(c fiber.Ctx) error {
 
 	return rest.SuccessResponse(c, "ok", res)
 }
-

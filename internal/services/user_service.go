@@ -1,4 +1,4 @@
-package service
+package services
 
 import (
 	"context"
@@ -1024,7 +1024,7 @@ func (s *userService) SignUp(input dto.UserSignUp) (string, error) {
 		return "", errors.New("this email is already registered")
 	}
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return "", errors.New("service temporarily unavailable")
+		return "", errors.New("services temporarily unavailable")
 	}
 
 	hPassword, err := s.Auth.CreateHashedPassword(input.Password)

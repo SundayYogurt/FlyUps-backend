@@ -3,27 +3,21 @@ package handler
 import (
 	"flyup/internal/api/rest"
 	"flyup/internal/helper"
-	"flyup/internal/repository"
+	"flyup/internal/services"
 	"net/http"
-	"time"
 
 	"github.com/gofiber/fiber/v3"
 )
 
 type PioneerBadgeHandler struct {
-	repo repository.PioneerBadgeRepository
+	svc  services.PioneerBadgeService
 	auth helper.Auth
 }
 
 func SetupPioneerBadgeRoutes(rh *rest.RestHandler) {
-	h := &PioneerBadgeHandler{repo: repository.NewPioneerBadgeRepository(rh.DB), auth: rh.Auth}
+	svc := services.NewPioneerBadgeService(rh.DB)
+	h := &PioneerBadgeHandler{svc: svc, auth: rh.Auth}
 	rh.App.Get("/pioneer/badges", rh.Middlewares.Authorize, h.GetBadgeCounts)
-}
-
-type PioneerBadgeCounts struct {
-	ActiveMilestones int64 `json:"active_milestones"`
-	UpcomingMeetings int64 `json:"upcoming_meetings"`
-	PendingPayouts   int64 `json:"pending_payouts"`
 }
 
 func (h *PioneerBadgeHandler) GetBadgeCounts(ctx fiber.Ctx) error {
@@ -32,12 +26,10 @@ func (h *PioneerBadgeHandler) GetBadgeCounts(ctx fiber.Ctx) error {
 		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
 	}
 
-	var counts PioneerBadgeCounts
-	today := time.Now().UTC().Format("2006-01-02")
-
-	counts.ActiveMilestones, _ = h.repo.CountActiveMilestones(user.ID)
-	counts.UpcomingMeetings, _ = h.repo.CountUpcomingMeetings(user.ID, today)
-	counts.PendingPayouts, _ = h.repo.CountPendingPayouts(user.ID)
+	counts, err := h.svc.GetCounts(user.ID)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
 
 	return rest.SuccessResponse(ctx, "success", counts)
 }

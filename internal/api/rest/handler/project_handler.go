@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"flyup/internal/repository"
-	"flyup/internal/service"
+	"flyup/internal/services"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
@@ -20,17 +20,17 @@ import (
 const errInvalidProjectID = "invalid project id"
 
 type ProjectHandler struct {
-	svc         service.ProjectService
+	svc         services.ProjectService
 	validator   *validator.Validate
 	auth        helper.Auth
-	adminLogSvc service.AdminLogService
+	adminLogSvc services.AdminLogService
 }
 
 func SetupProjectRoutes(rh *rest.RestHandler) {
 
 	app := rh.App
 
-	svc := service.NewProjectService(
+	svc := services.NewProjectService(
 		repository.NewProjectRepository(rh.DB),
 		repository.NewUserRepository(rh.DB),
 		rh.Cloudinary,
@@ -653,7 +653,7 @@ func (h *ProjectHandler) UpdateProject(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
-	// call service
+	// call services
 	_, err = h.svc.UpdateProject(uint(projectID), body, user)
 	if err != nil {
 		return rest.InternalError(ctx, err)
@@ -1003,7 +1003,7 @@ func (h *ProjectHandler) AddProjectStory(ctx fiber.Ctx) error {
 
 	body.ProjectID = uint(projectID)
 
-	// call service
+	// call services
 	if err := h.svc.CreateStorySection(&body, user); err != nil {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
 	}
@@ -1041,7 +1041,7 @@ func (h *ProjectHandler) UpdateProjectStory(ctx fiber.Ctx) error {
 
 	body.ID = uint(storyID)
 
-	// call service
+	// call services
 	if err := h.svc.UpdateStorySection(&body, user); err != nil {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
 	}
@@ -1071,7 +1071,7 @@ func (h *ProjectHandler) DeleteProjectStory(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid story id")
 	}
 
-	// call service
+	// call services
 	if err := h.svc.DeleteStorySection(uint(storyID), user); err != nil {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
 	}

@@ -4,7 +4,7 @@ import (
 	"flyup/config"
 	"flyup/internal/helper"
 	"flyup/internal/port/cache"
-	"flyup/internal/service"
+	"flyup/internal/services"
 	"flyup/pkg/notification"
 
 	"github.com/go-playground/validator/v10"
@@ -21,9 +21,9 @@ type RestHandler struct {
 	Validator     *validator.Validate
 	Notification  notification.NotificationClient
 	Cloudinary    *helper.CloudinaryService
-	NotifSvc      service.NotificationService
-	InvestmentSvc service.InvestmentService
+	NotifSvc      services.NotificationService
+	InvestmentSvc services.InvestmentService
 	Cache         cache.Cache
-	Chat          service.ChatService
-	AdminLogSvc   service.AdminLogService
+	Chat          services.ChatService
+	AdminLogSvc   services.AdminLogService
 }
