@@ -35,6 +35,9 @@ import (
 // — เลขกลมตามมาตรฐาน fintech ไทย; ผู้ใช้ที่ลงทุนสูงกว่านี้ต้องแบ่งหลายรายการ
 const MaxInvestmentPerTransaction = 500_000.0
 
+// MinInvestmentPerTransaction คือขั้นต่ำต่อรายการ (THB) ตามขั้นต่ำของช่องทางชำระเงิน Stripe (PromptPay)
+const MinInvestmentPerTransaction = 20.0
+
 type InvestmentService interface {
 	GetInvestment(boosterUserID uint, investmentID uint) (*domain.Investment, *domain.Transaction, error)
 	GenerateContractHTML(boosterUserID uint, investmentID uint) ([]byte, error)
@@ -285,9 +288,16 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 		if err != nil {
 			return nil, errors.New("internal server error")
 		}
-		if currentTotal+req.Amount > project.FundingGoal {
-			remaining := project.FundingGoal - currentTotal
+		remaining := project.FundingGoal - currentTotal
+		if req.Amount > remaining {
 			return nil, fmt.Errorf("investment exceeds funding goal, remaining ฿%.0f", remaining)
+		}
+
+		// เมื่อลงทุนแล้ว ยอดคงเหลือของโปรเจกต์ต้องเท่ากับ 0 (ปิดยอดพอดี) หรือไม่น้อยกว่า ฿20
+		// ป้องกันเศษเงินที่เหลือต่ำกว่าขั้นต่ำ Stripe จนไม่มีใครสามารถลงทุนปิดยอดที่เหลือได้
+		remainingAfter := remaining - req.Amount
+		if remainingAfter > 0 && remainingAfter < MinInvestmentPerTransaction {
+			return nil, fmt.Errorf("เหลือยอดระดมทุนอีก ฿%.2f หลังการลงทุนนี้ ซึ่งต่ำกว่าขั้นต่ำ ฿%.0f กรุณาลงทุนให้ครอบคลุมยอดที่เหลือทั้งหมด", remainingAfter, MinInvestmentPerTransaction)
 		}
 	}
 
@@ -1462,7 +1472,12 @@ func (s *investmentService) handlePaymentFailed(intentID string) {
 // // helper functions
 
 func validateAmount(project *domain.Project, amount float64) error {
-	// ถ้าระดมทุนถึง softcap แล้ว → ยกเว้นขั้นต่ำ
+	// ขั้นต่ำของช่องทางชำระเงิน Stripe (PromptPay) — ต้องบังคับใช้เสมอ ไม่ว่าจะถึง softcap แล้วหรือไม่
+	if amount < MinInvestmentPerTransaction {
+		return fmt.Errorf("minimum investment is ฿%.0f (ขั้นต่ำของช่องทางชำระเงิน)", MinInvestmentPerTransaction)
+	}
+
+	// ถ้าระดมทุนถึง softcap แล้ว → ยกเว้นขั้นต่ำ 1% ของเป้าหมาย
 	// เพื่อให้นักลงทุนสามารถลงทุนยอด remaining ที่เหลือได้แม้จะน้อยกว่า minInvestAmount
 	softcapReached := project.Softcap > 0 && project.CurrentFunding >= project.Softcap
 	if !softcapReached {

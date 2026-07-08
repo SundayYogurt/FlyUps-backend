@@ -455,6 +455,103 @@ func TestCreateInvestment_ExceedsFundingGoal(t *testing.T) {
 	assert.Contains(t, err.Error(), "500")
 }
 
+func TestCreateInvestment_BelowStripeMinimum(t *testing.T) {
+	projectRepo := new(ProjectRepository)
+	investRepo := new(mockInvestmentRepo)
+	txnRepo := new(mockTransactionRepo)
+	userRepo := new(mockUserRepository)
+
+	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
+
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
+		ID:                 10,
+		Role:               "booster",
+		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
+	}, nil)
+	// softcap reached → 1% minimum is waived, but the ฿20 Stripe floor must still apply
+	project := &domain.Project{
+		ID:              1,
+		State:           domain.StateFunding,
+		FundingGoal:     100000,
+		Softcap:         5000,
+		CurrentFunding:  6000,
+		MinInvestAmount: 0,
+		MaxInvestAmount: 0,
+		PlatformFee:     2,
+	}
+	projectRepo.On("FindProjectByID", uint(1)).Return(project, nil)
+
+	_, err := svc.CreateInvestment(10, "user@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 10})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "minimum investment")
+	investRepo.AssertNotCalled(t, "SumActiveByProjectID", mock.Anything)
+}
+
+func TestCreateInvestment_LeavesDustBelowStripeMinimum(t *testing.T) {
+	projectRepo := new(ProjectRepository)
+	investRepo := new(mockInvestmentRepo)
+	txnRepo := new(mockTransactionRepo)
+	userRepo := new(mockUserRepository)
+
+	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
+
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
+		ID:                 10,
+		Role:               "booster",
+		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
+	}, nil)
+	project := &domain.Project{
+		ID:              1,
+		State:           domain.StateFunding,
+		FundingGoal:     10000,
+		MinInvestAmount: 100,
+		MaxInvestAmount: 0,
+		PlatformFee:     2,
+	}
+	projectRepo.On("FindProjectByID", uint(1)).Return(project, nil)
+	// remaining = 10000 - 9870 = 130; investing 120 leaves a ฿10 dust below the ฿20 Stripe minimum
+	investRepo.On("SumActiveByProjectID", uint(1)).Return(float64(9870), nil)
+
+	_, err := svc.CreateInvestment(10, "user@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 120})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "เหลือยอดระดมทุนอีก")
+	investRepo.AssertNotCalled(t, "Create", mock.Anything)
+}
+
+func TestCreateInvestment_ClosesFundingGoalExactly(t *testing.T) {
+	projectRepo := new(ProjectRepository)
+	investRepo := new(mockInvestmentRepo)
+	txnRepo := new(mockTransactionRepo)
+	userRepo := new(mockUserRepository)
+
+	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
+
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
+		ID:                 10,
+		Role:               "booster",
+		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
+	}, nil)
+	project := &domain.Project{
+		ID:              1,
+		State:           domain.StateFunding,
+		FundingGoal:     10000,
+		MinInvestAmount: 100,
+		MaxInvestAmount: 0,
+		PlatformFee:     2,
+	}
+	projectRepo.On("FindProjectByID", uint(1)).Return(project, nil)
+	// remaining = 10000 - 9900 = 100, investing exactly 100 closes the goal to 0 — must be allowed
+	investRepo.On("SumActiveByProjectID", uint(1)).Return(float64(9900), nil)
+	investRepo.On("Create", mock.Anything).Return(errors.New("stop before stripe call"))
+
+	_, err := svc.CreateInvestment(10, "user@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 100})
+
+	// should fail at the DB-create stage, not at amount validation
+	assert.EqualError(t, err, "failed to create investment")
+}
+
 // ─── RefundInvestment ─────────────────────────────────────────────────────────
 
 func TestRefundInvestment_Success(t *testing.T) {
@@ -783,6 +880,31 @@ func TestValidateAmount_EffectiveMinFromFundingGoal(t *testing.T) {
 		MaxInvestAmount: 0,
 	}
 	err := validateAmount(project, 500) // below 1% of 100000
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "minimum investment")
+}
+
+func TestValidateAmount_BelowStripeMinimum(t *testing.T) {
+	project := &domain.Project{
+		FundingGoal:     1000, // 1% = 10, still lower than the ฿20 Stripe floor
+		MinInvestAmount: 0,
+		MaxInvestAmount: 0,
+	}
+	err := validateAmount(project, 15)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "minimum investment")
+}
+
+func TestValidateAmount_StripeMinimumAppliesEvenAfterSoftcap(t *testing.T) {
+	// softcap reached waives the 1%-of-goal minimum, but the ฿20 Stripe floor must still apply
+	project := &domain.Project{
+		FundingGoal:     100000,
+		Softcap:         5000,
+		CurrentFunding:  6000,
+		MinInvestAmount: 0,
+		MaxInvestAmount: 0,
+	}
+	err := validateAmount(project, 10)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "minimum investment")
 }
