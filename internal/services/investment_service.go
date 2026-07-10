@@ -275,30 +275,19 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 		return nil, errors.New("project is not open for investment")
 	}
 
+	// reload โปรเจกต์ก่อนคำนวณยอดคงเหลือ เพื่อให้ current_funding เป็นค่าล่าสุดจาก DB
+	// (project ที่โหลดไว้ด้านบนอาจค้างจากการลงทุนอื่นที่ verified แทรกเข้ามาระหว่างนี้)
+	project, err = s.projectRepo.FindProjectByID(req.ProjectID)
+	if err != nil {
+		return nil, errors.New("internal server error")
+	}
+
 	if err := validateAmount(project, req.Amount); err != nil {
 		return nil, err
 	}
 
 	if req.Amount > MaxInvestmentPerTransaction {
 		return nil, fmt.Errorf("ยอดลงทุนต่อรายการต้องไม่เกิน ฿%.0f (กรุณาแบ่งเป็นหลายรายการหากต้องการลงทุนสูงกว่านี้)", MaxInvestmentPerTransaction)
-	}
-
-	if project.FundingGoal > 0 {
-		currentTotal, err := s.investmentRepo.SumActiveByProjectID(req.ProjectID)
-		if err != nil {
-			return nil, errors.New("internal server error")
-		}
-		remaining := project.FundingGoal - currentTotal
-		if req.Amount > remaining {
-			return nil, fmt.Errorf("investment exceeds funding goal, remaining ฿%.0f", remaining)
-		}
-
-		// เมื่อลงทุนแล้ว ยอดคงเหลือของโปรเจกต์ต้องเท่ากับ 0 (ปิดยอดพอดี) หรือไม่น้อยกว่า ฿20
-		// ป้องกันเศษเงินที่เหลือต่ำกว่าขั้นต่ำ Stripe จนไม่มีใครสามารถลงทุนปิดยอดที่เหลือได้
-		remainingAfter := remaining - req.Amount
-		if remainingAfter > 0 && remainingAfter < MinInvestmentPerTransaction {
-			return nil, fmt.Errorf("เหลือยอดระดมทุนอีก ฿%.2f หลังการลงทุนนี้ ซึ่งต่ำกว่าขั้นต่ำ ฿%.0f กรุณาลงทุนให้ครอบคลุมยอดที่เหลือทั้งหมด", remainingAfter, MinInvestmentPerTransaction)
-		}
 	}
 
 	fee, vat, principal := calculateFees(req.Amount, project.PlatformFee)
@@ -1471,24 +1460,61 @@ func (s *investmentService) handlePaymentFailed(intentID string) {
 
 // // helper functions
 
+// amountEpsilon คือค่าความคลาดเคลื่อนที่ยอมรับได้เมื่อเปรียบเทียบจำนวนเงิน (float64)
+// ห้ามเทียบ float ด้วย == ตรง ๆ เพราะการคำนวณสะสม (เช่น current_funding ที่บวกทีละรายการ)
+// อาจมีเศษความคลาดเคลื่อนระดับ 1e-9 ที่ทำให้เงื่อนไข == พลาดได้
+const amountEpsilon = 0.01
+
+func amountLess(a, b float64) bool    { return a < b-amountEpsilon }
+func amountGreater(a, b float64) bool { return a > b+amountEpsilon }
+func amountEqual(a, b float64) bool   { return math.Abs(a-b) < amountEpsilon }
+
+// validateAmount ตรวจสอบยอดลงทุนตาม invariant: หลังทุกการลงทุน ยอดคงเหลือของโปรเจกต์
+// ต้องเป็น 0 (ปิดยอดพอดี) หรือ ≥ ฿20 (ขั้นต่ำของช่องทางชำระเงิน Stripe PromptPay) เสมอ
+// ป้องกันกรณีที่ยอดคงเหลือตกค้างต่ำกว่าขั้นต่ำจนไม่มีใครสามารถลงทุนปิดยอดที่เหลือได้ (Jira F2-116)
+//
+// ลำดับการเช็คมีผลต่อ error message ที่ผู้ใช้เห็น จึงต้องเรียงตามนี้เท่านั้น:
+// 1) ขั้นต่ำ ฿20 ต่อครั้ง (ไม่มีข้อยกเว้น) 2) ห้ามเกินยอดคงเหลือ 3) ขั้นต่ำ 1% ของเป้าหมาย
+// (ยกเว้นเมื่อปิดยอดพอดี หรือถึง softcap แล้ว) 4) เพดานสูงสุดของโปรเจกต์ 5) ห้ามทิ้งเศษ (ไม่มีข้อยกเว้น)
 func validateAmount(project *domain.Project, amount float64) error {
-	// ขั้นต่ำของช่องทางชำระเงิน Stripe (PromptPay) — ต้องบังคับใช้เสมอ ไม่ว่าจะถึง softcap แล้วหรือไม่
-	if amount < MinInvestmentPerTransaction {
-		return fmt.Errorf("minimum investment is ฿%.0f (ขั้นต่ำของช่องทางชำระเงิน)", MinInvestmentPerTransaction)
+	remaining := project.FundingGoal - project.CurrentFunding
+	left := remaining - amount
+
+	// 1. ขั้นต่ำของช่องทางชำระเงิน Stripe (PromptPay) — บังคับใช้เสมอ ไม่มีข้อยกเว้นใด ๆ แม้ถึง softcap แล้ว
+	if amountLess(amount, MinInvestmentPerTransaction) {
+		return fmt.Errorf("จำนวนเงินขั้นต่ำต่อครั้งคือ ฿%.2f", MinInvestmentPerTransaction)
 	}
 
-	// ถ้าระดมทุนถึง softcap แล้ว → ยกเว้นขั้นต่ำ 1% ของเป้าหมาย
-	// เพื่อให้นักลงทุนสามารถลงทุนยอด remaining ที่เหลือได้แม้จะน้อยกว่า minInvestAmount
-	softcapReached := project.Softcap > 0 && project.CurrentFunding >= project.Softcap
-	if !softcapReached {
+	// 2. ห้ามลงทุนเกินยอดคงเหลือของโปรเจกต์
+	if amountGreater(amount, remaining) {
+		return fmt.Errorf("ยอดคงเหลือให้ลงทุนคือ ฿%.2f", remaining)
+	}
+
+	// 3. ขั้นต่ำ 1% ของเป้าหมาย — ยกเว้นเมื่อลงทุนปิดยอดพอดี หรือระดมทุนถึง softcap แล้ว
+	// เพื่อให้นักลงทุนสามารถลงทุนยอด remaining ที่เหลือได้แม้จะน้อยกว่าขั้นต่ำปกติ
+	isClosing := amountEqual(remaining, amount)
+	softcapReached := project.Softcap > 0 && !amountLess(project.CurrentFunding, project.Softcap)
+	if !isClosing && !softcapReached {
 		effectiveMin := math.Max(project.MinInvestAmount, project.FundingGoal*0.01)
-		if amount < effectiveMin {
-			return fmt.Errorf("minimum investment is ฿%.0f (1%% of funding goal)", effectiveMin)
+		if amountLess(amount, effectiveMin) {
+			return fmt.Errorf("จำนวนเงินขั้นต่ำคือ ฿%.2f (1%% ของยอดเป้าหมาย)", effectiveMin)
 		}
 	}
 
-	if project.MaxInvestAmount > 0 && amount > project.MaxInvestAmount {
-		return fmt.Errorf("maximum investment is ฿%.0f", project.MaxInvestAmount)
+	// 4. เพดานสูงสุดต่อรายการของโปรเจกต์ (0 = ไม่มีเพดาน)
+	if project.MaxInvestAmount > 0 && amountGreater(amount, project.MaxInvestAmount) {
+		return fmt.Errorf("จำนวนเงินสูงสุดคือ ฿%.2f", project.MaxInvestAmount)
+	}
+
+	// 5. ห้ามทิ้งเศษ: เช็คนี้อยู่นอกข้อยกเว้นของข้อ 3 (softcap/ปิดยอดพอดี) — ต้องเช็คเสมอไม่มีข้อยกเว้น
+	// เพราะเป็น invariant หลักที่ป้องกันไม่ให้โปรเจกต์เหลือยอดค้างที่ไม่มีใครลงทุนปิดได้อีก
+	if left >= amountEpsilon && amountLess(left, MinInvestmentPerTransaction) {
+		// ไม่มีเพดาน (MaxInvestAmount <= 0) หรือยอดคงเหลือยังอยู่ในเพดาน → มีคนปิดยอดคนเดียวได้
+		canCloseAlone := project.MaxInvestAmount <= 0 || !amountGreater(remaining, project.MaxInvestAmount)
+		if canCloseAlone {
+			return fmt.Errorf("การลงทุนนี้จะเหลือยอดค้าง ฿%.2f ซึ่งระดมต่อไม่ได้ กรุณาปิดยอดที่เหลือ ฿%.2f", left, remaining)
+		}
+		return fmt.Errorf("การลงทุนนี้จะเหลือยอดค้าง ฿%.2f ซึ่งระดมต่อไม่ได้ กรุณาลดยอดเหลือไม่เกิน ฿%.2f", left, remaining-MinInvestmentPerTransaction)
 	}
 
 	return nil

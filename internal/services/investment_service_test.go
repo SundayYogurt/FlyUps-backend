@@ -305,7 +305,7 @@ func TestCreateInvestment_OwnerCannotInvestSelf(t *testing.T) {
 
 	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
 		ID:                 10,
-		Role:               "pioneer",
+		Role:               "booster",
 		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
 	}, nil)
 	project := &domain.Project{ID: 1, OwnerUserID: 10, State: domain.StateFunding}
@@ -363,7 +363,7 @@ func TestCreateInvestment_AmountBelowMin(t *testing.T) {
 	_, err := svc.CreateInvestment(10, "user@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 100})
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "minimum investment")
+	assert.Contains(t, err.Error(), "จำนวนเงินขั้นต่ำคือ")
 }
 
 func TestCreateInvestment_AmountAboveMax(t *testing.T) {
@@ -391,7 +391,7 @@ func TestCreateInvestment_AmountAboveMax(t *testing.T) {
 
 	_, err := svc.CreateInvestment(10, "user@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 99999})
 
-	assert.EqualError(t, err, "maximum investment is ฿50000")
+	assert.EqualError(t, err, "จำนวนเงินสูงสุดคือ ฿50000.00")
 }
 
 func TestCreateInvestment_ExceedsMaxPerTransaction(t *testing.T) {
@@ -441,18 +441,19 @@ func TestCreateInvestment_ExceedsFundingGoal(t *testing.T) {
 		ID:              1,
 		State:           domain.StateFunding,
 		FundingGoal:     10000,
+		CurrentFunding:  9500,
 		MinInvestAmount: 100,
 		MaxInvestAmount: 0,
 		PlatformFee:     2,
 	}
 	projectRepo.On("FindProjectByID", uint(1)).Return(project, nil)
-	investRepo.On("SumActiveByProjectID", uint(1)).Return(float64(9500), nil)
 
 	_, err := svc.CreateInvestment(10, "user@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 1000})
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "investment exceeds funding goal")
+	assert.Contains(t, err.Error(), "ยอดคงเหลือให้ลงทุนคือ")
 	assert.Contains(t, err.Error(), "500")
+	investRepo.AssertNotCalled(t, "Create", mock.Anything)
 }
 
 func TestCreateInvestment_BelowStripeMinimum(t *testing.T) {
@@ -484,7 +485,7 @@ func TestCreateInvestment_BelowStripeMinimum(t *testing.T) {
 	_, err := svc.CreateInvestment(10, "user@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 10})
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "minimum investment")
+	assert.Contains(t, err.Error(), "จำนวนเงินขั้นต่ำต่อครั้งคือ")
 	investRepo.AssertNotCalled(t, "SumActiveByProjectID", mock.Anything)
 }
 
@@ -505,18 +506,19 @@ func TestCreateInvestment_LeavesDustBelowStripeMinimum(t *testing.T) {
 		ID:              1,
 		State:           domain.StateFunding,
 		FundingGoal:     10000,
+		CurrentFunding:  9870,
 		MinInvestAmount: 100,
 		MaxInvestAmount: 0,
 		PlatformFee:     2,
 	}
 	projectRepo.On("FindProjectByID", uint(1)).Return(project, nil)
 	// remaining = 10000 - 9870 = 130; investing 120 leaves a ฿10 dust below the ฿20 Stripe minimum
-	investRepo.On("SumActiveByProjectID", uint(1)).Return(float64(9870), nil)
 
 	_, err := svc.CreateInvestment(10, "user@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 120})
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "เหลือยอดระดมทุนอีก")
+	assert.Contains(t, err.Error(), "ระดมต่อไม่ได้")
+	assert.Contains(t, err.Error(), "ปิดยอดที่เหลือ")
 	investRepo.AssertNotCalled(t, "Create", mock.Anything)
 }
 
@@ -537,13 +539,13 @@ func TestCreateInvestment_ClosesFundingGoalExactly(t *testing.T) {
 		ID:              1,
 		State:           domain.StateFunding,
 		FundingGoal:     10000,
+		CurrentFunding:  9900,
 		MinInvestAmount: 100,
 		MaxInvestAmount: 0,
 		PlatformFee:     2,
 	}
 	projectRepo.On("FindProjectByID", uint(1)).Return(project, nil)
 	// remaining = 10000 - 9900 = 100, investing exactly 100 closes the goal to 0 — must be allowed
-	investRepo.On("SumActiveByProjectID", uint(1)).Return(float64(9900), nil)
 	investRepo.On("Create", mock.Anything).Return(errors.New("stop before stripe call"))
 
 	_, err := svc.CreateInvestment(10, "user@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 100})
@@ -839,74 +841,101 @@ func TestListInvestedProjects_Success(t *testing.T) {
 }
 
 // ─── validateAmount (helper) ──────────────────────────────────────────────────
+//
+// โปรเจกต์ทดสอบมาตรฐาน (ตาม Jira F2-116): goal 100,000 / softcap 50,000 / min 1,000 / max 10,000
 
-func TestValidateAmount_Success(t *testing.T) {
-	project := &domain.Project{
+func newValidateAmountTestProject(currentFunding float64) *domain.Project {
+	return &domain.Project{
 		FundingGoal:     100000,
-		MinInvestAmount: 500,
-		MaxInvestAmount: 50000,
+		Softcap:         50000,
+		CurrentFunding:  currentFunding,
+		MinInvestAmount: 1000,
+		MaxInvestAmount: 10000,
 	}
-	err := validateAmount(project, 1000)
+}
+
+func TestValidateAmount_TableDriven(t *testing.T) {
+	tests := []struct {
+		name           string
+		currentFunding float64
+		amount         float64
+		wantErr        bool
+		errContains    string
+	}{
+		{"amount 19 fails ข้อ 1 (hard floor ฿20)", 0, 19, true, "จำนวนเงินขั้นต่ำต่อครั้งคือ"},
+		{"amount 20 but current low fails ข้อ 3 (below 1% min)", 0, 20, true, "จำนวนเงินขั้นต่ำคือ"},
+		{"current 0, amount 999 fails ข้อ 3", 0, 999, true, "จำนวนเงินขั้นต่ำคือ"},
+		{"current 0, amount 1000 passes (meets 1% min)", 0, 1000, false, ""},
+		{"current 60000 (past softcap), amount 20 passes", 60000, 20, false, ""},
+		{"current 60000 (past softcap), amount 19 still fails ข้อ 1", 60000, 19, true, "จำนวนเงินขั้นต่ำต่อครั้งคือ"},
+		{"current 98990 (เหลือ 1010), amount 1000 fails ข้อ 5 (เหลือเศษ 10)", 98990, 1000, true, "ระดมต่อไม่ได้"},
+		{"current 98980 (เหลือ 1020), amount 1000 passes (เหลือ 20 พอดี)", 98980, 1000, false, ""},
+		{"current 99980 (เหลือ 20), amount 20 passes (ปิดยอด ต่ำกว่า 1% ได้)", 99980, 20, false, ""},
+		{"current 99980 (เหลือ 20), amount 100 fails ข้อ 2", 99980, 100, true, "ยอดคงเหลือให้ลงทุนคือ"},
+		{"current 88000 (เหลือ 12000 > max 10000), amount 11990 fails ข้อ 4", 88000, 11990, true, "จำนวนเงินสูงสุดคือ"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			project := newValidateAmountTestProject(tt.currentFunding)
+			err := validateAmount(project, tt.amount)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestValidateAmount_DustRule_CannotCloseAloneDueToMaxCap ทดสอบ branch ที่สองของข้อ 5
+// (remaining > MaxInvestAmount ปิดยอดคนเดียวไม่ได้เพราะติดเพดาน)
+//
+// หมายเหตุ: ตัวอย่างตัวเลขในทิกเก็ต (เหลือ 12,000 / max 10,000 / amount 11,985) ขัดกับลำดับการเช็คที่กำหนดไว้
+// เพราะ amount 11,985 > max 10,000 จะเข้า error ข้อ 4 (เพดานสูงสุด) ก่อนถึงข้อ 5 เสมอ ทำให้ branch นี้ unreachable
+// ด้วยตัวเลขดังกล่าว จึงปรับ current/amount ให้ amount ไม่เกิน max แต่ remaining ยังมากกว่า max เพื่อให้ทดสอบ
+// branch นี้ได้จริง (ดูรายละเอียดเพิ่มเติมในสรุปท้ายงาน)
+func TestValidateAmount_DustRule_CannotCloseAloneDueToMaxCap(t *testing.T) {
+	project := newValidateAmountTestProject(89985) // remaining = 100000 - 89985 = 10015
+	err := validateAmount(project, 10000)          // = max, เหลือเศษ ฿15; remaining(10015) > max(10000)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "ระดมต่อไม่ได้")
+	assert.Contains(t, err.Error(), "ลดยอดเหลือไม่เกิน")
+	assert.Contains(t, err.Error(), "9995")
+}
+
+func TestValidateAmount_SoftcapBoundary_ReachedExactlyAtEquality(t *testing.T) {
+	// current == softcap พอดี ต้องถือว่า reached แล้ว (ยกเว้นขั้นต่ำ 1%)
+	project := newValidateAmountTestProject(50000)
+	err := validateAmount(project, 20) // ต่ำกว่า 1% ของเป้าหมาย (1000) แต่ softcap reached จึงต้องผ่าน
 	assert.NoError(t, err)
 }
 
-func TestValidateAmount_BelowMin(t *testing.T) {
-	project := &domain.Project{
-		FundingGoal:     100000,
-		MinInvestAmount: 1000,
-		MaxInvestAmount: 0,
-	}
-	err := validateAmount(project, 100)
+func TestValidateAmount_SoftcapBoundary_ZeroNeverReached(t *testing.T) {
+	// softcap = 0 ต้องไม่ถือว่า reached ไม่ว่ายอดระดมทุนจะสูงแค่ไหน
+	project := newValidateAmountTestProject(90000)
+	project.Softcap = 0
+	err := validateAmount(project, 20) // ต่ำกว่า 1% ของเป้าหมาย และ softcap ไม่ถูกนับว่า reached
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "minimum investment")
+	assert.Contains(t, err.Error(), "จำนวนเงินขั้นต่ำคือ")
 }
 
-func TestValidateAmount_AboveMax(t *testing.T) {
+func TestValidateAmount_ReproRealCase(t *testing.T) {
+	// repro จริงจาก Jira F2-116: goal 300,000, current 299,975 (เหลือ 25)
+	// เดิมระบบยอมให้ลง 20 บาท ทำให้เหลือ 5 บาทค้างตลอดกาลเพราะไม่มีใครโอนปิดได้
 	project := &domain.Project{
-		FundingGoal:     100000,
-		MinInvestAmount: 100,
-		MaxInvestAmount: 10000,
-	}
-	err := validateAmount(project, 20000)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "maximum investment")
-}
-
-func TestValidateAmount_EffectiveMinFromFundingGoal(t *testing.T) {
-	// effective min = max(minInvestAmount=0, fundingGoal*0.01=1000)
-	project := &domain.Project{
-		FundingGoal:     100000,
+		FundingGoal:     300000,
+		Softcap:         150000, // โปรเจกต์ใกล้เต็มยอดแล้ว ถือว่าผ่าน softcap มานานแล้ว
+		CurrentFunding:  299975,
 		MinInvestAmount: 0,
 		MaxInvestAmount: 0,
 	}
-	err := validateAmount(project, 500) // below 1% of 100000
+	err := validateAmount(project, 20)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "minimum investment")
-}
-
-func TestValidateAmount_BelowStripeMinimum(t *testing.T) {
-	project := &domain.Project{
-		FundingGoal:     1000, // 1% = 10, still lower than the ฿20 Stripe floor
-		MinInvestAmount: 0,
-		MaxInvestAmount: 0,
-	}
-	err := validateAmount(project, 15)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "minimum investment")
-}
-
-func TestValidateAmount_StripeMinimumAppliesEvenAfterSoftcap(t *testing.T) {
-	// softcap reached waives the 1%-of-goal minimum, but the ฿20 Stripe floor must still apply
-	project := &domain.Project{
-		FundingGoal:     100000,
-		Softcap:         5000,
-		CurrentFunding:  6000,
-		MinInvestAmount: 0,
-		MaxInvestAmount: 0,
-	}
-	err := validateAmount(project, 10)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "minimum investment")
+	assert.Contains(t, err.Error(), "ระดมต่อไม่ได้")
+	assert.Contains(t, err.Error(), "ปิดยอดที่เหลือ")
+	assert.Contains(t, err.Error(), "25")
 }
 
 // ─── calculateFees (helper) ───────────────────────────────────────────────────
