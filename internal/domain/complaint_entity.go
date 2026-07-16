@@ -22,6 +22,7 @@ type Complaint struct {
 	Subject       string          `json:"subject"        gorm:"not null"`
 	Body          string          `json:"body"           gorm:"type:text;not null"`
 	Status        ComplaintStatus `json:"status"         gorm:"default:'open';index"`
+	Evidence      string          `json:"evidence"       gorm:"type:text;not null"`
 	AdminNote     string          `json:"admin_note"     gorm:"type:text"`
 	ResolvedBy    *uint           `json:"resolved_by,omitempty"`
 	ResolvedAt    *time.Time      `json:"resolved_at,omitempty"`
