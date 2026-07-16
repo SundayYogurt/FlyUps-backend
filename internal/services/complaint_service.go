@@ -53,6 +53,7 @@ func (s *complaintService) Create(userID uint, req dto.CreateComplaintRequest) (
 		ProjectID:     req.ProjectID,
 		Subject:       req.Subject,
 		Body:          req.Body,
+		Evidence:      req.Evidence,
 		Status:        domain.ComplaintOpen,
 	}
 	if err := s.complaintRepo.Create(c); err != nil {

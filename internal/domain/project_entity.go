@@ -45,7 +45,7 @@ type Project struct {
 	Category          *ProjectCategory  `json:"category,omitempty"`
 	CoverImage        *string           `json:"cover_image,omitempty"`
 	Title             string            `json:"title"`
-	Description       *string           `json:"description,omitempty"`
+	Description       *string           `json:"description,omitempty" gorm:"size:40"`
 	Risk              *string           `json:"risk,omitempty"`
 	State             ProjectState      `json:"state"`
 	Status            ProjectStatus     `json:"status"`

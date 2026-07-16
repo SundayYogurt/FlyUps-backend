@@ -238,6 +238,7 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 		project.Title = *input.Title
 		project.Slug = helper.GenerateProjectSlug(project.Title, project.ID)
 	}
+
 	if input.Description != nil {
 		project.Description = input.Description
 	}

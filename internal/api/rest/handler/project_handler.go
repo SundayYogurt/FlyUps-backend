@@ -8,6 +8,7 @@ import (
 	"flyup/internal/helper"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"flyup/internal/repository"
@@ -18,6 +19,23 @@ import (
 )
 
 const errInvalidProjectID = "invalid project id"
+
+func formatValidationError(err error) string {
+	var ve validator.ValidationErrors
+	if errors.As(err, &ve) {
+		fe := ve[0]
+		field := strings.ToLower(fe.Field())
+		switch fe.Tag() {
+		case "required":
+			return field + " is required"
+		case "max":
+			return field + " must not exceed " + fe.Param() + " characters"
+		case "min":
+			return field + " must be at least " + fe.Param() + " characters"
+		}
+	}
+	return err.Error()
+}
 
 type ProjectHandler struct {
 	svc         services.ProjectService
@@ -651,6 +669,9 @@ func (h *ProjectHandler) UpdateProject(ctx fiber.Ctx) error {
 	var body dto.UpdateProjectRequest
 	if err := ctx.Bind().Body(&body); err != nil {
 		return rest.BadRequestError(ctx, "invalid body")
+	}
+	if err := h.validator.Struct(body); err != nil {
+		return rest.BadRequestError(ctx, formatValidationError(err))
 	}
 
 	// call services
