@@ -347,7 +347,7 @@ func (p *projectRepository) FindInvestorsEmailByProjectID(projectID uint) ([]str
 
 func (p *projectRepository) FindProjectRecommendations() ([]domain.Project, error) {
 	var projects []domain.Project
-	err := p.db.
+	err := p.db.Preload("Category").
 		Where("state = ? AND visibility = ?", domain.StateFunding, domain.VisibilityPublic).
 		Order(`
 		current_funding / 
