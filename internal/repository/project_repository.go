@@ -364,7 +364,9 @@ func (p *projectRepository) FindProjectRecommendations() ([]domain.Project, erro
 func (p *projectRepository) FindNewProjects() ([]domain.Project, error) {
 	var projects []domain.Project
 	// เรียงตามวันที่เปิดให้ระดมทุน (funding_at) ล่าสุด
-	err := p.db.Where("state = ? AND visibility = ?", domain.StateFunding, domain.VisibilityPublic).
+	err := p.db.
+		Preload("Category").
+		Where("state = ? AND visibility = ?", domain.StateFunding, domain.VisibilityPublic).
 		Order("funding_at DESC").
 		Limit(3).
 		Find(&projects).Error
@@ -378,7 +380,9 @@ func (p *projectRepository) FindNewProjects() ([]domain.Project, error) {
 func (p *projectRepository) FindProjectEndingSoon() ([]domain.Project, error) {
 	var projects []domain.Project
 	// ดึงโปรเจกต์ที่ยังไม่หมดเวลา แต่ใกล้จะถึงวัน EndDate ที่สุด
-	err := p.db.Where("state = ? AND visibility = ? AND end_date > ?", domain.StateFunding, domain.VisibilityPublic, time.Now()).
+	err := p.db.
+		Preload("Category").
+		Where("state = ? AND visibility = ? AND end_date > ?", domain.StateFunding, domain.VisibilityPublic, time.Now()).
 		Order("end_date ASC").
 		Limit(3).
 		Find(&projects).Error
@@ -392,6 +396,7 @@ func (p *projectRepository) FindProjectEndingSoon() ([]domain.Project, error) {
 func (p *projectRepository) FindExecutingProjects() ([]domain.Project, error) {
 	var projects []domain.Project
 	err := p.db.
+		Preload("Category").
 		Where("state IN ? AND visibility = ?",
 			[]string{string(domain.StateExecuting), string(domain.StateClosed)},
 			domain.VisibilityPublic).
