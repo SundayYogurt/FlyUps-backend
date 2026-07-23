@@ -5,15 +5,15 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/projects
+  url: {{host}}/projects?search=&category_id=&min_goal=&sort=&max_goal=
   body: none
   auth: none
 }
 
 params:query {
-  search:
-  category_id:
-  sort: newest
-  min_goal:
-  max_goal:
+  search: 
+  category_id: 
+  min_goal: 
+  sort: 
+  max_goal: 
 }
