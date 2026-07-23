@@ -43,6 +43,7 @@ func NewProfitPoolService(
 	return &profitPoolService{repo, projectRepo, investRepo, userRepo, investmentSvc, notifSvc}
 }
 
+// Create สร้างกองทุนกำไร (profit pool) โดยแอดมิน แล้วแบ่งจ่ายให้ผู้ลงทุนแต่ละคนตามสัดส่วน PrincipalAmount
 func (s *profitPoolService) Create(adminID uint, req dto.CreateProfitPoolRequest) (*dto.ProfitPoolDetail, error) {
 	project, err := s.projectRepo.FindProjectByID(req.ProjectID)
 	if err != nil {
@@ -96,6 +97,7 @@ func (s *profitPoolService) Create(adminID uint, req dto.CreateProfitPoolRequest
 	return s.GetDetail(pool.ID)
 }
 
+// List ดึงกองทุนกำไรทั้งหมดในระบบ พร้อมจำนวนผู้ลงทุนและจำนวนที่ยืนยันจ่ายแล้วของแต่ละกองทุน
 func (s *profitPoolService) List() ([]dto.ProfitPoolListItem, error) {
 	pools, err := s.repo.ListAll()
 	if err != nil {
@@ -132,6 +134,7 @@ func (s *profitPoolService) List() ([]dto.ProfitPoolListItem, error) {
 	return items, nil
 }
 
+// GetDetail ดึงรายละเอียดกองทุนกำไรพร้อมรายการจ่ายเงินปันผลของผู้ลงทุนแต่ละคน (รวมข้อมูลบัญชีธนาคาร)
 func (s *profitPoolService) GetDetail(poolID uint) (*dto.ProfitPoolDetail, error) {
 	pool, err := s.repo.FindByID(poolID)
 	if err != nil {
@@ -208,6 +211,8 @@ func (s *profitPoolService) GetDetail(poolID uint) (*dto.ProfitPoolDetail, error
 	return detail, nil
 }
 
+// ConfirmPayout ยืนยันว่าแอดมินโอนเงินปันผลให้ผู้ลงทุนรายหนึ่งเรียบร้อยแล้ว
+// แจ้งเตือนผู้ลงทุน และปิดกองทุนกำไรเป็น completed ถ้าจ่ายครบทุกคนแล้ว
 func (s *profitPoolService) ConfirmPayout(poolID uint, payoutID uint, adminID uint, req dto.ConfirmInvestorPayoutRequest) error {
 	pool, err := s.repo.FindByID(poolID)
 	if err != nil {
@@ -265,6 +270,8 @@ func (s *profitPoolService) ConfirmPayout(poolID uint, payoutID uint, adminID ui
 	return nil
 }
 
+// validatePioneerProjectForProfit ตรวจสอบสิทธิ์และเงื่อนไขก่อนให้ pioneer ส่งกำไรของโปรเจกต์เข้าระบบ
+// (ต้องเป็นเจ้าของโปรเจกต์, milestone ผ่านครบทุก phase, ไตรมาสนี้ยังไม่เคยส่ง, และยังไม่ครบ 4 ไตรมาส)
 func (s *profitPoolService) validatePioneerProjectForProfit(pioneerID, projectID uint, quarterNo int) (*domain.Project, error) {
 	project, err := s.projectRepo.FindProjectByID(projectID)
 	if err != nil {
@@ -306,6 +313,7 @@ func (s *profitPoolService) validatePioneerProjectForProfit(pioneerID, projectID
 	return project, nil
 }
 
+// notifyAdminsNewProfit แจ้งเตือนแอดมินทุกคนว่า pioneer โอนกำไรเข้าระบบแล้ว รอการแจกจ่ายให้นักลงทุน
 func (s *profitPoolService) notifyAdminsNewProfit(pool *domain.ProfitPool, projectTitle string) {
 	if s.notifSvc == nil {
 		return
@@ -322,6 +330,8 @@ func (s *profitPoolService) notifyAdminsNewProfit(pool *domain.ProfitPool, proje
 	}
 }
 
+// PioneerSubmit ให้ pioneer ส่งกำไรของโปรเจกต์ (พร้อมสลิปโอนเงิน) เข้าระบบด้วยตัวเอง
+// แล้วสร้างรายการจ่ายเงินปันผลให้ผู้ลงทุนแต่ละคนตามสัดส่วน และแจ้งเตือนแอดมิน
 func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dto.PioneerSubmitProfitRequest) (*dto.ProfitPoolDetail, error) {
 	project, err := s.validatePioneerProjectForProfit(pioneerID, projectID, req.QuarterNo)
 	if err != nil {
@@ -372,6 +382,7 @@ func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dt
 	return s.GetDetail(pool.ID)
 }
 
+// GetPioneerPools ดึงกองทุนกำไรทั้งหมดที่ pioneer เคยส่งเข้าระบบ
 func (s *profitPoolService) GetPioneerPools(pioneerID uint) ([]dto.ProfitPoolListItem, error) {
 	pools, err := s.repo.ListByPioneerUserID(pioneerID)
 	if err != nil {
@@ -405,6 +416,7 @@ func (s *profitPoolService) GetPioneerPools(pioneerID uint) ([]dto.ProfitPoolLis
 	return items, nil
 }
 
+// GetMyProfitPayouts ดึงรายการเงินปันผลทั้งหมดที่ผู้ใช้ (booster) เคยได้รับหรือกำลังรอรับ
 func (s *profitPoolService) GetMyProfitPayouts(userID uint) ([]dto.MyProfitPayoutItem, error) {
 	payouts, err := s.repo.ListPayoutsByBoosterUserID(userID)
 	if err != nil {

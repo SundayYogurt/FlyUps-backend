@@ -34,6 +34,7 @@ func SetupProjectFinancialRoutes(rh *rest.RestHandler) {
 	admin.Get("/projects", h.GetProjectsFinancial)
 }
 
+// GetSummary คืนสรุปข้อมูลการเงินของแพลตฟอร์ม (ยอด Stripe, การเบิกจ่าย, การคืนเงิน, ค่าธรรมเนียม, รายได้)
 func (h *FinancialHandler) GetSummary(ctx fiber.Ctx) error {
 	summary, err := h.svc.GetSummary()
 	if err != nil {
@@ -42,6 +43,7 @@ func (h *FinancialHandler) GetSummary(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", summary)
 }
 
+// GetProjectsFinancial คืนข้อมูลการเงินของแต่ละโปรเจกต์ แยกตาม phase (milestone/disbursement)
 func (h *FinancialHandler) GetProjectsFinancial(ctx fiber.Ctx) error {
 	result, err := h.svc.GetProjectsFinancial()
 	if err != nil {

@@ -101,6 +101,7 @@ func (h *InvestmentHandler) VoteMilestone(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "vote saved", v)
 }
 
+// GetMyMilestoneVote คืนคะแนนโหวตของผู้ใช้ปัจจุบันที่มีต่อ milestone ที่ระบุ
 func (h *InvestmentHandler) GetMyMilestoneVote(ctx fiber.Ctx) error {
 	currentUser := h.auth.GetCurrentUser(ctx)
 	if currentUser.ID == 0 {
@@ -120,6 +121,7 @@ func (h *InvestmentHandler) GetMyMilestoneVote(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "ok", vote)
 }
 
+// GetMilestoneVoters คืนรายชื่อผู้ลงทุนของโปรเจกต์พร้อมสถานะการโหวตต่อ milestone (เฉพาะ pioneer เจ้าของโปรเจกต์)
 func (h *InvestmentHandler) GetMilestoneVoters(ctx fiber.Ctx) error {
 	currentUser := h.auth.GetCurrentUser(ctx)
 	if currentUser.ID == 0 {

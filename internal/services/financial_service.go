@@ -22,6 +22,7 @@ func NewFinancialService(repo repository.FinancialRepository, stripeSecretKey st
 	return &financialService{repo: repo, stripeSecretKey: stripeSecretKey}
 }
 
+// GetSummary รวมสรุปข้อมูลการเงินของแพลตฟอร์ม: ยอดคงเหลือใน Stripe, ยอดเบิกจ่าย, ยอดคืนเงิน, ค่าธรรมเนียม และรายได้
 func (s *financialService) GetSummary() (*dto.FinancialSummary, error) {
 	summary := &dto.FinancialSummary{}
 
@@ -61,6 +62,7 @@ func (s *financialService) GetSummary() (*dto.FinancialSummary, error) {
 	return summary, nil
 }
 
+// GetProjectsFinancial ดึงข้อมูลการเงินของแต่ละโปรเจกต์ พร้อมจัดกลุ่มข้อมูลแต่ละ phase (milestone/disbursement) เข้าด้วยกัน
 func (s *financialService) GetProjectsFinancial() ([]dto.ProjectFinancialItem, error) {
 	rows, err := s.repo.GetProjectsFinancialRows()
 	if err != nil {

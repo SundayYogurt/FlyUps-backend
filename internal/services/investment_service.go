@@ -79,6 +79,7 @@ func NewInvestmentService(projectRepo repository.ProjectRepository, investmentRe
 	return &investmentService{projectRepo, investmentRepo, transactionRepo, userRepo, disbursementRepo, stripeSecretKey, webhookSecret, notifSvc, emailClient}
 }
 
+// GetInvestment ดึงข้อมูลการลงทุนพร้อมธุรกรรมที่เกี่ยวข้อง โดยตรวจสอบว่าเป็นของ boosterUserID นี้เท่านั้น
 func (s *investmentService) GetInvestment(boosterUserID uint, investmentID uint) (*domain.Investment, *domain.Transaction, error) {
 	investment, err := s.investmentRepo.FindByIDWithProject(investmentID)
 
@@ -89,10 +90,12 @@ func (s *investmentService) GetInvestment(boosterUserID uint, investmentID uint)
 		return nil, nil, errors.New("internal server error")
 	}
 
+	// เช็คเจ้าของ ไม่งั้นใครก็เดา id แล้วดูของคนอื่นได้
 	if investment.BoosterUserID != boosterUserID {
 		return nil, nil, errors.New("investment not found")
 	}
 
+	// บาง investment อาจยังไม่มี transaction (เช่นเพิ่งสร้าง ยังไม่ทันมี record) ถือว่าไม่ error
 	txn, err := s.transactionRepo.FindByInvestmentID(investmentID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -104,6 +107,7 @@ func (s *investmentService) GetInvestment(boosterUserID uint, investmentID uint)
 	return investment, txn, nil
 }
 
+// GenerateContractHTML สร้างเอกสารสัญญาการลงทุนเป็น HTML สำหรับดาวน์โหลด/พิมพ์
 func (s *investmentService) GenerateContractHTML(boosterUserID uint, investmentID uint) ([]byte, error) {
 	investment, err := s.investmentRepo.FindByIDWithProject(investmentID)
 	if err != nil || investment.BoosterUserID != boosterUserID {
@@ -115,6 +119,7 @@ func (s *investmentService) GenerateContractHTML(boosterUserID uint, investmentI
 		return nil, errors.New("user not found")
 	}
 
+	// เผื่อโปรเจกต์โดนลบไปแล้วแต่ investment ยังอยู่ ไม่ให้หน้าเอกสารพัง
 	projectTitle := "—"
 	if investment.Project != nil {
 		projectTitle = investment.Project.Title
@@ -152,6 +157,7 @@ func (s *investmentService) GenerateContractHTML(boosterUserID uint, investmentI
 		PaidAt:       paidAt,
 		GeneratedAt: func() string {
 			thaiMonths := [13]string{"", "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"}
+			// เวลาไทยล้วน ๆ ปีเป็น พ.ศ. เผื่อ server timezone ไม่ตรงเลยลง fallback ไว้กันพัง
 			loc, err := time.LoadLocation("Asia/Bangkok")
 			if err != nil {
 				loc = time.FixedZone("ICT", 7*60*60)
@@ -230,6 +236,7 @@ func (s *investmentService) GenerateContractHTML(boosterUserID uint, investmentI
 </body>
 </html>`
 
+	// ยัดข้อมูลลง template แล้วได้ไฟล์ HTML กลับมาเป็น []byte ให้ handler ส่งดาวน์โหลดต่อ
 	t, err := template.New("contract").Parse(tmpl)
 	if err != nil {
 		return nil, err
@@ -242,11 +249,14 @@ func (s *investmentService) GenerateContractHTML(boosterUserID uint, investmentI
 	return buf.Bytes(), nil
 }
 
+// CreateInvestment สร้างรายการลงทุนใหม่ ตรวจสอบสิทธิ์ผู้ใช้ เงื่อนไขโปรเจกต์ และยอดเงิน
+// แล้วสร้าง QR Code สำหรับชำระเงินผ่าน Stripe PromptPay
 func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail string, req dto.CreateInvestmentRequest) (*dto.InvestmentResponse, error) {
 	user, err := s.userRepo.FindUserById(boosterUserID)
 	if err != nil {
 		return nil, errors.New("user not found")
 	}
+	// admin กับ pioneer ไม่ใช่ role ที่มาลงทุน กันไว้ตั้งแต่ต้นทาง
 	if user.Role == "admin" {
 		return nil, errors.New("admin cannot invest")
 	}
@@ -255,6 +265,7 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 		return nil, errors.New("pioneer cannot invest")
 	}
 
+	// ต้องยืนยันตัวตนผ่านก่อนถึงจะลงทุนได้ (KYC)
 	if user.IdCardVerification == nil || user.IdCardVerification.Status != domain.VerifyStatusApproved {
 		return nil, errors.New("identity verification required before investing")
 	}
@@ -267,6 +278,7 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 		return nil, errors.New("internal server error")
 	}
 
+	// เจ้าของโปรเจกต์ลงทุนในโปรเจกต์ตัวเองไม่ได้
 	if project.OwnerUserID == user.ID {
 		return nil, errors.New("cannot invest in your own project")
 	}
@@ -290,6 +302,7 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 		return nil, fmt.Errorf("ยอดลงทุนต่อรายการต้องไม่เกิน ฿%.0f (กรุณาแบ่งเป็นหลายรายการหากต้องการลงทุนสูงกว่านี้)", MaxInvestmentPerTransaction)
 	}
 
+	// คำนวณค่าธรรมเนียม/VAT/ยอดสุทธิไว้ก่อน (ยังไม่รู้ค่าธรรมเนียม Stripe จริง จะมาปรับอีกทีตอน webhook)
 	fee, vat, principal := calculateFees(req.Amount, project.PlatformFee)
 
 	refNum, err := generateReferenceNumber()
@@ -297,6 +310,7 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 		return nil, errors.New("failed to generate reference number")
 	}
 
+	// สร้าง record ไว้ก่อนเป็นสถานะ pending รอผู้ใช้สแกน QR จ่ายเงิน
 	investment := &domain.Investment{
 		ReferenceNumber: refNum,
 		ProjectID:       req.ProjectID,
@@ -325,6 +339,7 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 
 	qrBase64, err := generateQRBase64(qrData)
 	if err != nil {
+		// แปลงรูปไม่ผ่านก็ไม่ถึงกับ fail ทั้ง flow เพราะยังมี qrURL จาก Stripe ให้ใช้อยู่
 		log.Printf("[CreateInvestment] generate qr base64 error: %v", err)
 	}
 
@@ -354,21 +369,25 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 	}, nil
 }
 
-// all my investments
+// ListUserInvestments ดึงรายการลงทุนทั้งหมดของผู้ใช้
 func (s *investmentService) ListUserInvestments(boosterUserID uint) ([]domain.Investment, error) {
 	return s.investmentRepo.ListByBoosterUserID(boosterUserID)
 }
 
+// RefundInvestment ให้ผู้ลงทุนขอคืนเงินสำหรับการลงทุนที่ verified แล้ว
+// (เปลี่ยนสถานะเป็น refund pending รอแอดมินอนุมัติ)
 func (s *investmentService) RefundInvestment(boosterUserID uint, investmentID uint, note string) (*dto.RefundResponse, error) {
 	investment, err := s.investmentRepo.FindByID(investmentID)
 	if err != nil {
 		return nil, errors.New("investment not found")
 	}
 
+	// ต้องเป็นเจ้าของรายการลงทุนนี้เท่านั้น
 	if investment.BoosterUserID != boosterUserID {
 		return nil, errors.New("investment not found")
 	}
 
+	// ขอคืนได้เฉพาะรายการที่จ่ายเงินสำเร็จแล้วเท่านั้น (pending/rejected ไม่มีเงินให้คืน)
 	if investment.Status != domain.InvestmentVerified {
 		return nil, errors.New("only verified investments can be refunded")
 	}
@@ -378,6 +397,7 @@ func (s *investmentService) RefundInvestment(boosterUserID uint, investmentID ui
 		return nil, errors.New("project not found")
 	}
 
+	// พ้นช่วงระดมทุนไปแล้ว (เช่นเริ่ม executing) จะคืนเงินไม่ได้ เพราะเงินอาจถูกเบิกไปให้ pioneer แล้ว
 	if project.State != domain.StateFunding {
 		return nil, errors.New("refund is only allowed while project project is in funding state")
 	}
@@ -391,8 +411,10 @@ func (s *investmentService) RefundInvestment(boosterUserID uint, investmentID ui
 
 	s.refreshPrincipalFromStripe(investment, txn)
 
+	// คืนแค่ PrincipalAmount เท่านั้น ค่าธรรมเนียม platform/VAT ไม่คืนให้
 	refundAmount := investment.PrincipalAmount
 
+	// ยังไม่ยิง Stripe refund ตรงนี้ แค่ mark เป็น pending รอแอดมินกดอนุมัติอีกที
 	now := time.Now()
 	investment.Status = domain.InvestmentRefundPending
 	investment.RefundAmount = refundAmount
@@ -404,6 +426,7 @@ func (s *investmentService) RefundInvestment(boosterUserID uint, investmentID ui
 		return nil, errors.New("refund processed but failed to update record")
 	}
 
+	// หักยอดที่นับรวมไว้ในโปรเจกต์ออก เพราะเงินก้อนนี้กำลังจะถูกคืนไม่ใช่ของโปรเจกต์แล้ว
 	if err := s.investmentRepo.IncrementProjectFunding(investment.ProjectID, -investment.TotalAmount); err != nil {
 		log.Printf("[RefundInvestment] deccrement current_funding error: %v", err)
 	}
@@ -453,10 +476,12 @@ func (s *investmentService) SyncProjectPrincipalAmounts(projectID uint) error {
 		inv := &investments[i]
 		txn, err := s.transactionRepo.FindByInvestmentID(inv.ID)
 		if err != nil {
+			// ไม่มี transaction ก็ข้ามไปตัวถัดไป ไม่ทำให้ทั้ง batch fail
 			log.Printf("[SyncProjectPrincipalAmounts] transaction not found for investment %d: %v", inv.ID, err)
 			continue
 		}
 
+		// ถ้ามีการอัปเดต PrincipalAmount จริง (แปลว่าก่อนหน้านี้ยังไม่เคยดึงค่าธรรมเนียมสำเร็จ) ค่อย save
 		if s.refreshPrincipalFromStripe(inv, txn) {
 			if err := s.investmentRepo.UpdatePaid(inv); err != nil {
 				log.Printf("[SyncProjectPrincipalAmounts] update investment %d error: %v", inv.ID, err)
@@ -467,6 +492,7 @@ func (s *investmentService) SyncProjectPrincipalAmounts(projectID uint) error {
 	return nil
 }
 
+// ListRefundRequests ดึงรายการคำขอคืนเงินที่รอดำเนินการทั้งหมด พร้อมข้อมูลผู้ลงทุนและบัญชีธนาคารสำหรับโอนคืน
 func (s *investmentService) ListRefundRequests() ([]dto.RefundRequestItem, error) {
 	investments, err := s.investmentRepo.ListRefundPending()
 	if err != nil {
@@ -488,6 +514,7 @@ func (s *investmentService) ListRefundRequests() ([]dto.RefundRequestItem, error
 			item.RequestedAt = inv.RefundedAt.Format(time.RFC3339)
 		}
 
+		// พวก lookup พวกนี้ error ก็ปล่อยผ่าน แค่ field เป็นค่าว่าง ไม่ต้อง fail ทั้ง list
 		if p, err := s.projectRepo.FindProjectByID(inv.ProjectID); err == nil {
 			item.ProjectTitle = p.Title
 		}
@@ -497,6 +524,7 @@ func (s *investmentService) ListRefundRequests() ([]dto.RefundRequestItem, error
 			item.BoosterName = user.FirstName + " " + user.LastName
 			item.BoosterEmail = user.Email
 
+			// หาบัญชีที่ตั้งเป็น default ไว้ก่อน ถ้าไม่มีเลยก็เอาบัญชีแรกที่เจอ
 			var defaultBank *domain.BankAccount
 			for _, b := range user.BankAccounts {
 				if b.IsDefault {
@@ -521,12 +549,14 @@ func (s *investmentService) ListRefundRequests() ([]dto.RefundRequestItem, error
 	return result, nil
 }
 
+// ApproveRefund อนุมัติคำขอคืนเงิน ยิง Stripe Refund จริง แล้วอัปเดตสถานะและแจ้งเตือนผู้ลงทุน
 func (s *investmentService) ApproveRefund(investmentID uint) error {
 	investment, err := s.investmentRepo.FindByID(investmentID)
 	if err != nil {
 		return errors.New("investment not found")
 	}
 
+	// กันอนุมัติซ้ำ หรืออนุมัติรายการที่ยังไม่ได้ขอ refund
 	if investment.Status != domain.InvestmentRefundPending {
 		return errors.New("investment is not pending refund")
 	}
@@ -706,6 +736,8 @@ func (s *investmentService) RefundProjectInvestments(project domain.Project) {
 	}
 }
 
+// GetCancelPreview คำนวณและแสดงตัวอย่างผลกระทบก่อนยกเลิกโปรเจกต์
+// เช่น ยอดเงินที่เบิกจ่ายให้ pioneer ไปแล้ว และยอดที่จะคืนให้นักลงทุนแต่ละคน
 func (s *investmentService) GetCancelPreview(projectID uint) (*dto.CancelPreviewResponse, error) {
 	project, err := s.projectRepo.FindProjectByID(projectID)
 	if err != nil {
@@ -732,6 +764,7 @@ func (s *investmentService) GetCancelPreview(projectID uint) (*dto.CancelPreview
 		}
 	}
 
+	// เตรียมรายการ milestone ให้ frontend เห็นว่า phase ไหนเบิกไปแล้วบ้าง
 	previewMilestones := make([]dto.CancelPreviewMilestone, 0, len(milestones))
 	for _, m := range milestones {
 		d, hasDisbursement := disbByMilestone[m.ID]
@@ -778,6 +811,7 @@ func (s *investmentService) GetCancelPreview(projectID uint) (*dto.CancelPreview
 	}
 	aggMap := make(map[uint]*aggEntry)
 
+	// คนเดียวอาจลงทุนหลายรอบในโปรเจกต์เดียวกัน เลยต้องรวมยอดตาม user ก่อนคำนวณคืนเงิน
 	for _, inv := range investments {
 		e, ok := aggMap[inv.BoosterUserID]
 		if !ok {
@@ -822,6 +856,7 @@ func (s *investmentService) GetCancelPreview(projectID uint) (*dto.CancelPreview
 	}, nil
 }
 
+// HandleStripeWebhook รับและประมวลผล webhook event จาก Stripe (ชำระเงินสำเร็จ/ไม่สำเร็จ) หลังตรวจสอบลายเซ็นแล้ว
 func (s *investmentService) HandleStripeWebhook(payload []byte, sigHeader string) error {
 	event, err := webhook.ConstructEventWithOptions(payload, sigHeader, s.webhookSecret, webhook.ConstructEventOptions{
 		IgnoreAPIVersionMismatch: true,
@@ -830,6 +865,7 @@ func (s *investmentService) HandleStripeWebhook(payload []byte, sigHeader string
 		return fmt.Errorf("webhook signture verification failed: %v", err)
 	}
 
+	// event อื่นนอกจากสองแบบนี้ไม่สนใจ ปล่อยผ่านเงียบ ๆ
 	switch event.Type {
 	case "payment_intent.succeeded":
 		if id, ok := event.Data.Object["id"].(string); ok {
@@ -844,6 +880,7 @@ func (s *investmentService) HandleStripeWebhook(payload []byte, sigHeader string
 	return nil
 }
 
+// GetProjectInvestors ดึงรายชื่อผู้ลงทุนทั้งหมดของโปรเจกต์ (ตรวจสอบก่อนว่าโปรเจกต์มีอยู่จริง)
 func (s *investmentService) GetProjectInvestors(projectID uint) ([]dto.ProjectInvestorItem, error) {
 	_, err := s.projectRepo.FindProjectByID(projectID)
 	if err != nil {
@@ -852,10 +889,13 @@ func (s *investmentService) GetProjectInvestors(projectID uint) ([]dto.ProjectIn
 	return s.investmentRepo.ListInvestorsByProjectID(projectID)
 }
 
+// ListInvestedProjects ดึงรายชื่อโปรเจกต์ทั้งหมดที่ผู้ใช้เคยลงทุน
 func (s *investmentService) ListInvestedProjects(boosterUserID uint) ([]dto.InvestedProjectItem, error) {
 	return s.investmentRepo.ListInvestedProjectsByUserID(boosterUserID)
 }
 
+// VoteMilestone บันทึกคะแนนโหวตของผู้ลงทุนต่อ milestone และตรวจสอบผลโหวตอัตโนมัติ
+// (ผ่าน/ไม่ผ่าน) ตามสัดส่วนยอดเงินลงทุนที่ verified แล้วในโปรเจกต์
 func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, choice domain.MilestoneVoteChoice) (*domain.MilestoneVote, error) {
 	if boosterUserID == 0 {
 		return nil, errors.New("unauthorized")
@@ -874,6 +914,7 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 		return nil, errors.New("voting is not open")
 	}
 
+	// ต้องมีเงินลงทุนจริง (verified) ในโปรเจกต์นี้ถึงจะมีสิทธิ์โหวต
 	ok, err := s.projectRepo.HasVerifiedInvestment(m.ProjectID, boosterUserID)
 	if err != nil {
 		return nil, errors.New("internal server error")
@@ -882,6 +923,7 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 		return nil, errors.New("only verified investors can vote")
 	}
 
+	// โหวตได้คนละครั้งต่อ milestone
 	existing, _ := s.projectRepo.FindVote(milestoneID, boosterUserID)
 	if existing != nil {
 		return nil, errors.New("you have already voted")
@@ -900,12 +942,13 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 		return nil, errors.New("failed to save vote")
 	}
 
+	// เผื่อระหว่างที่บันทึกโหวตอยู่ มีคนอื่นปิดโหวตไปพอดี ก็แค่บันทึกไว้เฉย ๆ ไม่ต้องไปนับผลต่อ
 	m, _ = s.projectRepo.FindMilestoneByID(milestoneID)
 	if !m.VotingOpen {
 		return vote, nil // voting already closed
 	}
 
-	// auto-finalize: if approval reaches strict majority of eligible verified investment -> paid
+	// เช็คทุกครั้งที่มีคนโหวตว่าเกินครึ่งหนึ่งของเงินลงทุนทั้งหมดหรือยัง ถ้าเกินก็ปิดโหวตและผ่านทันทีไม่ต้องรอครบเวลา
 	eligibleAmount, err := s.projectRepo.SumVerifiedInvestmentByProjectID(m.ProjectID)
 	if err == nil && eligibleAmount > 0 {
 		approveAmount, err2 := s.projectRepo.SumMilestoneVotes(milestoneID, domain.MilestoneVoteApprove)
@@ -981,6 +1024,7 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 				}
 			}
 		} else {
+			// เช็คฝั่งตรงข้ามด้วย ถ้าโหวต reject เกินครึ่งแล้วก็ปิดโหวตเลย ไม่ต้องรอให้ครบเวลา
 			rejectAmount, err3 := s.projectRepo.SumMilestoneVotes(milestoneID, domain.MilestoneVoteReject)
 			if err3 == nil && rejectAmount*2 > eligibleAmount {
 				now := time.Now().UTC()
@@ -988,6 +1032,7 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 				m.VotingClosedAt = &now
 				_ = s.projectRepo.CloseMeetingsByMilestoneID(m.ID)
 
+				// รีทรายได้แค่ 1 ครั้ง ถ้าตกรอบสองก็จบเลย โปรเจกต์โดนระงับ
 				m.RetryCount += 1
 				if m.RetryCount > 1 {
 					m.Status = domain.MilestoneFailed
@@ -1048,12 +1093,14 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 	return vote, nil
 }
 
+// FinalizeVotingIfExpired ปิดรอบโหวต milestone อัตโนมัติเมื่อเลยกำหนดเวลาโหวตแล้ว แล้วสรุปผลตามคะแนนที่มีอยู่
 func (s *investmentService) FinalizeVotingIfExpired(milestoneID uint) error {
 	m, err := s.projectRepo.FindMilestoneByID(milestoneID)
 	if err != nil {
 		return err
 	}
 
+	// ไม่ได้อยู่ในช่วงเปิดโหวตก็ไม่มีอะไรให้ทำ
 	if m.Status != domain.MilestoneApproved || !m.VotingOpen {
 		return nil
 	}
@@ -1166,6 +1213,7 @@ func (s *investmentService) FinalizeVotingIfExpired(milestoneID uint) error {
 	return nil
 }
 
+// GetMyVote ดึงคะแนนโหวตของผู้ใช้ที่มีต่อ milestone ที่ระบุ
 func (s *investmentService) GetMyVote(boosterUserID uint, milestoneID uint) (*domain.MilestoneVote, error) {
 	if boosterUserID == 0 {
 		return nil, errors.New("unauthorized")
@@ -1173,6 +1221,8 @@ func (s *investmentService) GetMyVote(boosterUserID uint, milestoneID uint) (*do
 	return s.projectRepo.FindVote(milestoneID, boosterUserID)
 }
 
+// GetMilestoneVoters ดึงรายชื่อผู้ลงทุนทั้งหมดของโปรเจกต์พร้อมสถานะการโหวตต่อ milestone
+// (เฉพาะเจ้าของโปรเจกต์ (pioneer) เท่านั้นที่เรียกดูได้)
 func (s *investmentService) GetMilestoneVoters(pioneerUserID uint, milestoneID uint) ([]dto.MilestoneVoterItem, error) {
 	milestone, err := s.projectRepo.FindMilestoneByID(milestoneID)
 	if err != nil || milestone == nil {
@@ -1184,6 +1234,7 @@ func (s *investmentService) GetMilestoneVoters(pioneerUserID uint, milestoneID u
 		return nil, errors.New("project not found")
 	}
 
+	// เฉพาะ pioneer เจ้าของโปรเจกต์เท่านั้นที่ดูรายชื่อคนโหวตได้
 	if project.OwnerUserID != pioneerUserID {
 		return nil, errors.New("forbidden")
 	}
@@ -1198,6 +1249,7 @@ func (s *investmentService) GetMilestoneVoters(pioneerUserID uint, milestoneID u
 		return nil, err
 	}
 
+	// ทำเป็น map ไว้ก่อนเพื่อเช็คได้เร็วว่าใครโหวตอะไรไปแล้วบ้าง
 	voteMap := make(map[uint]domain.MilestoneVoteChoice, len(votes))
 	for _, v := range votes {
 		voteMap[v.BoosterUserID] = v.Choice
@@ -1273,6 +1325,7 @@ func (s *investmentService) createDisbursementForMilestone(m *domain.Milestone) 
 func (s *investmentService) createStripePromptPay(amount float64, refNum string, projectTitle string, email string) (qrURL, qrData, intentID, clientSecret string, expiresAt time.Time, err error) {
 	stripe.Key = s.stripeSecretKey
 
+	// สร้าง payment method แบบ promptpay ผูกกับอีเมลผู้ลงทุนก่อน
 	pm, err := paymentmethod.New(&stripe.PaymentMethodParams{
 		Type: stripe.String("promptpay"),
 		BillingDetails: &stripe.PaymentMethodBillingDetailsParams{
@@ -1283,8 +1336,10 @@ func (s *investmentService) createStripePromptPay(amount float64, refNum string,
 		return "", "", "", "", time.Time{}, fmt.Errorf("create payment method error: %v", err)
 	}
 
+	// Stripe คิดหน่วยเป็นสตางค์ (satang) ไม่ใช่บาท เลยต้อง x100
 	amountInSatang := int64(math.Round(amount * 100))
 
+	// Confirm: true เพื่อให้ Stripe สร้าง QR กลับมาให้เลยในขั้นตอนเดียว ไม่ต้อง confirm แยกอีกรอบ
 	pi, err := paymentintent.New(&stripe.PaymentIntentParams{
 		Amount:             stripe.Int64(amountInSatang),
 		Currency:           stripe.String("thb"),
@@ -1300,6 +1355,7 @@ func (s *investmentService) createStripePromptPay(amount float64, refNum string,
 		return "", "", "", "", time.Time{}, fmt.Errorf("create payment intent error: %v", err)
 	}
 
+	// ปกติ Stripe จะแนบ QR code มาให้ใน next_action ถ้าไม่มีแปลว่ามีอะไรผิดปกติ
 	if pi.NextAction == nil || pi.NextAction.PromptPayDisplayQRCode == nil {
 		return "", "", "", "", time.Time{}, errors.New("promptpay QR code not returned by Stripe")
 	}
@@ -1308,10 +1364,11 @@ func (s *investmentService) createStripePromptPay(amount float64, refNum string,
 		pi.NextAction.PromptPayDisplayQRCode.Data,
 		pi.ID,
 		pi.ClientSecret,
-		time.Now().Add(5 * time.Minute),
+		time.Now().Add(5 * time.Minute), // ให้เวลาสแกนจ่าย 5 นาทีตามเงื่อนไข PromptPay
 		nil
 }
 
+// generateQRBase64 แปลงข้อมูล QR code เป็นรูปภาพ PNG ในรูปแบบ base64 data URI
 func generateQRBase64(data string) (string, error) {
 	png, err := qrcode.Encode(data, qrcode.Medium, 512)
 	if err != nil {
@@ -1320,6 +1377,8 @@ func generateQRBase64(data string) (string, error) {
 	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(png), nil
 }
 
+// handlePaymentSucceeded ประมวลผลเมื่อชำระเงินสำเร็จ: อัปเดตสถานะธุรกรรม/การลงทุน คำนวณ PrincipalAmount
+// จากค่าธรรมเนียม Stripe จริง เพิ่มยอดระดมทุนของโปรเจกต์ และเปลี่ยนสถานะโปรเจกต์เป็น executing หากถึงเป้าหมายแล้ว
 func (s *investmentService) handlePaymentSucceeded(intentID string) {
 	txn, err := s.transactionRepo.FindByPaymentIntentID(intentID)
 	if err != nil {
@@ -1332,6 +1391,7 @@ func (s *investmentService) handlePaymentSucceeded(intentID string) {
 		return
 	}
 
+	// ไปดึงค่าธรรมเนียม Stripe ตัวจริงมา (ตอนสร้าง investment เรารู้แค่ค่าธรรมเนียม platform เอง)
 	stripe.Key = s.stripeSecretKey
 	stripeFee, stripeFeeVAT, netAmount := s.fetchStripeFeesFromIntent(intentID)
 	if err := s.transactionRepo.UpdateStripeFeesAndNet(txn.ID, stripeFee, stripeFeeVAT, netAmount); err != nil {
@@ -1356,6 +1416,7 @@ func (s *investmentService) handlePaymentSucceeded(intentID string) {
 		log.Printf("[Webhook] update investment error: %v", err)
 	}
 
+	// ตอนนี้ถึงค่อยนับเงินก้อนนี้เข้ายอดระดมทุนของโปรเจกต์ (ตอน pending ยังไม่นับ)
 	if err := s.investmentRepo.IncrementProjectFunding(investment.ProjectID, investment.TotalAmount); err != nil {
 		log.Printf("[Webhook] update project current_funding error: %v", err)
 	}
@@ -1395,6 +1456,8 @@ func (s *investmentService) handlePaymentSucceeded(intentID string) {
 	}
 }
 
+// fetchStripeFeesFromIntent ดึงค่าธรรมเนียม Stripe จริงและยอดสุทธิจาก payment intent
+// (ผ่าน latest charge และ balance transaction ของมัน)
 func (s *investmentService) fetchStripeFeesFromIntent(intentID string) (stripeFee, stripeFeeVAT, netAmount float64) {
 	pi, err := paymentintent.Get(intentID, &stripe.PaymentIntentParams{
 		Params: stripe.Params{
@@ -1407,6 +1470,7 @@ func (s *investmentService) fetchStripeFeesFromIntent(intentID string) (stripeFe
 		return
 	}
 
+	// ยังไม่มี charge แปลว่ายังไม่ได้เงินจริง ๆ ก็ยังไม่มีค่าธรรมเนียมให้ดึง
 	if pi.LatestCharge == nil {
 		return
 	}
@@ -1421,8 +1485,10 @@ func (s *investmentService) fetchStripeFeesFromIntent(intentID string) (stripeFe
 		return
 	}
 
+	// balance_transaction คือของจริงจาก Stripe (net = ยอดที่เข้าบัญชีจริงหลังหักค่าธรรมเนียม)
 	bt := ch.BalanceTransaction
 	netAmount = float64(bt.Net) / 100
+	// แยก fee ปกติกับ VAT ของ fee ออกจากกัน เพราะฝั่ง fee detail ของ Stripe มัดรวมมาเป็นก้อนเดียว
 	for _, detail := range bt.FeeDetails {
 		if detail.Type == "tax" {
 			stripeFeeVAT += float64(detail.Amount) / 100
@@ -1433,6 +1499,7 @@ func (s *investmentService) fetchStripeFeesFromIntent(intentID string) (stripeFe
 	return
 }
 
+// handlePaymentFailed ประมวลผลเมื่อชำระเงินไม่สำเร็จ: อัปเดตสถานะธุรกรรม/การลงทุนเป็นล้มเหลว และแจ้งเตือนผู้ลงทุน
 func (s *investmentService) handlePaymentFailed(intentID string) {
 	txn, err := s.transactionRepo.FindByPaymentIntentID(intentID)
 	if err != nil {
@@ -1465,9 +1532,14 @@ func (s *investmentService) handlePaymentFailed(intentID string) {
 // อาจมีเศษความคลาดเคลื่อนระดับ 1e-9 ที่ทำให้เงื่อนไข == พลาดได้
 const amountEpsilon = 0.01
 
-func amountLess(a, b float64) bool    { return a < b-amountEpsilon }
+// amountLess เทียบว่า a น้อยกว่า b หรือไม่ โดยเผื่อ epsilon กันความคลาดเคลื่อนของ float
+func amountLess(a, b float64) bool { return a < b-amountEpsilon }
+
+// amountGreater เทียบว่า a มากกว่า b หรือไม่ โดยเผื่อ epsilon กันความคลาดเคลื่อนของ float
 func amountGreater(a, b float64) bool { return a > b+amountEpsilon }
-func amountEqual(a, b float64) bool   { return math.Abs(a-b) < amountEpsilon }
+
+// amountEqual เทียบว่า a เท่ากับ b หรือไม่ โดยเผื่อ epsilon กันความคลาดเคลื่อนของ float
+func amountEqual(a, b float64) bool { return math.Abs(a-b) < amountEpsilon }
 
 // validateAmount ตรวจสอบยอดลงทุนตาม invariant: หลังทุกการลงทุน ยอดคงเหลือของโปรเจกต์
 // ต้องเป็น 0 (ปิดยอดพอดี) หรือ ≥ ฿20 (ขั้นต่ำของช่องทางชำระเงิน Stripe PromptPay) เสมอ
@@ -1537,6 +1609,7 @@ func generateReferenceNumber() (string, error) {
 
 	result := make([]byte, 8)
 
+	// สุ่มทีละตัวอักษรจาก crypto/rand ให้แน่ใจว่าเดาไม่ได้ (เลขอ้างอิงนี้เอาไปผูกกับ Stripe metadata ด้วย)
 	for i := range result {
 		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
 		if err != nil {
@@ -1548,10 +1621,12 @@ func generateReferenceNumber() (string, error) {
 	return "INV-" + strings.ToUpper(string(result)), nil
 }
 
+// GetTotalFunding รวมยอดเงินระดมทุนทั้งหมดในระบบ
 func (s *investmentService) GetTotalFunding() (float64, error) {
 	return s.investmentRepo.SumTotalFunding()
 }
 
+// GetUniqueBoostersCount นับจำนวนผู้ลงทุนที่ไม่ซ้ำกันในระบบ
 func (s *investmentService) GetUniqueBoostersCount() (int64, error) {
 	return s.investmentRepo.CountUniqueBoosters()
 }

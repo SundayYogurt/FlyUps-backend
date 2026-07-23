@@ -161,6 +161,7 @@ func (h *ProfitPoolHandler) PioneerSubmit(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "profit submitted", result)
 }
 
+// PioneerList คืนกองทุนกำไรทั้งหมดที่ pioneer ปัจจุบันเคยส่งเข้าระบบ
 func (h *ProfitPoolHandler) PioneerList(ctx fiber.Ctx) error {
 	currentUser := h.auth.GetCurrentUser(ctx)
 	if currentUser.ID == 0 {
@@ -173,6 +174,7 @@ func (h *ProfitPoolHandler) PioneerList(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", items)
 }
 
+// MyProfitPayouts คืนรายการเงินปันผลทั้งหมดที่ผู้ใช้ (booster) ปัจจุบันเคยได้รับหรือกำลังรอรับ
 func (h *ProfitPoolHandler) MyProfitPayouts(ctx fiber.Ctx) error {
 	currentUser := h.auth.GetCurrentUser(ctx)
 	if currentUser.ID == 0 {
@@ -185,6 +187,7 @@ func (h *ProfitPoolHandler) MyProfitPayouts(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", items)
 }
 
+// ConfirmPayout ให้แอดมินยืนยันว่าโอนเงินปันผลให้ผู้ลงทุนรายหนึ่งเรียบร้อยแล้ว
 func (h *ProfitPoolHandler) ConfirmPayout(ctx fiber.Ctx) error {
 	currentUser := h.auth.GetCurrentUser(ctx)
 	if currentUser.ID == 0 {

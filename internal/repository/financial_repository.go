@@ -37,6 +37,7 @@ func NewFinancialRepository(db *gorm.DB) FinancialRepository {
 	return &financialRepository{db}
 }
 
+// GetDisbursementStat รวมยอดเงิน (Total) และจำนวนรายการ (Count) ของการเบิกจ่ายเงินตามสถานะที่ระบุ
 func (r *financialRepository) GetDisbursementStat(status string) (FinancialStat, error) {
 	var stat FinancialStat
 	r.db.Table("disbursements").
@@ -49,6 +50,7 @@ func (r *financialRepository) GetDisbursementStat(status string) (FinancialStat,
 	return stat, nil
 }
 
+// GetInvestmentRefundStat รวมยอดเงินคืน (refund_amount) และจำนวนรายการของการลงทุนตามสถานะที่ระบุ
 func (r *financialRepository) GetInvestmentRefundStat(status string) (FinancialStat, error) {
 	var stat FinancialStat
 	r.db.Table("investments").
@@ -61,6 +63,7 @@ func (r *financialRepository) GetInvestmentRefundStat(status string) (FinancialS
 	return stat, nil
 }
 
+// GetTransactionFees รวมค่าธรรมเนียม Stripe ทั้งหมด (stripe_fee + stripe_fee_vat) ของธุรกรรมที่สำเร็จแล้ว
 func (r *financialRepository) GetTransactionFees() (float64, error) {
 	var total float64
 	r.db.Table("transactions").
@@ -70,6 +73,7 @@ func (r *financialRepository) GetTransactionFees() (float64, error) {
 	return total, nil
 }
 
+// GetTransactionRevenue รวมยอดเงินสุทธิ (net_amount) ของธุรกรรมที่สำเร็จแล้วทั้งหมด
 func (r *financialRepository) GetTransactionRevenue() (float64, error) {
 	var total float64
 	r.db.Table("transactions").
@@ -79,6 +83,8 @@ func (r *financialRepository) GetTransactionRevenue() (float64, error) {
 	return total, nil
 }
 
+// GetProjectsFinancialRows ดึงข้อมูลการเงินของแต่ละโปรเจกต์แบบรวม milestone และการเบิกจ่ายเงิน (JOIN projects, milestones, disbursements)
+// เฉพาะโปรเจกต์ที่อยู่ในสถานะ executing, funded, completed หรือ cancelled เรียงตามโปรเจกต์และเฟส
 func (r *financialRepository) GetProjectsFinancialRows() ([]FinancialProjectRow, error) {
 	var rows []FinancialProjectRow
 	r.db.Raw(`

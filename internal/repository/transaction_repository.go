@@ -22,10 +22,12 @@ func NewTransactionRepository(db *gorm.DB) TransactionRepository {
 	return &transactionRepository{db}
 }
 
+// Create บันทึกรายการธุรกรรม (transaction) ใหม่ลงฐานข้อมูล
 func (r *transactionRepository) Create(txn *domain.Transaction) error {
 	return r.db.Create(txn).Error
 }
 
+// FindByPaymentIntentID ค้นหาธุรกรรมจาก Stripe payment intent ID พร้อมโหลดข้อมูลการลงทุน (Investment) มาด้วย
 func (r *transactionRepository) FindByPaymentIntentID(intentID string) (*domain.Transaction, error) {
 	txn := domain.Transaction{}
 
@@ -38,6 +40,7 @@ func (r *transactionRepository) FindByPaymentIntentID(intentID string) (*domain.
 	return &txn, nil
 }
 
+// FindByInvestmentID ค้นหาธุรกรรมจาก investment ID
 func (r *transactionRepository) FindByInvestmentID(investmentID uint) (*domain.Transaction, error) {
 	txn := domain.Transaction{}
 
@@ -50,10 +53,12 @@ func (r *transactionRepository) FindByInvestmentID(investmentID uint) (*domain.T
 	return &txn, nil
 }
 
+// UpdateStatus อัปเดตสถานะ (status) ของธุรกรรมตาม ID
 func (r *transactionRepository) UpdateStatus(id uint, status domain.TransactionStatus) error {
 	return r.db.Model(&domain.Transaction{}).Where("id = ?", id).Update("status", status).Error
 }
 
+// UpdateStripeFeesAndNet อัปเดตค่าธรรมเนียม Stripe (fee, VAT ของ fee) และยอดเงินสุทธิ (net amount) ของธุรกรรม
 func (r *transactionRepository) UpdateStripeFeesAndNet(id uint, stripeFee float64, stripeFeeVAT float64, netAmount float64) error {
 	return r.db.Model(&domain.Transaction{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"stripe_fee":     stripeFee,

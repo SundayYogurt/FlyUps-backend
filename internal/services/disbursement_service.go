@@ -35,6 +35,8 @@ func NewDisbursementService(
 	return &disbursementService{disbursementRepo, projectRepo, userRepo, notifSvc}
 }
 
+// CreateForMilestone สร้างรายการเบิกจ่ายเงิน (disbursement) แบบ pending ให้ milestone ที่ผ่านการโหวตแล้ว
+// คำนวณยอดจาก current_funding ของโปรเจกต์ x percent_release ของ milestone; เรียกซ้ำได้อย่างปลอดภัยถ้ามีอยู่แล้ว
 func (s *disbursementService) CreateForMilestone(milestoneID uint) (*domain.Disbursement, error) {
 	existing, err := s.disbursementRepo.FindByMilestoneID(milestoneID)
 	if err == nil && existing != nil {
@@ -73,6 +75,7 @@ func (s *disbursementService) CreateForMilestone(milestoneID uint) (*domain.Disb
 	return d, nil
 }
 
+// ListAll ดึงรายการเบิกจ่ายเงินทั้งหมด พร้อมข้อมูลโปรเจกต์/pioneer/บัญชีธนาคาร
 func (s *disbursementService) ListAll() ([]dto.DisbursementItem, error) {
 	list, err := s.disbursementRepo.ListAll()
 	if err != nil {
@@ -81,6 +84,7 @@ func (s *disbursementService) ListAll() ([]dto.DisbursementItem, error) {
 	return s.toItems(list), nil
 }
 
+// ListPending ดึงรายการเบิกจ่ายเงินที่ยังรอดำเนินการ (pending) เท่านั้น
 func (s *disbursementService) ListPending() ([]dto.DisbursementItem, error) {
 	list, err := s.disbursementRepo.ListByStatus(domain.DisbursementPending)
 	if err != nil {
@@ -89,6 +93,7 @@ func (s *disbursementService) ListPending() ([]dto.DisbursementItem, error) {
 	return s.toItems(list), nil
 }
 
+// Confirm ยืนยันว่าแอดมินได้โอนเงินเบิกจ่ายให้ pioneer เรียบร้อยแล้ว บันทึกเลขอ้างอิงการโอน แล้วแจ้งเตือน pioneer
 func (s *disbursementService) Confirm(disbursementID uint, adminID uint, req dto.ConfirmDisbursementRequest) (*domain.Disbursement, error) {
 	d, err := s.disbursementRepo.FindByID(disbursementID)
 	if err != nil {
@@ -126,6 +131,7 @@ func (s *disbursementService) Confirm(disbursementID uint, adminID uint, req dto
 	return d, nil
 }
 
+// ListMyPayouts ดึงรายการเบิกจ่ายเงินทั้งหมดของ pioneer พร้อมระบุว่าโปรเจกต์ไหนผ่านครบทุก phase แล้วบ้าง
 func (s *disbursementService) ListMyPayouts(pioneerID uint) ([]dto.PioneerPayoutItem, error) {
 	list, err := s.disbursementRepo.ListByPioneerID(pioneerID)
 	if err != nil {
@@ -177,6 +183,7 @@ func (s *disbursementService) ListMyPayouts(pioneerID uint) ([]dto.PioneerPayout
 	return items, nil
 }
 
+// toItems แปลง domain.Disbursement เป็น dto.DisbursementItem พร้อมเติมข้อมูลโปรเจกต์/pioneer/บัญชีธนาคารเริ่มต้น
 func (s *disbursementService) toItems(list []domain.Disbursement) []dto.DisbursementItem {
 	items := make([]dto.DisbursementItem, 0, len(list))
 	for _, d := range list {
