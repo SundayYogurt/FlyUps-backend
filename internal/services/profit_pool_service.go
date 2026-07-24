@@ -79,9 +79,17 @@ func (s *profitPoolService) Create(adminID uint, req dto.CreateProfitPoolRequest
 		return nil, errors.New("failed to create profit pool")
 	}
 
-	for _, inv := range investors {
+	var totalAllocated float64
+	for i, inv := range investors {
 		sharePct := math.Round((inv.PrincipalAmount/totalPrincipal)*10000) / 100
-		amount := math.Round((inv.PrincipalAmount/totalPrincipal)*req.TotalAmount*100) / 100
+		var amount float64
+		if i == len(investors)-1 {
+			// ให้ remainder แก่ investor คนสุดท้าย กัน rounding loss
+			amount = math.Round((req.TotalAmount-totalAllocated)*100) / 100
+		} else {
+			amount = math.Round((inv.PrincipalAmount/totalPrincipal)*req.TotalAmount*100) / 100
+			totalAllocated += amount
+		}
 		payout := &domain.InvestorProfitPayout{
 			ProfitPoolID:  pool.ID,
 			ProjectID:     req.ProjectID,

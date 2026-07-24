@@ -123,7 +123,7 @@ type CreateMilestoneRequest struct {
 
 type SubmitMilestoneRequest struct {
 	// สรุปสิ่งที่ทำใน phase นี้
-	Summary string `json:"summary,omitempty"`
+	Summary string `json:"summary" validate:"required,min=50"`
 	// checklist items ที่ทำเสร็จแล้ว (mapped from acceptance_criteria)
 	Criteria []string `json:"criteria,omitempty"`
 	// evidence files uploaded to Cloudinary (use /upload first)

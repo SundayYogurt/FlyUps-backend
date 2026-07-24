@@ -580,7 +580,7 @@ func TestRefundInvestment_Success(t *testing.T) {
 	projectRepo.On("FindProjectByID", uint(5)).Return(project, nil)
 	txnRepo.On("FindByInvestmentID", uint(1)).Return(txn, nil)
 	investRepo.On("UpdateRefunded", mock.AnythingOfType("*domain.Investment")).Return(nil)
-	investRepo.On("IncrementProjectFunding", uint(5), -float64(1000)).Return(nil)
+	// IncrementProjectFunding ถูกย้ายไป ApproveRefund แล้ว ไม่เรียกที่นี่อีกต่อไป
 
 	resp, err := svc.RefundInvestment(10, 1, "ต้องการยกเลิกการลงทุน")
 

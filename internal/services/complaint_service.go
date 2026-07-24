@@ -5,6 +5,7 @@ import (
 	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/repository"
+	"log"
 	"time"
 )
 
@@ -150,9 +151,16 @@ func (s *complaintService) checkAndSuspendProject(projectID uint) {
 	if project.State == domain.StateSuspended || project.State == domain.StateCancelled || project.State == domain.StateClosed {
 		return
 	}
+	// เก็บ state เดิมไว้ เพื่อให้ admin สามารถ restore ได้ถูกต้อง
+	prevState := project.State
+	prevStatus := project.Status
+	project.PreviousState = &prevState
+	project.PreviousStatus = &prevStatus
 	project.State = domain.StateSuspended
 	project.Status = domain.StatusSuspended
-	s.projectRepo.UpdateProject(project)
+	if _, err := s.projectRepo.UpdateProject(project); err != nil {
+		log.Printf("[checkAndSuspendProject] failed to suspend project %d: %v", projectID, err)
+	}
 }
 
 func (s *complaintService) GetProjectStats(projectID uint) (*dto.ProjectComplaintStats, error) {

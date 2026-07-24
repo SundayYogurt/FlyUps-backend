@@ -1558,11 +1558,7 @@ func (s *projectService) UpdateProjectThread(thread *domain.ProjectThread, user 
 	if err != nil {
 		return errors.New("thread not found")
 	}
-	project, err := s.projectRepo.FindProjectByID(existing.ProjectID)
-	if err != nil {
-		return err
-	}
-	if project.OwnerUserID != user.ID {
+	if existing.CreatedBy != user.ID && user.Role != "admin" {
 		return errors.New("forbidden")
 	}
 	return s.projectRepo.UpdateThread(thread)
@@ -1573,11 +1569,7 @@ func (s *projectService) DeleteProjectThread(threadID uint, user domain.User) er
 	if err != nil {
 		return errors.New("thread not found")
 	}
-	project, err := s.projectRepo.FindProjectByID(existing.ProjectID)
-	if err != nil {
-		return err
-	}
-	if project.OwnerUserID != user.ID {
+	if existing.CreatedBy != user.ID && user.Role != "admin" {
 		return errors.New("forbidden")
 	}
 	return s.projectRepo.DeleteThread(threadID)
@@ -2007,7 +1999,11 @@ func (s *projectService) SubmitCancelRequest(projectID uint, input dto.CancelPro
 		return errors.New("description is required")
 	}
 
-	// update state
+	// เก็บ state เดิมไว้ก่อน เพื่อ restore กรณี admin ปฏิเสธ
+	prevState := project.State
+	prevStatus := project.Status
+	project.PreviousState = &prevState
+	project.PreviousStatus = &prevStatus
 	project.State = domain.StatePendingCancel
 	project.CancelReason = reason
 
@@ -2103,8 +2099,8 @@ func (s *projectService) AutoProjectLifecycleTick(now time.Time) error {
 			continue
 		}
 
-		// User requirement: if funding time expired and < softcap -> draft + failed
-		p.State = domain.StateDraft
+		// ระดมทุนหมดเวลาแต่ไม่ถึง softcap → ปิดโปรเจกต์
+		p.State = domain.StateClosed
 		p.Status = domain.StatusFailed
 		if _, err := s.projectRepo.UpdateProject(p); err != nil {
 			return err
@@ -2738,8 +2734,8 @@ func (s *projectService) ApproveCancelProject(projectID uint) error {
 	}
 	for i := range milestones {
 		switch milestones[i].Status {
-		case domain.MilestonePaid, domain.MilestoneRejected:
-			continue // ข้าม milestone ที่จบแล้ว
+		case domain.MilestonePaid:
+			continue // ข้าม milestone ที่จ่ายเงินสำเร็จแล้วเท่านั้น
 		default:
 			milestones[i].Status = domain.MilestoneCancelled
 			if err := s.projectRepo.UpdateMilestone(&milestones[i]); err != nil {
@@ -2801,18 +2797,16 @@ func (s *projectService) RejectCancelProject(projectID uint) error {
 		return errors.New("project is not in pending_cancel state")
 	}
 
-	// revert กลับไปสถานะเดิมก่อน pending_cancel
-	// ถ้ามี funding > 0 หรือ funding_at ไม่ว่าง ถือว่าอยู่ใน executing/funding
-	var prevState domain.ProjectState
-	if !p.FundingAt.IsZero() && p.CurrentFunding > 0 {
-		prevState = domain.StateExecuting
-	} else if !p.FundingAt.IsZero() {
-		prevState = domain.StateFunding
-	} else {
-		prevState = domain.StateFunding
+	// revert กลับไปสถานะเดิมก่อน pending_cancel (บันทึกไว้ตอน SubmitCancelRequest)
+	if p.PreviousState == nil {
+		return errors.New("cannot restore project state: previous state not recorded")
 	}
-
-	p.State = prevState
+	p.State = *p.PreviousState
+	if p.PreviousStatus != nil {
+		p.Status = *p.PreviousStatus
+	}
+	p.PreviousState = nil
+	p.PreviousStatus = nil
 	p.CancelReason = "" // ล้าง reason เมื่อ reject
 	_, err = s.projectRepo.UpdateProject(p)
 	if err != nil {

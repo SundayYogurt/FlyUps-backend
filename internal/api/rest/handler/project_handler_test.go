@@ -1535,7 +1535,7 @@ func TestProjectHandler_SubmitProjectMilestone(t *testing.T) {
 	})
 	app.Patch("/pioneer/projects/milestones/:milestone_id/submit", h.SubmitProjectMilestone)
 
-	body := dto.SubmitMilestoneRequest{Summary: "Done"}
+	body := dto.SubmitMilestoneRequest{Summary: "ได้ดำเนินการตามแผนเรียบร้อยแล้ว ระบบทำงานได้ตามเป้าหมายที่กำหนดไว้ในเฟสนี้ทุกประการ"}
 	bodyJSON, _ := json.Marshal(body)
 	mockSvc.On("SubmitMilestone", uint(3), mock.Anything, mock.Anything).Return(&domain.Milestone{ID: 3}, nil)
 	req := httptest.NewRequest(http.MethodPatch, "/pioneer/projects/milestones/3/submit", bytes.NewBuffer(bodyJSON))

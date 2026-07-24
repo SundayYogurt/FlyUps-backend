@@ -54,7 +54,11 @@ func (s *disbursementService) CreateForMilestone(milestoneID uint) (*domain.Disb
 		return nil, errors.New("project not found")
 	}
 
-	amount := project.CurrentFunding * float64(milestone.PercentRelease) / 100.0
+	totalPrincipal, err := s.projectRepo.SumVerifiedInvestmentByProjectID(project.ID)
+	if err != nil {
+		return nil, errors.New("failed to calculate investment principal")
+	}
+	amount := totalPrincipal * float64(milestone.PercentRelease) / 100.0
 
 	d := &domain.Disbursement{
 		MilestoneID:    milestoneID,

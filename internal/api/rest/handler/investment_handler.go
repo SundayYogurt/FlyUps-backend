@@ -40,9 +40,9 @@ func SetupInvestmentRoutes(rh *rest.RestHandler) {
 	}
 
 	rh.App.Post("/stripe/webhook", h.StripeWebhook)
-	rh.App.Get("/investments/projects/:projectId/investors", h.GetProjectInvestors)
 
 	priv := rh.App.Group("/investments", rh.Middlewares.Authorize)
+	priv.Get("/projects/:projectId/investors", h.GetProjectInvestors)
 	priv.Post("/", h.CreateInvestment)
 	priv.Get("/", h.ListMyInvestments)
 	priv.Get("/my-projects", h.ListMyInvestedProjects)
