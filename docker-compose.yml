@@ -48,7 +48,9 @@ services:
       - flyup-net
 
   jenkins:
-    image: jenkins/jenkins:lts
+    build:
+      context: .
+      dockerfile: Dockerfile.jenkins
     restart: always
     user: root
     volumes:
