@@ -16,42 +16,29 @@ pipeline {
         }
 
         stage('Build & Push') {
-            when {
-                expression {
-                    return env.GIT_BRANCH == 'origin/develop' || env.GIT_BRANCH == 'develop' ||
-                           env.GIT_BRANCH == 'origin/main'   || env.GIT_BRANCH == 'main'
-                }
-            }
             steps {
                 withCredentials([usernamePassword(
-                    credentialsId: 'Flyup',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
+                            credentialsId: 'Flyup',
+                            usernameVariable: 'DOCKER_USER',
+                            passwordVariable: 'DOCKER_PASS'
+                        )]) {
                     sh """
-                        echo "\$DOCKER_PASS" | docker login -u "\$DOCKER_USER" --password-stdin
-                        docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} -t ${DOCKER_IMAGE}:latest .
-                        docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
-                        docker push ${DOCKER_IMAGE}:latest
-                    """
+                echo "\$DOCKER_PASS" | docker login -u "\$DOCKER_USER" --password-stdin
+                docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} -t ${DOCKER_IMAGE}:latest .
+                docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
+                docker push ${DOCKER_IMAGE}:latest
+            """
                 }
             }
         }
 
         stage('Deploy') {
-            when {
-                expression {
-                    return env.GIT_BRANCH == 'origin/develop' || env.GIT_BRANCH == 'develop' ||
-                           env.GIT_BRANCH == 'origin/main'   || env.GIT_BRANCH == 'main'
-                }
-            }
             steps {
                 sh """
-                    docker ps -q --filter "publish=3000" | xargs -r docker rm -f
-                    docker pull ${DOCKER_IMAGE}:latest
-                    docker compose -f ${COMPOSE_FILE} up -d --no-deps --force-recreate app
-                    echo "✅ Deploy Done"
-                """
+            docker pull ${DOCKER_IMAGE}:latest
+            docker compose -f ${COMPOSE_FILE} up -d --no-deps --force-recreate app
+            echo "✅ Deploy Done"
+        """
             }
         }
     }
