@@ -23,11 +23,11 @@ pipeline {
                             passwordVariable: 'DOCKER_PASS'
                         )]) {
                     sh """
-                echo "\$DOCKER_PASS" | docker login -u "\$DOCKER_USER" --password-stdin
-                docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} -t ${DOCKER_IMAGE}:latest .
-                docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
-                docker push ${DOCKER_IMAGE}:latest
-            """
+                        echo "\$DOCKER_PASS" | docker login -u "\$DOCKER_USER" --password-stdin
+                        docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} -t ${DOCKER_IMAGE}:latest .
+                        docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
+                        docker push ${DOCKER_IMAGE}:latest
+                    """
                 }
             }
         }
@@ -35,10 +35,10 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh """
-            docker pull ${DOCKER_IMAGE}:latest
-            docker compose -f ${COMPOSE_FILE} up -d --no-deps --force-recreate app
-            echo "✅ Deploy Done"
-        """
+                    docker pull ${DOCKER_IMAGE}:latest
+                    docker compose -f ${COMPOSE_FILE} up -d --no-deps --force-recreate app
+                    echo "Deploy Done"
+                """
             }
         }
     }
@@ -56,11 +56,11 @@ pipeline {
                 ]
                 try {
                     httpRequest acceptType: 'APPLICATION_JSON',
-                                contentType: 'APPLICATION_JSON',
-                                httpMode: 'POST',
-                                requestBody: groovy.json.JsonOutput.toJson(payload),
-                                url: 'https://n8n.flyupapi.dev/webhook/jenkins-alert',
-                                validResponseCodes: '100:599'
+                    contentType: 'APPLICATION_JSON',
+                    httpMode: 'POST',
+                    requestBody: groovy.json.JsonOutput.toJson(payload),
+                    url: 'https://n8n.flyupapi.dev/webhook/jenkins-alert',
+                    validResponseCodes: '100:599'
                 } catch (e) {
                     echo "Webhook notification failed (non-critical): ${e.message}"
                 }
@@ -74,11 +74,11 @@ pipeline {
                 ]
                 try {
                     httpRequest acceptType: 'APPLICATION_JSON',
-                                contentType: 'APPLICATION_JSON',
-                                httpMode: 'POST',
-                                requestBody: groovy.json.JsonOutput.toJson(payload),
-                                url: 'https://n8n.flyupapi.dev/webhook/jenkins-alert',
-                                validResponseCodes: '100:599'
+                    contentType: 'APPLICATION_JSON',
+                    httpMode: 'POST',
+                    requestBody: groovy.json.JsonOutput.toJson(payload),
+                    url: 'https://n8n.flyupapi.dev/webhook/jenkins-alert',
+                    validResponseCodes: '100:599'
                 } catch (e) {
                     echo "Webhook notification failed (non-critical): ${e.message}"
                 }
