@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'sundayyogurt/flyup'
         DOCKER_TAG   = "${BUILD_NUMBER}"
-        COMPOSE_FILE = '/home/ubuntu/flyup/docker-compose.yml'
+        COMPOSE_FILE = '-v /home/ubuntu/flyup:/home/ubuntu/flyup'
     }
 
     stages {
