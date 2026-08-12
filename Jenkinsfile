@@ -34,15 +34,11 @@ pipeline {
 
        stage('Deploy') {
            steps {
-               sshagent(['ec2-ssh-cred']) {
-                   sh '''
-                       ssh -o StrictHostKeyChecking=no ubuntu@<EC2_PRIVATE_OR_HOST> "
-                           docker pull sundayyogurt/flyup:latest &&
-                           docker compose -f /home/ubuntu/flyup/docker-compose.yml up -d --no-deps --force-recreate app &&
-                           echo Deploy Done
-                       "
-                   '''
-               }
+               sh """
+                   docker pull ${DOCKER_IMAGE}:latest
+                   docker compose -f ${COMPOSE_FILE} up -d --no-deps --force-recreate app
+                   echo "Deploy Done"
+               """
            }
        }
     }
