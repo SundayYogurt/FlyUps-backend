@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'sundayyogurt/flyup'
         DOCKER_TAG   = "${BUILD_NUMBER}"
-        COMPOSE_FILE = '-v /home/ubuntu/flyup:/home/ubuntu/flyup'
+        COMPOSE_FILE = '/home/ubuntu/flyup/docker-compose.yml'
     }
 
     stages {
@@ -32,16 +32,19 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
-            steps {
-                sh """
-                    docker pull ${DOCKER_IMAGE}:latest
-                    docker compose -f ${COMPOSE_FILE} up -d --no-deps --force-recreate app
-                    echo "Deploy Done"
-                """
-            }
-        }
-    }
+       stage('Deploy') {
+           steps {
+               sshagent(['ec2-ssh-cred']) {
+                   sh '''
+                       ssh -o StrictHostKeyChecking=no ubuntu@<EC2_PRIVATE_OR_HOST> "
+                           docker pull sundayyogurt/flyup:latest &&
+                           docker compose -f /home/ubuntu/flyup/docker-compose.yml up -d --no-deps --force-recreate app &&
+                           echo Deploy Done
+                       "
+                   '''
+               }
+           }
+       }
 
     post {
         always {
