@@ -8,7 +8,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"path/filepath"
+	"net/textproto"
 )
 
 type IAppService interface {
@@ -37,14 +37,19 @@ func downloadAndAttachFile(writer *multipart.Writer, fieldName, imageURL string)
 		return fmt.Errorf("failed to download %s, status: %d", fieldName, resp.StatusCode)
 	}
 
-	filename := filepath.Base(imageURL)
-	part, err := writer.CreateFormFile(fieldName, filename)
+	// บังคับ filename .jpg + content-type image/jpeg
+	// (Cloudinary ส่ง byte เป็น jpg มาแล้วจาก f_jpg แต่ iApp ดูนามสกุล/ctype)
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition",
+		fmt.Sprintf(`form-data; name="%s"; filename="%s.jpg"`, fieldName, fieldName))
+	h.Set("Content-Type", "image/jpeg")
+
+	part, err := writer.CreatePart(h)
 	if err != nil {
-		return fmt.Errorf("failed to create form file for %s: %v", fieldName, err)
+		return fmt.Errorf("failed to create form part for %s: %v", fieldName, err)
 	}
 
-	_, err = io.Copy(part, resp.Body)
-	if err != nil {
+	if _, err = io.Copy(part, resp.Body); err != nil {
 		return fmt.Errorf("failed to copy content for %s: %v", fieldName, err)
 	}
 	return nil
