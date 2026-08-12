@@ -1610,7 +1610,10 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 
 	iappSvc := helper.NewIAppService(s.Config.IAppAPIKey)
 
-	ocrPayload, err := iappSvc.VerifyFaceAndIDCard(*input.IDCardURL, *input.SelfieURL)
+	idCardURL := toCloudinaryJPG(*input.IDCardURL)
+	selfieURL := toCloudinaryJPG(*input.SelfieURL)
+
+	ocrPayload, err := iappSvc.VerifyFaceAndIDCard(idCardURL, selfieURL)
 
 	// default = pending
 	finalStatus := domain.VerifyStatusPending
@@ -1679,4 +1682,11 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 	}
 
 	return s.Repo.CreateConsents(consents)
+}
+
+func toCloudinaryJPG(url string) string {
+	if strings.Contains(url, "/upload/") && !strings.Contains(url, "/upload/f_") {
+		return strings.Replace(url, "/upload/", "/upload/f_jpg,q_auto/", 1)
+	}
+	return url
 }
