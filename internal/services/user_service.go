@@ -1400,6 +1400,22 @@ func (s *userService) UpdateProfile(userID uint, input dto.ProfileInput) error {
 		return errors.New("invalid user ID")
 	}
 
+	if input.FirstName == nil {
+		return errors.New("invalid first name")
+	}
+
+	if input.LastName == nil {
+		return errors.New("invalid last name")
+	}
+
+	if input.Phone == nil {
+		return errors.New("invalid phone")
+	}
+
+	if input.Address == nil {
+		return errors.New("invalid address")
+	}
+
 	// 2. Find user
 	user, err := s.Repo.FindUserById(userID)
 	if err != nil {
