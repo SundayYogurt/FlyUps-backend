@@ -11,8 +11,10 @@ import (
 	"io"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -171,12 +173,12 @@ func (a Auth) GenerateRefreshToken(id uint, email string, role string) (string, 
 		return "", errors.New("failed to obfuscate id")
 	}
 	claims := jwt.MapClaims{
-		"sub":  obfuscatedID,
+		"sub":   obfuscatedID,
 		"email": email,
-		"role": role,
-		"type": "refresh",
-		"iat":  time.Now().Unix(),
-		"exp":  time.Now().Add(30 * 24 * time.Hour).Unix(),
+		"role":  role,
+		"type":  "refresh",
+		"iat":   time.Now().Unix(),
+		"exp":   time.Now().Add(30 * 24 * time.Hour).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(a.Secret))
@@ -335,4 +337,36 @@ func (a Auth) decryptID(encryptedStr string) (uint, error) {
 	}
 
 	return uint(id64), nil
+}
+
+var (
+	nonDigit   = regexp.MustCompile(`[^\d+]`)
+	thaiMobile = regexp.MustCompile(`^0[689]\d{8}$`)
+)
+
+// NormalizePhone แปลงเบอร์ทุกรูปแบบให้เหลือ 0XXXXXXXXX
+func NormalizePhone(s string) string {
+	s = nonDigit.ReplaceAllString(strings.TrimSpace(s), "")
+
+	// +66812345678 → 0812345678
+	s = strings.TrimPrefix(s, "+")
+	if strings.HasPrefix(s, "66") && len(s) == 11 {
+		s = "0" + s[2:]
+	}
+	return s
+}
+
+func IsValidThaiMobile(s string) bool {
+	return thaiMobile.MatchString(NormalizePhone(s))
+}
+
+// NewValidator สร้าง validator.Validate ที่ลงทะเบียน custom rule ของโปรเจกต์ไว้แล้ว
+// (เช่น "thaiphone" สำหรับตรวจว่าเป็นเบอร์มือถือไทยเท่านั้น) เพื่อให้ทุกจุดที่สร้าง
+// validator ใหม่ใช้กติกาเดียวกัน
+func NewValidator() *validator.Validate {
+	v := validator.New()
+	v.RegisterValidation("thaiphone", func(fl validator.FieldLevel) bool {
+		return IsValidThaiMobile(fl.Field().String())
+	})
+	return v
 }
