@@ -1400,20 +1400,20 @@ func (s *userService) UpdateProfile(userID uint, input dto.ProfileInput) error {
 		return errors.New("invalid user ID")
 	}
 
-	if input.FirstName == nil {
-		return errors.New("invalid first name")
+	if input.FirstName != nil && strings.TrimSpace(*input.FirstName) == "" {
+		return errors.New("first name cannot be empty")
 	}
 
-	if input.LastName == nil {
-		return errors.New("invalid last name")
+	if input.LastName != nil && strings.TrimSpace(*input.LastName) == "" {
+		return errors.New("lastName name cannot be empty")
 	}
 
 	if input.Phone == nil {
 		return errors.New("invalid phone")
 	}
 
-	if input.Address == nil {
-		return errors.New("invalid address")
+	if input.Address != nil && strings.TrimSpace(*input.Address) == "" {
+		return errors.New("address cannot be empty")
 	}
 
 	// 2. Find user

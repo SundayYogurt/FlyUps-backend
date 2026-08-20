@@ -38,7 +38,7 @@ func NewUserHandler(
 ) *UserHandler {
 	return &UserHandler{
 		svc:         svc,
-		validator:   validator.New(),
+		validator:   helper.NewValidator(),
 		auth:        auth,
 		googleOAuth: googleOAuth,
 		config:      cfg,

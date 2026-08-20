@@ -9,7 +9,7 @@ type UserSignUp struct {
 	Email     string `json:"email" validate:"required,email"`
 
 	// เบอร์โทรศัพท์ (ใน UI ไม่มีดอกจัน * แต่ใน DBML ระบุว่า not null ดังนั้นควรบังคับกรอก)
-	Phone string `json:"phone" validate:"required"`
+	Phone string `json:"phone" validate:"required,thaiphone"`
 
 	// รหัสผ่าน
 	Password string `json:"password" validate:"required,min=8"`
@@ -41,8 +41,8 @@ type AuthResponse struct {
 type ProfileInput struct {
 	// --- ข้อมูลส่วนตัว ---
 	FirstName *string `json:"first_name,omitempty" validate:"required"`
-	LastName  *string `json:"last_name,omitempty" validate:"required""`
-	Phone     *string `json:"phone,omitempty" validate:"required"`
+	LastName  *string `json:"last_name,omitempty" validate:"required"`
+	Phone     *string `json:"phone,omitempty" validate:"required,thaiphone"`
 	Address   *string `json:"address,omitempty" validate:"required"`
 	Picture   *string `json:"picture,omitempty"`
 
