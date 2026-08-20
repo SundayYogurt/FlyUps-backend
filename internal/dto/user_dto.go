@@ -40,10 +40,10 @@ type AuthResponse struct {
 
 type ProfileInput struct {
 	// --- ข้อมูลส่วนตัว ---
-	FirstName *string `json:"first_name,omitempty"`
-	LastName  *string `json:"last_name,omitempty"`
-	Phone     *string `json:"phone,omitempty"`
-	Address   *string `json:"address,omitempty"`
+	FirstName *string `json:"first_name,omitempty" validate:"required"`
+	LastName  *string `json:"last_name,omitempty" validate:"required""`
+	Phone     *string `json:"phone,omitempty" validate:"required"`
+	Address   *string `json:"address,omitempty" validate:"required"`
 	Picture   *string `json:"picture,omitempty"`
 
 	// --- Pioneer only ---
