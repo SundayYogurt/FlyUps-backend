@@ -14,7 +14,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"gorm.io/driver/postgres"
@@ -177,7 +176,7 @@ func StartServer(cfg config.AppConfig) {
 
 	log.Println("Redis connected!")
 
-	validate := validator.New()
+	validate := helper.NewValidator()
 
 	adminLogSvc := services.NewAdminLogService(repository.NewAdminLogRepository(db))
 
