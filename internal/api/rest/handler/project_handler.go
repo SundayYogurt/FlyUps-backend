@@ -56,6 +56,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 		rh.Notification,
 		rh.InvestmentSvc,
 		repository.NewDisbursementRepository(rh.DB),
+		rh.Cache,
 	)
 
 	handler := ProjectHandler{
@@ -207,7 +208,7 @@ func (h *ProjectHandler) GetRecommendationProjects(ctx fiber.Ctx) error {
 // @Router /projects/slug/{slug} [get]
 func (h *ProjectHandler) GetPublicProjectBySlug(ctx fiber.Ctx) error {
 	slug := ctx.Params("slug")
-	proj, err := h.svc.GetPublicProjectBySlug(slug)
+	proj, err := h.svc.GetPublicProjectBySlug(ctx.Context(), slug)
 	if err != nil {
 		return rest.ErrorMessage(ctx, http.StatusNotFound, err)
 	}
@@ -830,7 +831,7 @@ func (h *ProjectHandler) GetPublicProjectByID(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, errInvalidProjectID)
 	}
 
-	proj, err := h.svc.GetPublicProjectByID(uint(id))
+	proj, err := h.svc.GetPublicProjectByID(ctx.Context(), uint(id))
 	if err != nil {
 		return rest.ErrorMessage(ctx, http.StatusNotFound, err)
 	}

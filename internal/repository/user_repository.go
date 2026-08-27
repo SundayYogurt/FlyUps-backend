@@ -1,16 +1,18 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"flyup/internal/domain"
+	"fmt"
 	"log"
 
 	"gorm.io/gorm"
 )
 
 type UserRepository interface {
-	CreateUser(usr *domain.User, consent *domain.UserConsent) (*domain.User, error)
-	FindUser(email string) (*domain.User, error)
+	CreateUser(ctc context.Context, usr *domain.User, consent *domain.UserConsent, profile *domain.StudentProfile) (*domain.User, error)
+	FindUser(ctc context.Context, email string) (*domain.User, error)
 	FindUserByResetToken(token string) (*domain.User, error)
 	FindUserById(id uint) (*domain.User, error)
 	FindAdminUserIDs() ([]uint, error)
@@ -313,11 +315,11 @@ func (r *userRepository) UpsertStudentProfileByUserID(profile *domain.StudentPro
 	})
 }
 
-func (r *userRepository) FindUser(email string) (*domain.User, error) {
+func (r *userRepository) FindUser(ctx context.Context, email string) (*domain.User, error) {
 	var user domain.User
 
 	// ใช้คำสั่ง Where เพื่อหาอีเมล และ First เพื่อดึงมาแค่ record เดียว
-	err := r.db.Where("email = ?", email).First(&user).Error
+	err := r.db.WithContext(ctx).Where("LOWER(email) = ?", email).First(&user).Error
 
 	if err != nil {
 		return nil, err
@@ -326,15 +328,22 @@ func (r *userRepository) FindUser(email string) (*domain.User, error) {
 	return &user, nil
 }
 
-func (r *userRepository) CreateUser(usr *domain.User, consent *domain.UserConsent) (*domain.User, error) {
+func (r *userRepository) CreateUser(ctx context.Context, usr *domain.User, consent *domain.UserConsent, profile *domain.StudentProfile) (*domain.User, error) {
 	// ใช้ Transaction เพื่อกันข้อมูลไม่ครบ เช่น สมัครแล้วเน็ตดับ
-	err := r.db.Transaction(func(tx *gorm.DB) error {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// create user
 		if err := tx.Create(usr).Error; err != nil { //ใช้ tx แทน db เหมือนลองก่อน แล้ว create address ของ usr แล้ว return error ถ้ามี error แล้ว ก็ return ออกไปยกเลิก การ create
 			return err
 		}
 		// เอา id ที่ได้มาใส่ consent
 		consent.UserID = usr.ID
+
+		if profile != nil {
+			profile.UserID = usr.ID
+			if err := tx.Create(profile).Error; err != nil {
+				return err
+			}
+		}
 
 		// สร้าง consent
 		if err := tx.Create(consent).Error; err != nil {
@@ -345,7 +354,10 @@ func (r *userRepository) CreateUser(usr *domain.User, consent *domain.UserConsen
 	})
 
 	if err != nil {
-		return nil, err
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return nil, errors.New("already registered")
+		}
+		return nil, fmt.Errorf("create user: %w", err)
 	}
 	return usr, nil
 }

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"flyup/internal/domain"
 	"strings"
 
@@ -17,7 +18,7 @@ type UniversityRepository interface {
 	// domain
 	CreateDomain(d *domain.UniversityDomain) error
 	DeleteDomain(id uint) error
-	GetUniversityByDomain(domain string) (*domain.UniversityDomain, error)
+	GetUniversityByDomain(ctx context.Context, domainStr string) (*domain.UniversityDomain, error)
 	FindDomainByID(ID uint) (*domain.UniversityDomain, error)
 	UpdateDomain(d *domain.UniversityDomain) error
 }
@@ -93,10 +94,10 @@ func (r *universityRepository) FindDomainByID(ID uint) (*domain.UniversityDomain
 	return &university, nil
 }
 
-func (r *universityRepository) GetUniversityByDomain(domainStr string) (*domain.UniversityDomain, error) {
+func (r *universityRepository) GetUniversityByDomain(ctx context.Context, domainStr string) (*domain.UniversityDomain, error) {
 	var uniDomain domain.UniversityDomain
 
-	err := r.db.Preload("University").
+	err := r.db.WithContext(ctx).Preload("University").
 		Where("domain = ?", domainStr).
 		First(&uniDomain).Error
 

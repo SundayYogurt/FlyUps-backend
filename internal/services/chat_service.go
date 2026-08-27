@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
@@ -345,7 +346,7 @@ func (s *chatService) executeQueryAction(userID uint, aiOutput *ChatAIOutput) (s
 		var err error
 
 		if aiOutput.ProjectID != nil && *aiOutput.ProjectID != 0 {
-			p, err = s.projectSvc.GetPublicProjectByID(*aiOutput.ProjectID)
+			p, err = s.projectSvc.GetPublicProjectByID(context.Background(), *aiOutput.ProjectID)
 		} else if aiOutput.ExtraData != "" {
 			// มีแค่ชื่อ → ค้นหาจาก public projects ด้วย search
 			name := aiOutput.ExtraData

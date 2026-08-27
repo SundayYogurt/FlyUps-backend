@@ -13,7 +13,7 @@ import (
 )
 
 type RestHandler struct {
-	App           *fiber.App
+	App           fiber.Router
 	DB            *gorm.DB
 	Auth          helper.Auth
 	Middlewares   Middleware

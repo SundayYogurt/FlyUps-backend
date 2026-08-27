@@ -3,7 +3,7 @@
 // @description     FlyUps crowdfunding platform API
 // @host            api.flyupapi.dev
 // @schemes         https http
-// @BasePath        /
+// @BasePath        /api/v1
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
