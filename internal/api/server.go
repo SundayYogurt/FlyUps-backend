@@ -26,7 +26,9 @@ func StartServer(cfg config.AppConfig) {
 	})
 
 	log.Println("DSN =", cfg.Dsn)
-	db, err := gorm.Open(postgres.Open(cfg.Dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(cfg.Dsn), &gorm.Config{
+		TranslateError: true,
+	})
 	if err != nil {
 		log.Fatalf("database connection error %v\n", err)
 	}
@@ -180,8 +182,10 @@ func StartServer(cfg config.AppConfig) {
 
 	adminLogSvc := services.NewAdminLogService(repository.NewAdminLogRepository(db))
 
+	apiV1 := app.Group("/api/v1")
+
 	rh := &rest.RestHandler{
-		App:          app,
+		App:          apiV1,
 		DB:           db,
 		Auth:         auth,
 		Config:       cfg,
@@ -219,6 +223,7 @@ func StartServer(cfg config.AppConfig) {
 		notificationClient,
 		investmentSvc,
 		repository.NewDisbursementRepository(db),
+		cacheClient,
 	)
 	go func() {
 		ticker := time.NewTicker(1 * time.Minute)

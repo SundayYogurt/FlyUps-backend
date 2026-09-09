@@ -11,7 +11,7 @@
         "version": "1.0"
     },
     "host": "api.flyupapi.dev",
-    "basePath": "/",
+    "basePath": "/api/v1",
     "paths": {
         "/SignUp": {
             "post": {

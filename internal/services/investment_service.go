@@ -403,10 +403,8 @@ func (s *investmentService) RefundInvestment(boosterUserID uint, investmentID ui
 		log.Printf("[RefundInvestment] db update error: %v", err)
 		return nil, errors.New("refund processed but failed to update record")
 	}
-
-	if err := s.investmentRepo.IncrementProjectFunding(investment.ProjectID, -investment.TotalAmount); err != nil {
-		log.Printf("[RefundInvestment] deccrement current_funding error: %v", err)
-	}
+	// current_funding จะถูกลดเมื่อ ApproveRefund ยืนยันการคืนเงินจริงๆ
+	// ไม่ลดตอนนี้เพราะเงินใน Stripe ยังไม่ถูกคืน
 
 	feesDeducted := investment.TotalAmount - refundAmount
 	return &dto.RefundResponse{
@@ -556,6 +554,11 @@ func (s *investmentService) ApproveRefund(investmentID uint) error {
 		return errors.New("failed to approve refund")
 	}
 
+	// ลด current_funding ณ จุดนี้ เมื่อเงินถูกคืนจริงแล้ว
+	if err := s.investmentRepo.IncrementProjectFunding(investment.ProjectID, -investment.TotalAmount); err != nil {
+		log.Printf("[ApproveRefund] decrement current_funding error: %v", err)
+	}
+
 	// notify booster ว่าคำขอคืนเงินได้รับการอนุมัติแล้ว
 	if s.notifSvc != nil {
 		relatedID := investment.ProjectID
@@ -632,6 +635,14 @@ func (s *investmentService) RefundProjectInvestments(project domain.Project) {
 	var totalRefunded float64
 	stripe.Key = s.stripeSecretKey
 
+	// หา index ของ investor ที่ยังไม่ถูก refund คนสุดท้าย เพื่อใส่ remainder ให้ถูกต้อง
+	lastNonRefundedIdx := -1
+	for i, inv := range investments {
+		if inv.Status != domain.InvestmentRefunded {
+			lastNonRefundedIdx = i
+		}
+	}
+
 	for i, inv := range investments {
 		// กัน refund ซ้ำ
 		if inv.Status == domain.InvestmentRefunded {
@@ -639,8 +650,8 @@ func (s *investmentService) RefundProjectInvestments(project domain.Project) {
 		}
 
 		var refundAmount float64
-		// กัน rounding error ของรายการสุดท้าย
-		if i == len(investments)-1 {
+		// กัน rounding error โดยใส่ remainder ให้ investor ที่ไม่ถูก refund คนสุดท้ายจริงๆ
+		if i == lastNonRefundedIdx {
 			refundAmount = remaining - totalRefunded
 		} else {
 			ratio := inv.PrincipalAmount / totalPrincipal
@@ -1079,11 +1090,9 @@ func (s *investmentService) FinalizeVotingIfExpired(milestoneID uint) error {
 	}
 
 	approveAmount, _ := s.projectRepo.SumMilestoneVotes(milestoneID, domain.MilestoneVoteApprove)
-	rejectAmount, _ := s.projectRepo.SumMilestoneVotes(milestoneID, domain.MilestoneVoteReject)
 
-	// In case of a tie or no votes, default to reject (strict rule) or default to approve?
-	// Given strict rules: if approve > reject, it passes.
-	if approveAmount > rejectAmount {
+	// ต้องได้ strict majority (>50%) ของ eligible amount เหมือน real-time path
+	if approveAmount*2 > eligibleAmount {
 		m.Status = domain.MilestonePaid
 		m.VotingOpen = false
 		m.VotingClosedAt = &now

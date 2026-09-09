@@ -64,8 +64,8 @@ func (m *MockProjectService) GetPublicProjects(filter dto.PublicProjectFilter) (
 	return args.Get(0).([]domain.Project), args.Error(1)
 }
 
-func (m *MockProjectService) GetPublicProjectByID(id uint) (*domain.Project, error) {
-	args := m.Called(id)
+func (m *MockProjectService) GetPublicProjectByID(ctx context.Context, id uint) (*domain.Project, error) {
+	args := m.Called(ctx, id)
 	if v := args.Get(0); v != nil {
 		return v.(*domain.Project), args.Error(1)
 	}
@@ -109,8 +109,8 @@ func (m *MockProjectService) GetExecutingProjects() ([]domain.Project, error) {
 	return args.Get(0).([]domain.Project), args.Error(1)
 }
 
-func (m *MockProjectService) GetPublicProjectBySlug(slug string) (*domain.Project, error) {
-	args := m.Called(slug)
+func (m *MockProjectService) GetPublicProjectBySlug(ctx context.Context, slug string) (*domain.Project, error) {
+	args := m.Called(ctx, slug)
 	if v := args.Get(0); v != nil {
 		return v.(*domain.Project), args.Error(1)
 	}
@@ -508,7 +508,7 @@ func TestProjectHandler_GetPublicProjectByID(t *testing.T) {
 	app, mockSvc, h := setupProjectTest(t)
 	app.Get("/projects/:id", h.GetPublicProjectByID)
 
-	mockSvc.On("GetPublicProjectByID", uint(1)).Return(&domain.Project{ID: 1}, nil)
+	mockSvc.On("GetPublicProjectByID", mock.Anything, uint(1)).Return(&domain.Project{ID: 1}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/projects/1", nil)
 	resp, _ := app.Test(req)
 	respBody, _ := io.ReadAll(resp.Body)
@@ -531,7 +531,7 @@ func TestProjectHandler_GetPublicProjectByID_NotFound(t *testing.T) {
 	app, mockSvc, h := setupProjectTest(t)
 	app.Get("/projects/:id", h.GetPublicProjectByID)
 
-	mockSvc.On("GetPublicProjectByID", uint(999)).Return(nil, errors.New("not found"))
+	mockSvc.On("GetPublicProjectByID", mock.Anything, uint(999)).Return(nil, errors.New("not found"))
 	req := httptest.NewRequest(http.MethodGet, "/projects/999", nil)
 	resp, _ := app.Test(req)
 	respBody, _ := io.ReadAll(resp.Body)
@@ -944,7 +944,7 @@ func TestProjectHandler_GetPublicProjectBySlug(t *testing.T) {
 	app, mockSvc, h := setupProjectTest(t)
 	app.Get("/projects/slug/:slug", h.GetPublicProjectBySlug)
 
-	mockSvc.On("GetPublicProjectBySlug", "my-slug").Return(&domain.Project{ID: 1}, nil)
+	mockSvc.On("GetPublicProjectBySlug", mock.Anything, "my-slug").Return(&domain.Project{ID: 1}, nil)
 	mockSvc.On("GetMyProjects", uint(0)).Return([]domain.Project{}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/projects/slug/my-slug", nil)
 	resp, _ := app.Test(req)
@@ -957,7 +957,7 @@ func TestProjectHandler_GetPublicProjectBySlug_NotFound(t *testing.T) {
 	app, mockSvc, h := setupProjectTest(t)
 	app.Get("/projects/slug/:slug", h.GetPublicProjectBySlug)
 
-	mockSvc.On("GetPublicProjectBySlug", "bad-slug").Return(nil, errors.New("not found"))
+	mockSvc.On("GetPublicProjectBySlug", mock.Anything, "bad-slug").Return(nil, errors.New("not found"))
 	req := httptest.NewRequest(http.MethodGet, "/projects/slug/bad-slug", nil)
 	resp, _ := app.Test(req)
 	respBody, _ := io.ReadAll(resp.Body)
@@ -1535,7 +1535,7 @@ func TestProjectHandler_SubmitProjectMilestone(t *testing.T) {
 	})
 	app.Patch("/pioneer/projects/milestones/:milestone_id/submit", h.SubmitProjectMilestone)
 
-	body := dto.SubmitMilestoneRequest{Summary: "Done"}
+	body := dto.SubmitMilestoneRequest{Summary: "ได้ดำเนินการตามแผนเรียบร้อยแล้ว ระบบทำงานได้ตามเป้าหมายที่กำหนดไว้ในเฟสนี้ทุกประการ"}
 	bodyJSON, _ := json.Marshal(body)
 	mockSvc.On("SubmitMilestone", uint(3), mock.Anything, mock.Anything).Return(&domain.Milestone{ID: 3}, nil)
 	req := httptest.NewRequest(http.MethodPatch, "/pioneer/projects/milestones/3/submit", bytes.NewBuffer(bodyJSON))

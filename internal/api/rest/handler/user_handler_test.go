@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"flyup/config"
@@ -27,28 +28,28 @@ type MockUserService struct {
 	mock.Mock
 }
 
-func (m *MockUserService) SignUp(input dto.UserSignUp) (string, error) {
-	args := m.Called(input)
+func (m *MockUserService) SignUp(ctx context.Context, input dto.UserSignUp) (string, error) {
+	args := m.Called(ctx, input)
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockUserService) Signing(email, password string) (string, uint, string, error) {
-	args := m.Called(email, password)
+func (m *MockUserService) Signing(ctx context.Context, email, password string) (string, uint, string, error) {
+	args := m.Called(ctx, email, password)
 	return args.String(0), args.Get(1).(uint), args.String(2), args.Error(3)
 }
 
-func (m *MockUserService) GoogleSigning(code, role string, cfg *oauth2.Config) (string, error) {
-	args := m.Called(code, role, cfg)
+func (m *MockUserService) GoogleSigning(ctx context.Context, code, role string, cfg *oauth2.Config) (string, error) {
+	args := m.Called(ctx, code, role, cfg)
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockUserService) VerifyEmail(input dto.VerifyEmailRequest) (string, error) {
-	args := m.Called(input)
+func (m *MockUserService) VerifyEmail(ctx context.Context, input dto.VerifyEmailRequest) (string, error) {
+	args := m.Called(ctx, input)
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockUserService) ForgotPassword(email string) error {
-	return m.Called(email).Error(0)
+func (m *MockUserService) ForgotPassword(ctx context.Context, email string) error {
+	return m.Called(ctx, email).Error(0)
 }
 
 func (m *MockUserService) SetPassword(token, newPassword string) error {
@@ -63,16 +64,16 @@ func (m *MockUserService) AddPasswordForGoogle(userID uint, newPassword string) 
 	return m.Called(userID, newPassword).Error(0)
 }
 
-func (m *MockUserService) GetProfile(userID uint) (*domain.User, error) {
-	args := m.Called(userID)
+func (m *MockUserService) GetProfile(ctx context.Context, userID uint) (*domain.User, error) {
+	args := m.Called(ctx, userID)
 	if v := args.Get(0); v != nil {
 		return v.(*domain.User), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *MockUserService) UpdateProfile(userID uint, input dto.ProfileInput) error {
-	return m.Called(userID, input).Error(0)
+func (m *MockUserService) UpdateProfile(ctx context.Context, userID uint, input dto.ProfileInput) error {
+	return m.Called(ctx, userID, input).Error(0)
 }
 
 func (m *MockUserService) VerifyStudent(userID uint, input dto.VerifyStudentInput) error {
@@ -181,16 +182,16 @@ func (m *MockUserService) DeleteUniversity(id uint) error {
 	return m.Called(id).Error(0)
 }
 
-func (m *MockUserService) CreateDomain(id uint, req dto.CreateDomainRequest) (*domain.UniversityDomain, error) {
-	args := m.Called(id, req)
+func (m *MockUserService) CreateDomain(ctx context.Context, id uint, req dto.CreateDomainRequest) (*domain.UniversityDomain, error) {
+	args := m.Called(ctx, id, req)
 	if v := args.Get(0); v != nil {
 		return v.(*domain.UniversityDomain), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *MockUserService) GetUniversityByEmail(email string) (*domain.UniversityDomain, error) {
-	args := m.Called(email)
+func (m *MockUserService) GetUniversityByEmail(ctx context.Context, email string) (*domain.UniversityDomain, error) {
+	args := m.Called(ctx, email)
 	if v := args.Get(0); v != nil {
 		return v.(*domain.UniversityDomain), args.Error(1)
 	}
@@ -201,16 +202,16 @@ func (m *MockUserService) DeleteDomain(id uint) error {
 	return m.Called(id).Error(0)
 }
 
-func (m *MockUserService) UpdateDomain(id uint, req dto.UpdateDomainRequest) (*domain.UniversityDomain, error) {
-	args := m.Called(id, req)
+func (m *MockUserService) UpdateDomain(ctx context.Context, id uint, req dto.UpdateDomainRequest) (*domain.UniversityDomain, error) {
+	args := m.Called(ctx, id, req)
 	if v := args.Get(0); v != nil {
 		return v.(*domain.UniversityDomain), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
 
-func (m *MockUserService) SelectRole(userID uint, newRole string) error {
-	return m.Called(userID, newRole).Error(0)
+func (m *MockUserService) SelectRole(ctx context.Context, userID uint, newRole string) error {
+	return m.Called(ctx, userID, newRole).Error(0)
 }
 
 // ─── Mock: AdminLogService ─────────────────────────────────────────────────────
@@ -245,7 +246,7 @@ func TestUserHandler_SignUp(t *testing.T) {
 
 	body := dto.UserSignUp{Role: "booster", FirstName: "user", LastName: "test", Email: "test@test.com", Phone: "0999999999", Password: "T@st12345", AcceptTerms: true}
 	bodyJSON, _ := json.Marshal(body)
-	mockService.On("SignUp", mock.Anything).Return("signup success", nil)
+	mockService.On("SignUp", mock.Anything, mock.Anything).Return("signup success", nil)
 	req := httptest.NewRequest(http.MethodPost, "/signup", bytes.NewBuffer(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := app.Test(req)
@@ -274,7 +275,7 @@ func TestUserHandler_SignUp_DuplicateEmail(t *testing.T) {
 
 	body := dto.UserSignUp{Role: "booster", FirstName: "user", LastName: "test", Email: "test@test.com", Phone: "0999999999", Password: "T@st12345", AcceptTerms: true}
 	bodyJSON, _ := json.Marshal(body)
-	mockService.On("SignUp", mock.Anything).Return("", errors.New("already registered"))
+	mockService.On("SignUp", mock.Anything, mock.Anything).Return("", errors.New("already registered"))
 	req := httptest.NewRequest(http.MethodPost, "/signup", bytes.NewBuffer(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := app.Test(req)
@@ -289,7 +290,7 @@ func TestUserHandler_VerifyEmail(t *testing.T) {
 	app, mockService, handler := setupTest(t)
 	app.Get("/verify-email", handler.VerifyEmail)
 
-	mockService.On("VerifyEmail", mock.Anything).Return("email verified", nil)
+	mockService.On("VerifyEmail", mock.Anything, mock.Anything).Return("email verified", nil)
 	req := httptest.NewRequest(http.MethodGet, "/verify-email?token=valid-token", nil)
 	resp, _ := app.Test(req)
 	respBody, _ := io.ReadAll(resp.Body)
@@ -316,7 +317,7 @@ func TestUserHandler_Signing(t *testing.T) {
 
 	body := dto.UserSigning{Email: "test@test.com", Password: "password"}
 	bodyJSON, _ := json.Marshal(body)
-	mockService.On("Signing", "test@test.com", "password").Return("access-token", uint(1), "booster", nil)
+	mockService.On("Signing", mock.Anything, "test@test.com", "password").Return("access-token", uint(1), "booster", nil)
 	req := httptest.NewRequest(http.MethodPost, "/signin", bytes.NewBuffer(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := app.Test(req)
@@ -331,7 +332,7 @@ func TestUserHandler_Signing_UnverifiedEmail(t *testing.T) {
 
 	body := dto.UserSigning{Email: "test@test.com", Password: "password"}
 	bodyJSON, _ := json.Marshal(body)
-	mockService.On("Signing", mock.Anything, mock.Anything).Return("", uint(0), "", errors.New("please verify your email first"))
+	mockService.On("Signing", mock.Anything, mock.Anything, mock.Anything).Return("", uint(0), "", errors.New("please verify your email first"))
 	req := httptest.NewRequest(http.MethodPost, "/signin", bytes.NewBuffer(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := app.Test(req)
@@ -346,7 +347,7 @@ func TestUserHandler_Signing_InvalidCredentials(t *testing.T) {
 
 	body := dto.UserSigning{Email: "wrong@test.com", Password: "wrongpass"}
 	bodyJSON, _ := json.Marshal(body)
-	mockService.On("Signing", mock.Anything, mock.Anything).Return("", uint(0), "", errors.New("wrong password"))
+	mockService.On("Signing", mock.Anything, mock.Anything, mock.Anything).Return("", uint(0), "", errors.New("wrong password"))
 	req := httptest.NewRequest(http.MethodPost, "/signin", bytes.NewBuffer(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := app.Test(req)
@@ -363,7 +364,7 @@ func TestUserHandler_ForgotPassword(t *testing.T) {
 
 	body := dto.ForgotPasswordRequest{Email: "test@test.com"}
 	bodyJSON, _ := json.Marshal(body)
-	mockService.On("ForgotPassword", "test@test.com").Return(nil)
+	mockService.On("ForgotPassword", mock.Anything, "test@test.com").Return(nil)
 	req := httptest.NewRequest(http.MethodPost, "/forgot-password", bytes.NewBuffer(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := app.Test(req)
@@ -378,7 +379,7 @@ func TestUserHandler_ForgotPassword_NotFound(t *testing.T) {
 
 	body := dto.ForgotPasswordRequest{Email: "none@test.com"}
 	bodyJSON, _ := json.Marshal(body)
-	mockService.On("ForgotPassword", mock.Anything).Return(errors.New("user not found"))
+	mockService.On("ForgotPassword", mock.Anything, mock.Anything).Return(errors.New("user not found"))
 	req := httptest.NewRequest(http.MethodPost, "/forgot-password", bytes.NewBuffer(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := app.Test(req)
@@ -429,7 +430,7 @@ func TestUserHandler_Me(t *testing.T) {
 	})
 	app.Get("/user/me", handler.Me)
 
-	mockService.On("GetProfile", uint(1)).Return(&domain.User{ID: 1, Email: "test@test.com"}, nil)
+	mockService.On("GetProfile", mock.Anything, uint(1)).Return(&domain.User{ID: 1, Email: "test@test.com"}, nil)
 	req := httptest.NewRequest(http.MethodGet, "/user/me", nil)
 	resp, _ := app.Test(req)
 	respBody, _ := io.ReadAll(resp.Body)
@@ -461,7 +462,7 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 	firstName := "Updated"
 	body := dto.ProfileInput{FirstName: &firstName}
 	bodyJSON, _ := json.Marshal(body)
-	mockService.On("UpdateProfile", uint(1), mock.Anything).Return(nil)
+	mockService.On("UpdateProfile", mock.Anything, uint(1), mock.Anything).Return(nil)
 	req := httptest.NewRequest(http.MethodPatch, "/user/profile", bytes.NewBuffer(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := app.Test(req)
@@ -495,7 +496,7 @@ func TestUserHandler_SelectRole(t *testing.T) {
 
 	body := map[string]string{"role": "booster"}
 	bodyJSON, _ := json.Marshal(body)
-	mockService.On("SelectRole", uint(1), "booster").Return(nil)
+	mockService.On("SelectRole", mock.Anything, uint(1), "booster").Return(nil)
 	req := httptest.NewRequest(http.MethodPatch, "/user/role", bytes.NewBuffer(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := app.Test(req)
@@ -1268,7 +1269,7 @@ func TestUserHandler_CreateUniversityDomain(t *testing.T) {
 
 	body := dto.CreateDomainRequest{Domain: "example.ac.th"}
 	bodyJSON, _ := json.Marshal(body)
-	mockService.On("CreateDomain", uint(3), mock.Anything).Return(&domain.UniversityDomain{}, nil)
+	mockService.On("CreateDomain", mock.Anything, uint(3), mock.Anything).Return(&domain.UniversityDomain{}, nil)
 	req := httptest.NewRequest(http.MethodPost, "/admin/create-university-domain/3", bytes.NewBuffer(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := app.Test(req)
@@ -1316,7 +1317,7 @@ func TestUserHandler_UpdateUniversityDomain(t *testing.T) {
 	newDomain := "new.ac.th"
 	body := dto.UpdateDomainRequest{Domain: &newDomain}
 	bodyJSON, _ := json.Marshal(body)
-	mockService.On("UpdateDomain", uint(3), mock.Anything).Return(&domain.UniversityDomain{}, nil)
+	mockService.On("UpdateDomain", mock.Anything, uint(3), mock.Anything).Return(&domain.UniversityDomain{}, nil)
 	req := httptest.NewRequest(http.MethodPut, "/admin/update-university-domain/3", bytes.NewBuffer(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
 	resp, _ := app.Test(req)

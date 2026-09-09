@@ -162,6 +162,12 @@ var stateTransitions = map[domain.ProjectState][]domain.ProjectState{
 	},
 	domain.StateClosed:    {},
 	domain.StateCancelled: {},
+	// pending_cancel สามารถ approve (→ cancelled) หรือ reject (→ previous state) โดย admin
+	domain.StatePendingCancel: {
+		domain.StateCancelled,
+		domain.StateFunding,
+		domain.StateExecuting,
+	},
 	// suspended สามารถ restore กลับได้โดย admin เท่านั้น
 	domain.StateSuspended: {
 		domain.StateFunding,

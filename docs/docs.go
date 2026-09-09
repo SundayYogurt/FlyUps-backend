@@ -7610,7 +7610,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "api.flyupapi.dev",
-	BasePath:         "/",
+	BasePath:         "/api/v1",
 	Schemes:          []string{"https", "http"},
 	Title:            "FlyUps API",
 	Description:      "FlyUps crowdfunding platform API",

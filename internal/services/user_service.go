@@ -25,16 +25,16 @@ import (
 )
 
 type UserService interface {
-	SignUp(input dto.UserSignUp) (string, error)
-	Signing(email string, password string) (token string, userID uint, role string, err error)
-	GoogleSigning(code string, role string, oauthConfig *oauth2.Config) (string, error)
-	VerifyEmail(input dto.VerifyEmailRequest) (string, error)
-	ForgotPassword(email string) error
+	SignUp(ctx context.Context, input dto.UserSignUp) (string, error)
+	Signing(ctx context.Context, email string, password string) (token string, userID uint, role string, err error)
+	GoogleSigning(ctx context.Context, code string, role string, oauthConfig *oauth2.Config) (string, error)
+	VerifyEmail(ctx context.Context, input dto.VerifyEmailRequest) (string, error)
+	ForgotPassword(ctx context.Context, email string) error
 	SetPassword(token string, newPassword string) error
 	ChangePassword(userID uint, password string, newPassword string) error
 	AddPasswordForGoogle(userID uint, newPassword string) error
-	GetProfile(userID uint) (*domain.User, error)
-	UpdateProfile(userID uint, input dto.ProfileInput) error
+	GetProfile(ctx context.Context, userID uint) (*domain.User, error)
+	UpdateProfile(ctx context.Context, userID uint, input dto.ProfileInput) error
 	VerifyStudent(userID uint, input dto.VerifyStudentInput) error
 	VerifyID(userID uint, input dto.VerifyIDInput) error
 	GetAllStudentVerifyRequest() ([]domain.StudentCardVerification, error)
@@ -58,11 +58,11 @@ type UserService interface {
 	UpdateUniversity(id uint, req dto.CreateUniversityRequest) (*domain.University, error)
 	DeleteUniversity(id uint) error
 	// CreateDomain domain
-	CreateDomain(id uint, req dto.CreateDomainRequest) (*domain.UniversityDomain, error)
-	GetUniversityByEmail(email string) (*domain.UniversityDomain, error)
+	CreateDomain(ctx context.Context, id uint, req dto.CreateDomainRequest) (*domain.UniversityDomain, error)
+	GetUniversityByEmail(ctx context.Context, email string) (*domain.UniversityDomain, error)
 	DeleteDomain(id uint) error
-	UpdateDomain(id uint, req dto.UpdateDomainRequest) (*domain.UniversityDomain, error)
-	SelectRole(userID uint, newRole string) error
+	UpdateDomain(ctx context.Context, id uint, req dto.UpdateDomainRequest) (*domain.UniversityDomain, error)
+	SelectRole(ctx context.Context, userID uint, newRole string) error
 }
 
 type userService struct {
@@ -139,12 +139,12 @@ func extractDomainFromEmail(email string) (string, error) {
 }
 
 // validatePioneerDomain ตรวจสอบว่า email domain ลงทะเบียนเป็นมหาวิทยาลัยและ active
-func (s *userService) validatePioneerDomain(email string) error {
+func (s *userService) validatePioneerDomain(ctx context.Context, email string) error {
 	domainName, err := extractDomainFromEmail(email)
 	if err != nil {
 		return err
 	}
-	findDomain, err := s.URepo.GetUniversityByDomain(domainName)
+	findDomain, err := s.URepo.GetUniversityByDomain(ctx, domainName)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("sorry, this email domain is not registered as a university")
@@ -219,7 +219,7 @@ func (s *userService) AddPasswordForGoogle(userID uint, newPassword string) erro
 
 }
 
-func (s *userService) SelectRole(userID uint, newRole string) error {
+func (s *userService) SelectRole(ctx context.Context, userID uint, newRole string) error {
 	if userID == 0 {
 		return errors.New("invalid user id")
 	}
@@ -238,7 +238,7 @@ func (s *userService) SelectRole(userID uint, newRole string) error {
 	}
 
 	if newRole == "pioneer" {
-		if err := s.validatePioneerDomain(user.Email); err != nil {
+		if err := s.validatePioneerDomain(ctx, user.Email); err != nil {
 			return err
 		}
 	}
@@ -307,7 +307,7 @@ func (s *userService) ChangePassword(userID uint, password string, newPassword s
 
 }
 
-func (s *userService) UpdateDomain(id uint, req dto.UpdateDomainRequest) (*domain.UniversityDomain, error) {
+func (s *userService) UpdateDomain(ctx context.Context, id uint, req dto.UpdateDomainRequest) (*domain.UniversityDomain, error) {
 	if id == 0 {
 		return nil, errors.New("invalid id")
 	}
@@ -340,7 +340,7 @@ func (s *userService) UpdateDomain(id uint, req dto.UpdateDomainRequest) (*domai
 		}
 
 		// เช็คซ้ำใน DB
-		existing, _ := s.URepo.GetUniversityByDomain(newDomain)
+		existing, _ := s.URepo.GetUniversityByDomain(ctx, newDomain)
 		if existing != nil && existing.ID != d.ID {
 			return nil, errors.New("domain already exists")
 		}
@@ -465,7 +465,7 @@ func (s *userService) DeleteUniversity(id uint) error {
 	return s.URepo.Delete(id)
 }
 
-func (s *userService) CreateDomain(id uint, req dto.CreateDomainRequest) (*domain.UniversityDomain, error) {
+func (s *userService) CreateDomain(ctx context.Context, id uint, req dto.CreateDomainRequest) (*domain.UniversityDomain, error) {
 	if id == 0 || req.Domain == "" {
 		return nil, errors.New("missing required fields")
 	}
@@ -477,7 +477,7 @@ func (s *userService) CreateDomain(id uint, req dto.CreateDomainRequest) (*domai
 	}
 
 	// เช็คว่ามี domain อยู่แล้วหรือไม่
-	existing, err := s.URepo.GetUniversityByDomain(domainStr)
+	existing, err := s.URepo.GetUniversityByDomain(ctx, domainStr)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, errors.New("failed to check existing domain")
 	}
@@ -508,7 +508,7 @@ func (s *userService) CreateDomain(id uint, req dto.CreateDomainRequest) (*domai
 	return &d, nil
 }
 
-func (s *userService) GetUniversityByEmail(email string) (*domain.UniversityDomain, error) {
+func (s *userService) GetUniversityByEmail(ctx context.Context, email string) (*domain.UniversityDomain, error) {
 	if email == "" {
 		return nil, errors.New("email is required")
 	}
@@ -520,7 +520,7 @@ func (s *userService) GetUniversityByEmail(email string) (*domain.UniversityDoma
 
 	domainPart := parts[1]
 
-	return s.URepo.GetUniversityByDomain(domainPart)
+	return s.URepo.GetUniversityByDomain(ctx, domainPart)
 }
 
 func (s *userService) DeleteDomain(id uint) error {
@@ -1007,9 +1007,7 @@ func (s *userService) AddBankAccount(userID uint, input dto.BankRequest) error {
 
 }
 
-func (s *userService) SignUp(input dto.UserSignUp) (string, error) {
-	ctx := context.Background()
-
+func (s *userService) SignUp(ctx context.Context, input dto.UserSignUp) (string, error) {
 	email := strings.ToLower(strings.TrimSpace(input.Email))
 	emailKey := "email:" + email
 
@@ -1018,7 +1016,7 @@ func (s *userService) SignUp(input dto.UserSignUp) (string, error) {
 		return "", errors.New("this email is already registered")
 	}
 
-	existingUser, err := s.Repo.FindUser(email)
+	existingUser, err := s.Repo.FindUser(ctx, email)
 	if err == nil && existingUser.ID != 0 {
 		_ = s.cache.Set(ctx, emailKey, "1", 10*time.Minute)
 		return "", errors.New("this email is already registered")
@@ -1047,7 +1045,7 @@ func (s *userService) SignUp(input dto.UserSignUp) (string, error) {
 		if err == nil && cachedUni != "" {
 			_ = json.Unmarshal([]byte(cachedUni), &findDomain)
 		} else {
-			findDomain, err = s.URepo.GetUniversityByDomain(domainName)
+			findDomain, err = s.URepo.GetUniversityByDomain(ctx, domainName)
 			if err != nil {
 				return "", errors.New("domain not found")
 			}
@@ -1090,7 +1088,14 @@ func (s *userService) SignUp(input dto.UserSignUp) (string, error) {
 		AcceptedAt:  time.Now(),
 	}
 
-	_, err = s.Repo.CreateUser(newUser, consent)
+	var profile *domain.StudentProfile
+	if input.Role == "pioneer" {
+		profile = &domain.StudentProfile{
+			UniversityID: findDomain.ID,
+		}
+	}
+
+	_, err = s.Repo.CreateUser(ctx, newUser, consent, profile)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate") {
 			return "", errors.New("this email is already registered")
@@ -1107,9 +1112,7 @@ func (s *userService) SignUp(input dto.UserSignUp) (string, error) {
 	return "registration successful, please verify your email", nil
 }
 
-func (s *userService) VerifyEmail(input dto.VerifyEmailRequest) (string, error) {
-	ctx := context.Background()
-
+func (s *userService) VerifyEmail(ctx context.Context, input dto.VerifyEmailRequest) (string, error) {
 	key := "verify:token:" + input.Token
 
 	email, err := s.cache.Get(ctx, key)
@@ -1119,7 +1122,7 @@ func (s *userService) VerifyEmail(input dto.VerifyEmailRequest) (string, error) 
 
 	_ = s.cache.Del(ctx, key)
 
-	user, err := s.Repo.FindUser(email)
+	user, err := s.Repo.FindUser(ctx, email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", errors.New("user not found")
@@ -1146,16 +1149,9 @@ func (s *userService) VerifyEmail(input dto.VerifyEmailRequest) (string, error) 
 	return "email verified successfully", nil
 }
 
-func (s *userService) findUserByEmail(email string) (*domain.User, error) {
-	//perform some db operation
-	//business logic
-	user, err := s.Repo.FindUser(email)
-	return user, err
-}
-
-func (s *userService) Signing(email string, password string) (string, uint, string, error) {
+func (s *userService) Signing(ctx context.Context, email string, password string) (string, uint, string, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
-	user, err := s.Repo.FindUser(email)
+	user, err := s.Repo.FindUser(ctx, email)
 	if err != nil {
 		return "", 0, "", errors.New("invalid email or password")
 	}
@@ -1175,10 +1171,10 @@ func (s *userService) Signing(email string, password string) (string, uint, stri
 	return token, user.ID, user.Role, err
 }
 
-func (s *userService) ForgotPassword(email string) error {
+func (s *userService) ForgotPassword(ctx context.Context, email string) error {
 	email = strings.TrimSpace(strings.ToLower(email))
 
-	user, err := s.Repo.FindUser(email)
+	user, err := s.Repo.FindUser(ctx, email)
 	if err != nil || user == nil {
 		return nil
 	}
@@ -1255,12 +1251,11 @@ func (s *userService) SetPassword(token string, newPassword string) error {
 	return s.Repo.UpdateUser(user.ID, updates)
 }
 
-func (s *userService) GetProfile(userID uint) (*domain.User, error) {
+func (s *userService) GetProfile(ctx context.Context, userID uint) (*domain.User, error) {
 	if userID == 0 {
 		return nil, errors.New("invalid user id")
 	}
 
-	ctx := context.Background()
 	key := "user:" + strconv.Itoa(int(userID))
 
 	// ดึงจาก DB เสมอเพื่อให้ HasPassword ถูกต้อง
@@ -1285,7 +1280,7 @@ func (s *userService) GetProfile(userID uint) (*domain.User, error) {
 	// ดึง university จาก university_domains ตาม email domain ของ user
 	parts := strings.Split(user.Email, "@")
 	if len(parts) == 2 && s.URepo != nil {
-		uniDomain, err := s.URepo.GetUniversityByDomain(parts[1])
+		uniDomain, err := s.URepo.GetUniversityByDomain(ctx, parts[1])
 		if err == nil && uniDomain != nil {
 			if user.StudentProfile == nil {
 				user.StudentProfile = &domain.StudentProfile{}
@@ -1301,15 +1296,15 @@ func (s *userService) GetProfile(userID uint) (*domain.User, error) {
 	return user, nil
 }
 
-func (s *userService) GoogleSigning(code string, role string, oauthConfig *oauth2.Config) (string, error) {
+func (s *userService) GoogleSigning(ctx context.Context, code string, role string, oauthConfig *oauth2.Config) (string, error) {
 	// 1. Exchange custom code for an access token
-	token, err := oauthConfig.Exchange(context.Background(), code)
+	token, err := oauthConfig.Exchange(ctx, code)
 	if err != nil {
 		return "", errors.New("failed to exchange token: " + err.Error())
 	}
 
 	// 2. Fetch user details from Google
-	resp, err := oauthConfig.Client(context.Background(), token).Get("https://www.googleapis.com/oauth2/v2/userinfo")
+	resp, err := oauthConfig.Client(ctx, token).Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
 		return "", errors.New("failed to fetch user info: " + err.Error())
 	}
@@ -1335,13 +1330,13 @@ func (s *userService) GoogleSigning(code string, role string, oauthConfig *oauth
 
 	// 3. Validate Pioneer Email Domain BEFORE checking if user exists
 	if role == "pioneer" {
-		if err := s.validatePioneerDomain(googleUser.Email); err != nil {
+		if err := s.validatePioneerDomain(ctx, googleUser.Email); err != nil {
 			return "", err
 		}
 	}
 
 	// 4. Check if user exists by email
-	user, err := s.Repo.FindUser(googleUser.Email)
+	user, err := s.Repo.FindUser(ctx, googleUser.Email)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", errors.New("internal server error")
@@ -1370,7 +1365,7 @@ func (s *userService) GoogleSigning(code string, role string, oauthConfig *oauth
 			AcceptedAt:  now,
 		}
 
-		user, err = s.Repo.CreateUser(newUser, consent)
+		user, err = s.Repo.CreateUser(ctx, newUser, consent, nil)
 		if err != nil {
 			return "", errors.New("failed to create user")
 		}
@@ -1378,7 +1373,7 @@ func (s *userService) GoogleSigning(code string, role string, oauthConfig *oauth
 		// User exists, just ensure their GoogleSub is updated if missing
 		if user.GoogleSub == nil || *user.GoogleSub != googleUser.ID {
 			googleSub := googleUser.ID
-			s.Repo.UpdateUser(user.ID, map[string]interface{}{
+			_ = s.Repo.UpdateUser(user.ID, map[string]interface{}{
 				"google_sub":        &googleSub,
 				"email_verified_at": time.Now(),
 			})
@@ -1394,7 +1389,7 @@ func (s *userService) GoogleSigning(code string, role string, oauthConfig *oauth
 	return s.Auth.GenerateToken(user.ID, user.Email, user.Role)
 }
 
-func (s *userService) UpdateProfile(userID uint, input dto.ProfileInput) error {
+func (s *userService) UpdateProfile(ctx context.Context, userID uint, input dto.ProfileInput) error {
 	// 1. Validate userID
 	if userID == 0 {
 		return errors.New("invalid user ID")
@@ -1452,7 +1447,7 @@ func (s *userService) UpdateProfile(userID uint, input dto.ProfileInput) error {
 		}
 		domainName := strings.TrimSpace(parts[1])
 
-		uniDomain, err := s.URepo.GetUniversityByDomain(domainName)
+		uniDomain, err := s.URepo.GetUniversityByDomain(ctx, domainName)
 		if err != nil || uniDomain == nil || uniDomain.UniversityID == 0 {
 			return errors.New("university not found for this email domain")
 		}

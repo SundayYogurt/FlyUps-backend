@@ -48,6 +48,7 @@ func SetupChatRoutes(rh *rest.RestHandler) {
 		rh.Notification,
 		investmentSvc,
 		disbursementRepo,
+		rh.Cache,
 	)
 
 	disburseSvc := services.NewDisbursementService(

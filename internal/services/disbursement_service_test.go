@@ -118,11 +118,13 @@ func TestCreateForMilestone_Success(t *testing.T) {
 	disbRepo.On("FindByMilestoneID", uint(10)).Return(nil, gorm.ErrRecordNotFound)
 	projRepo.On("FindMilestoneByID", uint(10)).Return(milestone, nil)
 	projRepo.On("FindProjectByID", uint(5)).Return(project, nil)
+	// principal รวมหลังหัก fee/VAT = 8500 → disbursement = 8500 * 40% = 3400
+	projRepo.On("SumVerifiedInvestmentByProjectID", uint(5)).Return(float64(8500), nil)
 	disbRepo.On("Create", mock.MatchedBy(func(d *domain.Disbursement) bool {
 		return d.MilestoneID == 10 &&
 			d.ProjectID == 5 &&
 			d.PioneerUserID == 99 &&
-			d.Amount == 4000 && // 10000 * 40 / 100
+			d.Amount == 3400 && // 8500 * 40 / 100
 			d.PhaseNo == 1 &&
 			d.PercentRelease == 40 &&
 			d.Status == domain.DisbursementPending
@@ -132,7 +134,7 @@ func TestCreateForMilestone_Success(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, got)
-	assert.Equal(t, float64(4000), got.Amount)
+	assert.Equal(t, float64(3400), got.Amount)
 	assert.Equal(t, domain.DisbursementPending, got.Status)
 	disbRepo.AssertExpectations(t)
 	projRepo.AssertExpectations(t)
@@ -198,6 +200,7 @@ func TestCreateForMilestone_CreateDBError(t *testing.T) {
 	disbRepo.On("FindByMilestoneID", uint(10)).Return(nil, gorm.ErrRecordNotFound)
 	projRepo.On("FindMilestoneByID", uint(10)).Return(milestone, nil)
 	projRepo.On("FindProjectByID", uint(5)).Return(project, nil)
+	projRepo.On("SumVerifiedInvestmentByProjectID", uint(5)).Return(float64(4000), nil)
 	disbRepo.On("Create", mock.AnythingOfType("*domain.Disbursement")).Return(errors.New("insert failed"))
 
 	_, err := svc.CreateForMilestone(10)

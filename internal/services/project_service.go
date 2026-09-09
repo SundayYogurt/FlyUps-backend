@@ -2,10 +2,12 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/helper"
+	"flyup/internal/port/cache"
 	"flyup/internal/repository"
 	"flyup/pkg/notification"
 	"fmt"
@@ -13,6 +15,7 @@ import (
 	"math"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -25,7 +28,7 @@ type ProjectService interface {
 	DeleteProject(projectID uint, user domain.User) error
 	GetMyProjects(ownerID uint) ([]domain.Project, error)
 	GetPublicProjects(filter dto.PublicProjectFilter) ([]domain.Project, error)
-	GetPublicProjectByID(id uint) (*domain.Project, error)
+	GetPublicProjectByID(ctx context.Context, id uint) (*domain.Project, error)
 	GetOwnerProjectByID(id uint, ownerID uint) (*domain.Project, error)
 	GetProjectsByCategory(categoryID uint) ([]domain.Project, error)
 	UpdateProjectStatus(projectID uint, newState domain.ProjectState, newStatus domain.ProjectStatus) error
@@ -33,7 +36,7 @@ type ProjectService interface {
 	GetNewProjects() ([]domain.Project, error)
 	GetProjectEndingSoon() ([]domain.Project, error)
 	GetExecutingProjects() ([]domain.Project, error)
-	GetPublicProjectBySlug(slug string) (*domain.Project, error)
+	GetPublicProjectBySlug(ctx context.Context, slug string) (*domain.Project, error)
 
 	// MEDIA
 	AttachProjectMedia(ctx context.Context, projectID uint, url string, mediaTypes []domain.MediaType, user domain.User) error
@@ -131,6 +134,7 @@ type projectService struct {
 	emailClient      notification.NotificationClient
 	investmentSvc    InvestmentService
 	disbursementRepo repository.DisbursementRepository
+	cache            cache.Cache
 }
 
 func NewProjectService(
@@ -141,6 +145,7 @@ func NewProjectService(
 	emailClient notification.NotificationClient,
 	investmentSvc InvestmentService,
 	disbursementRepo repository.DisbursementRepository,
+	cache cache.Cache,
 ) ProjectService {
 	return &projectService{
 		projectRepo:      projectRepo,
@@ -150,6 +155,28 @@ func NewProjectService(
 		notifSvc:         notifSvc,
 		emailClient:      emailClient,
 		investmentSvc:    investmentSvc,
+		cache:            cache,
+	}
+}
+
+const publicProjectCacheTTL = 60 * time.Second
+
+func publicProjectIDCacheKey(id uint) string {
+	return "project:public:id:" + strconv.FormatUint(uint64(id), 10)
+}
+
+func publicProjectSlugCacheKey(slug string) string {
+	return "project:public:slug:" + slug
+}
+
+// invalidatePublicProjectCache ล้าง cache ของ public project detail (เรียกหลัง mutation ที่กระทบข้อมูลที่ cache ไว้)
+func (s *projectService) invalidatePublicProjectCache(ctx context.Context, project *domain.Project) {
+	if s.cache == nil || project == nil {
+		return
+	}
+	_ = s.cache.Del(ctx, publicProjectIDCacheKey(project.ID))
+	if project.Slug != "" {
+		_ = s.cache.Del(ctx, publicProjectSlugCacheKey(project.Slug))
 	}
 }
 
@@ -215,6 +242,8 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 		return nil, errors.New("forbidden")
 	}
 
+	oldSlug := project.Slug
+
 	// cover_image สามารถอัปเดตได้ทุก state
 	if input.CoverImage != nil {
 		project.CoverImage = input.CoverImage
@@ -225,6 +254,9 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 			input.MinInvestAmount == nil && input.MaxInvestAmount == nil
 		if onlyCoverImage {
 			updated, err := s.projectRepo.UpdateProject(project)
+			if err == nil {
+				s.invalidatePublicProjectCache(context.Background(), updated)
+			}
 			return updated, err
 		}
 	}
@@ -312,7 +344,14 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 		project.Risk = input.Risk
 	}
 
-	return s.projectRepo.UpdateProject(project)
+	updated, err := s.projectRepo.UpdateProject(project)
+	if err == nil {
+		s.invalidatePublicProjectCache(context.Background(), updated)
+		if s.cache != nil && oldSlug != "" && oldSlug != updated.Slug {
+			_ = s.cache.Del(context.Background(), publicProjectSlugCacheKey(oldSlug))
+		}
+	}
+	return updated, err
 }
 
 func (s *projectService) DeleteProject(projectID uint, user domain.User) error {
@@ -414,7 +453,18 @@ func (s *projectService) GetProjectDetailByID(id uint) (*domain.Project, error) 
 	return project, nil
 }
 
-func (s *projectService) GetPublicProjectByID(id uint) (*domain.Project, error) {
+func (s *projectService) GetPublicProjectByID(ctx context.Context, id uint) (*domain.Project, error) {
+	cacheKey := publicProjectIDCacheKey(id)
+
+	if s.cache != nil {
+		if cached, err := s.cache.Get(ctx, cacheKey); err == nil && cached != "" {
+			var project domain.Project
+			if jsonErr := json.Unmarshal([]byte(cached), &project); jsonErr == nil {
+				return &project, nil
+			}
+		}
+	}
+
 	status := domain.StatusActive
 	visibility := domain.VisibilityPublic
 	project, err := s.projectRepo.FindProjectDetailByID(id, nil, &status, &visibility)
@@ -434,6 +484,12 @@ func (s *projectService) GetPublicProjectByID(id uint) (*domain.Project, error) 
 
 	if !allowedStates[project.State] {
 		return nil, errors.New("not public")
+	}
+
+	if s.cache != nil {
+		if data, err := json.Marshal(project); err == nil {
+			_ = s.cache.Set(ctx, cacheKey, data, publicProjectCacheTTL)
+		}
 	}
 
 	return project, nil
@@ -494,10 +550,11 @@ func (s *projectService) UpdateProjectStatus(projectID uint, newState domain.Pro
 	project.State = newState
 	project.Status = newStatus
 
-	_, err = s.projectRepo.UpdateProject(project)
+	updated, err := s.projectRepo.UpdateProject(project)
 	if err != nil {
 		return err
 	}
+	s.invalidatePublicProjectCache(context.Background(), updated)
 
 	// เมื่อเปลี่ยนเป็น executing ให้ activate Phase 1 milestone อัตโนมัติ
 	if newState == domain.StateExecuting {
@@ -1558,11 +1615,7 @@ func (s *projectService) UpdateProjectThread(thread *domain.ProjectThread, user 
 	if err != nil {
 		return errors.New("thread not found")
 	}
-	project, err := s.projectRepo.FindProjectByID(existing.ProjectID)
-	if err != nil {
-		return err
-	}
-	if project.OwnerUserID != user.ID {
+	if existing.CreatedBy != user.ID && user.Role != "admin" {
 		return errors.New("forbidden")
 	}
 	return s.projectRepo.UpdateThread(thread)
@@ -1573,11 +1626,7 @@ func (s *projectService) DeleteProjectThread(threadID uint, user domain.User) er
 	if err != nil {
 		return errors.New("thread not found")
 	}
-	project, err := s.projectRepo.FindProjectByID(existing.ProjectID)
-	if err != nil {
-		return err
-	}
-	if project.OwnerUserID != user.ID {
+	if existing.CreatedBy != user.ID && user.Role != "admin" {
 		return errors.New("forbidden")
 	}
 	return s.projectRepo.DeleteThread(threadID)
@@ -2007,7 +2056,11 @@ func (s *projectService) SubmitCancelRequest(projectID uint, input dto.CancelPro
 		return errors.New("description is required")
 	}
 
-	// update state
+	// เก็บ state เดิมไว้ก่อน เพื่อ restore กรณี admin ปฏิเสธ
+	prevState := project.State
+	prevStatus := project.Status
+	project.PreviousState = &prevState
+	project.PreviousStatus = &prevStatus
 	project.State = domain.StatePendingCancel
 	project.CancelReason = reason
 
@@ -2103,8 +2156,8 @@ func (s *projectService) AutoProjectLifecycleTick(now time.Time) error {
 			continue
 		}
 
-		// User requirement: if funding time expired and < softcap -> draft + failed
-		p.State = domain.StateDraft
+		// ระดมทุนหมดเวลาแต่ไม่ถึง softcap → ปิดโปรเจกต์
+		p.State = domain.StateClosed
 		p.Status = domain.StatusFailed
 		if _, err := s.projectRepo.UpdateProject(p); err != nil {
 			return err
@@ -2738,8 +2791,8 @@ func (s *projectService) ApproveCancelProject(projectID uint) error {
 	}
 	for i := range milestones {
 		switch milestones[i].Status {
-		case domain.MilestonePaid, domain.MilestoneRejected:
-			continue // ข้าม milestone ที่จบแล้ว
+		case domain.MilestonePaid:
+			continue // ข้าม milestone ที่จ่ายเงินสำเร็จแล้วเท่านั้น
 		default:
 			milestones[i].Status = domain.MilestoneCancelled
 			if err := s.projectRepo.UpdateMilestone(&milestones[i]); err != nil {
@@ -2801,18 +2854,16 @@ func (s *projectService) RejectCancelProject(projectID uint) error {
 		return errors.New("project is not in pending_cancel state")
 	}
 
-	// revert กลับไปสถานะเดิมก่อน pending_cancel
-	// ถ้ามี funding > 0 หรือ funding_at ไม่ว่าง ถือว่าอยู่ใน executing/funding
-	var prevState domain.ProjectState
-	if !p.FundingAt.IsZero() && p.CurrentFunding > 0 {
-		prevState = domain.StateExecuting
-	} else if !p.FundingAt.IsZero() {
-		prevState = domain.StateFunding
-	} else {
-		prevState = domain.StateFunding
+	// revert กลับไปสถานะเดิมก่อน pending_cancel (บันทึกไว้ตอน SubmitCancelRequest)
+	if p.PreviousState == nil {
+		return errors.New("cannot restore project state: previous state not recorded")
 	}
-
-	p.State = prevState
+	p.State = *p.PreviousState
+	if p.PreviousStatus != nil {
+		p.Status = *p.PreviousStatus
+	}
+	p.PreviousState = nil
+	p.PreviousStatus = nil
 	p.CancelReason = "" // ล้าง reason เมื่อ reject
 	_, err = s.projectRepo.UpdateProject(p)
 	if err != nil {
@@ -2853,9 +2904,20 @@ func (s *projectService) GetCancelPreview(projectID uint) (*dto.CancelPreviewRes
 	return s.investmentSvc.GetCancelPreview(projectID)
 }
 
-func (s *projectService) GetPublicProjectBySlug(slug string) (*domain.Project, error) {
+func (s *projectService) GetPublicProjectBySlug(ctx context.Context, slug string) (*domain.Project, error) {
 	if slug == "" {
 		return nil, errors.New("slug is required")
+	}
+
+	cacheKey := publicProjectSlugCacheKey(slug)
+
+	if s.cache != nil {
+		if cached, err := s.cache.Get(ctx, cacheKey); err == nil && cached != "" {
+			var project domain.Project
+			if jsonErr := json.Unmarshal([]byte(cached), &project); jsonErr == nil {
+				return &project, nil
+			}
+		}
 	}
 
 	project, err := s.projectRepo.FindProjectBySlug(slug)
@@ -2878,6 +2940,12 @@ func (s *projectService) GetPublicProjectBySlug(slug string) (*domain.Project, e
 
 	if !allowedStates[project.State] {
 		return nil, errors.New("not public")
+	}
+
+	if s.cache != nil {
+		if data, err := json.Marshal(project); err == nil {
+			_ = s.cache.Set(ctx, cacheKey, data, publicProjectCacheTTL)
+		}
 	}
 
 	return project, nil

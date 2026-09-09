@@ -149,7 +149,7 @@ func (h *UserHandler) SignUp(ctx fiber.Ctx) error {
 	}
 
 	//Call Service Logic
-	msg, err := h.svc.SignUp(user)
+	msg, err := h.svc.SignUp(ctx.Context(), user)
 	if err != nil {
 		errStr := err.Error()
 
@@ -199,7 +199,7 @@ func (h *UserHandler) VerifyEmail(ctx fiber.Ctx) error {
 		Token: token,
 	}
 
-	msg, err := h.svc.VerifyEmail(req)
+	msg, err := h.svc.VerifyEmail(ctx.Context(), req)
 	if err != nil {
 		return rest.BadRequestError(ctx, err.Error())
 	}
@@ -227,7 +227,7 @@ func (h *UserHandler) Signing(ctx fiber.Ctx) error {
 			"message": "please provide valid inputs",
 		})
 	}
-	token, userID, userRole, err := h.svc.Signing(signingInput.Email, signingInput.Password)
+	token, userID, userRole, err := h.svc.Signing(ctx.Context(), signingInput.Email, signingInput.Password)
 
 	if err != nil {
 		errMsg := err.Error()
@@ -278,7 +278,7 @@ func (h *UserHandler) ForgotPassword(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid email")
 	}
 
-	if err := h.svc.ForgotPassword(req.Email); err != nil {
+	if err := h.svc.ForgotPassword(ctx.Context(), req.Email); err != nil {
 		return rest.BadRequestError(ctx, err.Error())
 	}
 	return rest.SuccessResponse(ctx, "reset link sent", nil)
@@ -337,7 +337,7 @@ func (h *UserHandler) Me(ctx fiber.Ctx) error {
 		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
 	}
 
-	profile, err := h.svc.GetProfile(user.ID)
+	profile, err := h.svc.GetProfile(ctx.Context(), user.ID)
 	if err != nil {
 		return rest.InternalError(ctx, err)
 	}
@@ -378,7 +378,7 @@ func (h *UserHandler) UpdateProfile(ctx fiber.Ctx) error {
 	log.Printf("REQ: %+v", req)
 
 	// call services
-	if err := h.svc.UpdateProfile(user.ID, req); err != nil {
+	if err := h.svc.UpdateProfile(ctx.Context(), user.ID, req); err != nil {
 		// business/input errors -> 400 เพื่อ debug ง่าย
 		errStr := err.Error()
 		if strings.Contains(errStr, "invalid") ||
@@ -878,7 +878,7 @@ func (h *UserHandler) GoogleCallback(ctx fiber.Ctx) error {
 		return ctx.Redirect().To(oauthFailedRedirect)
 	}
 
-	token, err := h.svc.GoogleSigning(code, reqRole, h.googleOAuth)
+	token, err := h.svc.GoogleSigning(ctx.Context(), code, reqRole, h.googleOAuth)
 	if err != nil {
 		return ctx.Redirect().To(oauthFailedRedirect)
 	}
@@ -988,7 +988,7 @@ func (h *UserHandler) SelectRole(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 
-	if err := h.svc.SelectRole(user.ID, body.Role); err != nil {
+	if err := h.svc.SelectRole(ctx.Context(), user.ID, body.Role); err != nil {
 		return rest.BadRequestError(ctx, err.Error())
 	}
 
@@ -1208,7 +1208,7 @@ func (h *UserHandler) CreateUniversityDomain(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
-	uni, err := h.svc.CreateDomain(uint(uidParsed), req)
+	uni, err := h.svc.CreateDomain(ctx.Context(), uint(uidParsed), req)
 	if err != nil {
 		return rest.InternalError(ctx, err)
 	}
@@ -1250,7 +1250,7 @@ func (h *UserHandler) UpdateUniversityDomain(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
-	uni, err := h.svc.UpdateDomain(uint(uidParsed), req)
+	uni, err := h.svc.UpdateDomain(ctx.Context(), uint(uidParsed), req)
 	if err != nil {
 		return rest.InternalError(ctx, err)
 	}

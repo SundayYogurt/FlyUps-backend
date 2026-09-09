@@ -168,8 +168,8 @@ func (m *mockChatProjectSvc) GetProjectEndingSoon() ([]domain.Project, error) {
 	return nil, args.Error(1)
 }
 
-func (m *mockChatProjectSvc) GetPublicProjectByID(id uint) (*domain.Project, error) {
-	args := m.Called(id)
+func (m *mockChatProjectSvc) GetPublicProjectByID(ctx context.Context, id uint) (*domain.Project, error) {
+	args := m.Called(ctx, id)
 	if v := args.Get(0); v != nil {
 		return v.(*domain.Project), args.Error(1)
 	}
@@ -204,7 +204,7 @@ func (m *mockChatProjectSvc) UpdateProjectStatus(projectID uint, newState domain
 	return nil
 }
 func (m *mockChatProjectSvc) GetExecutingProjects() ([]domain.Project, error) { return nil, nil }
-func (m *mockChatProjectSvc) GetPublicProjectBySlug(slug string) (*domain.Project, error) {
+func (m *mockChatProjectSvc) GetPublicProjectBySlug(ctx context.Context, slug string) (*domain.Project, error) {
 	return nil, nil
 }
 

@@ -68,8 +68,8 @@ func (m *mockUserRepository) FindUserIDCardRequest(status string) ([]domain.IdCa
 	return args.Get(0).([]domain.IdCardVerification), args.Error(1)
 }
 
-func (m *mockUserRepository) CreateUser(usr *domain.User, consent *domain.UserConsent) (*domain.User, error) {
-	args := m.Called(usr, consent)
+func (m *mockUserRepository) CreateUser(ctx context.Context, usr *domain.User, consent *domain.UserConsent, profile *domain.StudentProfile) (*domain.User, error) {
+	args := m.Called(ctx, usr, consent, profile)
 	if args.Get(0) != nil {
 		return args.Get(0).(*domain.User), args.Error(1)
 	}
@@ -192,8 +192,8 @@ func (m *mockUserRepository) UpdateUser(userID uint, updates map[string]interfac
 	return args.Error(0)
 }
 
-func (m *mockUserRepository) FindUser(email string) (*domain.User, error) {
-	args := m.Called(email)
+func (m *mockUserRepository) FindUser(ctx context.Context, email string) (*domain.User, error) {
+	args := m.Called(ctx, email)
 	return args.Get(0).(*domain.User), args.Error(1)
 }
 
@@ -307,8 +307,8 @@ func (m *mockUniversityRepo) DeleteDomain(id uint) error {
 	return args.Error(0)
 }
 
-func (m *mockUniversityRepo) GetUniversityByDomain(domainStr string) (*domain.UniversityDomain, error) {
-	args := m.Called(domainStr)
+func (m *mockUniversityRepo) GetUniversityByDomain(ctx context.Context, domainStr string) (*domain.UniversityDomain, error) {
+	args := m.Called(ctx, domainStr)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -393,7 +393,7 @@ func TestSignup_Success(t *testing.T) {
 	// cache.Set สำหรับ verify token
 	cache.On("Set", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return(nil)
 
-	repo.On("FindUser", "test@test.com").
+	repo.On("FindUser", mock.Anything, "test@test.com").
 		Return(&domain.User{}, gorm.ErrRecordNotFound)
 
 	auth.On("CreateHashedPassword", "password123").
@@ -403,12 +403,14 @@ func TestSignup_Success(t *testing.T) {
 		Return("verify-token", nil)
 
 	repo.On("CreateUser",
+		mock.Anything,
 		mock.AnythingOfType("*domain.User"),
 		mock.AnythingOfType("*domain.UserConsent"),
+		mock.Anything,
 	).Return(&domain.User{ID: 1}, nil)
 
 	// run
-	msg, err := svc.SignUp(input)
+	msg, err := svc.SignUp(context.Background(), input)
 
 	// assert
 	assert.NoError(t, err)
@@ -442,12 +444,12 @@ func TestGoogleSignin_NewUser_Success(t *testing.T) {
 	}
 
 	// Define expected DB and Auth actions inside the Service flow
-	repo.On("FindUser", "test@google.com").Return(&domain.User{}, gorm.ErrRecordNotFound)
-	repo.On("CreateUser", mock.AnythingOfType("*domain.User"), mock.AnythingOfType("*domain.UserConsent")).Return(&domain.User{ID: 1, Email: "test@google.com", Role: "booster"}, nil)
+	repo.On("FindUser", mock.Anything, "test@google.com").Return(&domain.User{}, gorm.ErrRecordNotFound)
+	repo.On("CreateUser", mock.Anything, mock.AnythingOfType("*domain.User"), mock.AnythingOfType("*domain.UserConsent"), mock.Anything).Return(&domain.User{ID: 1, Email: "test@google.com", Role: "booster"}, nil)
 	auth.On("GenerateToken", uint(1), "test@google.com", "booster").Return("mock.jwt.token", nil)
 
 	// Call the method to test
-	token, err := svc.GoogleSigning("mock-code", "booster", oauthConf)
+	token, err := svc.GoogleSigning(context.Background(), "mock-code", "booster", oauthConf)
 
 	// Assertions
 	assert.NoError(t, err)
@@ -472,11 +474,11 @@ func TestSigning_Success(t *testing.T) {
 		EmailVerifiedAt: ptr(time.Now()),
 	}
 
-	repo.On("FindUser", "test@test.com").Return(existingUser, nil)
+	repo.On("FindUser", mock.Anything, "test@test.com").Return(existingUser, nil)
 	auth.On("VerifyPassword", "password123", "hashed_password").Return(nil)
 	auth.On("GenerateToken", uint(2), "test@test.com", "pioneer").Return("mock.jwt.token", nil)
 
-	token, _, _, err := svc.Signing("test@test.com", "password123")
+	token, _, _, err := svc.Signing(context.Background(), "test@test.com", "password123")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "mock.jwt.token", token)
@@ -501,10 +503,10 @@ func TestVerifyEmail_Success(t *testing.T) {
 	cache.On("Get", mock.Anything, "verify:token:"+token).Return(email, nil)
 	cache.On("Del", mock.Anything, "verify:token:"+token).Return(nil)
 
-	repo.On("FindUser", email).Return(existingUser, nil)
+	repo.On("FindUser", mock.Anything, email).Return(existingUser, nil)
 	repo.On("UpdateUser", uint(3), mock.AnythingOfType("map[string]interface {}")).Return(nil)
 
-	msg, err := svc.VerifyEmail(dto.VerifyEmailRequest{Token: token})
+	msg, err := svc.VerifyEmail(context.Background(), dto.VerifyEmailRequest{Token: token})
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, msg)
@@ -521,7 +523,7 @@ func TestVerifyEmail_Fail_InvalidToken(t *testing.T) {
 	// cache ไม่มี token → error
 	cache.On("Get", mock.Anything, "verify:token:bad-token").Return("", errors.New("cache miss"))
 
-	_, err := svc.VerifyEmail(dto.VerifyEmailRequest{Token: "bad-token"})
+	_, err := svc.VerifyEmail(context.Background(), dto.VerifyEmailRequest{Token: "bad-token"})
 
 	assert.Error(t, err)
 	assert.Equal(t, "invalid or expired token", err.Error())
@@ -544,9 +546,9 @@ func TestVerifyEmail_Fail_AlreadyVerified(t *testing.T) {
 
 	cache.On("Get", mock.Anything, "verify:token:"+token).Return(email, nil)
 	cache.On("Del", mock.Anything, "verify:token:"+token).Return(nil)
-	repo.On("FindUser", email).Return(existingUser, nil)
+	repo.On("FindUser", mock.Anything, email).Return(existingUser, nil)
 
-	_, err := svc.VerifyEmail(dto.VerifyEmailRequest{Token: token})
+	_, err := svc.VerifyEmail(context.Background(), dto.VerifyEmailRequest{Token: token})
 
 	assert.Error(t, err)
 	assert.Equal(t, "email already verified", err.Error())
@@ -565,14 +567,14 @@ func TestForgotPassword_Success(t *testing.T) {
 		Status: domain.ACTIVE,
 	}
 
-	repo.On("FindUser", "forgot@test.com").Return(existingUser, nil)
+	repo.On("FindUser", mock.Anything, "forgot@test.com").Return(existingUser, nil)
 	repo.On("UpdateUser", uint(4), mock.AnythingOfType("map[string]interface {}")).Return(nil)
 
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
 	httpmock.RegisterResponder("POST", "https://api.resend.com/emails", httpmock.NewStringResponder(200, `{}`))
 
-	err := svc.ForgotPassword("forgot@test.com")
+	err := svc.ForgotPassword(context.Background(), "forgot@test.com")
 
 	assert.NoError(t, err)
 
@@ -670,7 +672,7 @@ func TestGetProfile_Success(t *testing.T) {
 	repo.On("FindUserById", userID).Return(expected, nil)
 	cache.On("Set", mock.Anything, "user:7", mock.Anything, 5*time.Minute).Return(nil)
 
-	result, err := svc.GetProfile(userID)
+	result, err := svc.GetProfile(context.Background(), userID)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1203,7 +1205,7 @@ func TestSelectRole_Success_Booster(t *testing.T) {
 	}, nil)
 	repo.On("UpdateUser", userID, mock.AnythingOfType("map[string]interface {}")).Return(nil)
 
-	err := svc.SelectRole(userID, "booster")
+	err := svc.SelectRole(context.Background(), userID, "booster")
 
 	assert.NoError(t, err)
 	repo.AssertExpectations(t)
@@ -1220,7 +1222,7 @@ func TestSelectRole_Fail_AlreadySelected(t *testing.T) {
 		Role: "booster", // ไม่ใช่ pending
 	}, nil)
 
-	err := svc.SelectRole(userID, "pioneer")
+	err := svc.SelectRole(context.Background(), userID, "pioneer")
 
 	assert.Error(t, err)
 	assert.Equal(t, "user role is already selected", err.Error())
@@ -1232,7 +1234,7 @@ func TestSelectRole_Fail_InvalidRole(t *testing.T) {
 	repo := new(mockUserRepository)
 	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
 
-	err := svc.SelectRole(1, "admin")
+	err := svc.SelectRole(context.Background(), 1, "admin")
 
 	assert.Error(t, err)
 	assert.Equal(t, "role must be either booster or pioneer", err.Error())

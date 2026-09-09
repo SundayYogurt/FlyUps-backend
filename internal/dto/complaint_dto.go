@@ -5,7 +5,7 @@ import "time"
 type CreateComplaintRequest struct {
 	ProjectID uint   `json:"project_id" validate:"required"`
 	Subject   string `json:"subject"    validate:"required,min=3,max=200"`
-	Evidence  string `json:"evidence"   validate:"required"`
+	Evidence  string `json:"evidence"   validate:"omitempty,url"`
 	Body      string `json:"body"       validate:"required,min=10,max=5000"`
 }
 
