@@ -22,7 +22,7 @@ func (r *pioneerBadgeRepository) CountActiveMilestones(pioneerID uint) (int64, e
 		SELECT COUNT(m.id)
 		FROM milestones m
 		JOIN projects p ON p.id = m.project_id
-		WHERE p.pioneer_user_id = ?
+		WHERE p.owner_user_id = ?
 		  AND p.deleted_at IS NULL
 		  AND m.status IN ('active', 'rejected')
 		  AND m.deleted_at IS NULL
@@ -37,7 +37,7 @@ func (r *pioneerBadgeRepository) CountUpcomingMeetings(pioneerID uint, today str
 		FROM meetings mt
 		JOIN milestones m ON m.id = mt.milestone_id
 		JOIN projects p ON p.id = m.project_id
-		WHERE p.pioneer_user_id = ?
+		WHERE p.owner_user_id = ?
 		  AND p.deleted_at IS NULL
 		  AND mt.status = 'open'
 		  AND mt.deleted_at IS NULL
