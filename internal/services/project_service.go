@@ -113,6 +113,10 @@ type ProjectService interface {
 	GetCancelPreview(projectID uint) (*dto.CancelPreviewResponse, error)
 	AdminListProjects(filter dto.AdminProjectFilter) ([]domain.Project, error)
 	GetPlatformStats() (*dto.PlatformStatsResponse, error)
+	// PROJECT EDIT REVIEW
+	GetPendingEditReviewProjects() ([]domain.Project, error)
+	ApproveProjectEdit(projectID uint) error
+	RejectProjectEdit(projectID uint) error
 
 	//meeting
 	Meeting(input dto.CreateMeetingRequest, userID uint) (*domain.Meeting, error)
@@ -261,9 +265,49 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 		}
 	}
 
-	// เช็คสถานะ: หากโปรเจกต์ถูกอนุมัติหรือไม่อยู่ใน Draft แล้ว จะไม่อนุญาตให้แก้ไขข้อมูลหลัก
-	if project.State != domain.StateDraft {
-		return nil, errors.New("cannot update project: only projects in draft state can be edited")
+	// เช็คสถานะที่อนุญาตให้แก้ไข
+	editableStates := map[domain.ProjectState]bool{
+		domain.StateDraft:             true,
+		domain.StateFunding:           true,
+		domain.StateExecuting:         true,
+		domain.StatePendingEditReview: true,
+	}
+	if !editableStates[project.State] {
+		return nil, errors.New("cannot update project: project is not in an editable state")
+	}
+
+	// ถ้าอยู่ใน funding/executing ต้องบันทึก snapshot ก่อนแก้ไข เพื่อใช้ revert เมื่อ admin reject
+	needsEditReview := project.State == domain.StateFunding || project.State == domain.StateExecuting
+	// ถ้าอยู่ใน pending_edit_review แล้ว ให้แก้ไข snapshot ต่อไปได้ (overwrite)
+	if project.State == domain.StatePendingEditReview {
+		needsEditReview = true
+	}
+
+	if needsEditReview && project.State != domain.StatePendingEditReview {
+		// บันทึก snapshot ของข้อมูลปัจจุบัน (ก่อนแก้ไข) เป็น JSON
+		snapshot, snapshotErr := json.Marshal(map[string]interface{}{
+			"title":            project.Title,
+			"description":      project.Description,
+			"category_id":      project.CategoryID,
+			"risk":             project.Risk,
+			"funding_goal":     project.FundingGoal,
+			"softcap":          project.Softcap,
+			"duration_days":    project.DurationDays,
+			"duration_months":  project.DurationMonths,
+			"profit_share_pct": project.ProfitSharePct,
+			"min_invest_amount": project.MinInvestAmount,
+			"max_invest_amount": project.MaxInvestAmount,
+			"platform_fee":     project.PlatformFee,
+			"slug":             project.Slug,
+		})
+		if snapshotErr != nil {
+			return nil, errors.New("failed to save edit snapshot")
+		}
+		snapshotStr := string(snapshot)
+		project.EditSnapshot = &snapshotStr
+		// บันทึก previous state ก่อนเปลี่ยน
+		prevState := project.State
+		project.PreviousState = &prevState
 	}
 
 	if input.Title != nil {
@@ -342,6 +386,23 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 
 	if input.Risk != nil {
 		project.Risk = input.Risk
+	}
+
+	// ถ้าต้องผ่าน admin review → เปลี่ยน state เป็น pending_edit_review
+	if needsEditReview && project.State != domain.StatePendingEditReview {
+		project.State = domain.StatePendingEditReview
+		// แจ้ง admin ทุกคน
+		if s.notifSvc != nil {
+			admins, err := s.userRepo.FindAllByRole("admin")
+			if err == nil {
+				relatedID := project.ID
+				relatedType := "project"
+				for _, admin := range admins {
+					body := fmt.Sprintf("โปรเจกต์ \"%s\" มีการแก้ไขข้อมูลรอการอนุมัติ", project.Title)
+					s.notifSvc.CreateAndPush(admin.ID, domain.NotifProjectStatus, "โปรเจกต์รอตรวจสอบการแก้ไข", body, &relatedID, &relatedType)
+				}
+			}
+		}
 	}
 
 	updated, err := s.projectRepo.UpdateProject(project)
@@ -1884,6 +1945,132 @@ func (s *projectService) RejectProject(projectID uint) error {
 		relatedType := "project"
 		body := fmt.Sprintf("โปรเจกต์ \"%s\" ถูกปฏิเสธ กรุณาแก้ไขและส่งใหม่อีกครั้ง", p.Title)
 		s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifProjectStatus, "โปรเจกต์ถูกปฏิเสธ", body, &relatedID, &relatedType)
+	}
+	return nil
+}
+
+// GetPendingEditReviewProjects returns all projects waiting for admin to review an edit
+func (s *projectService) GetPendingEditReviewProjects() ([]domain.Project, error) {
+	return s.projectRepo.FindProjectsState(string(domain.StatePendingEditReview))
+}
+
+// ApproveProjectEdit approves the pending edit and restores the project to its previous state
+func (s *projectService) ApproveProjectEdit(projectID uint) error {
+	p, err := s.projectRepo.FindProjectByID(projectID)
+	if err != nil {
+		return err
+	}
+	if p.State != domain.StatePendingEditReview {
+		return errors.New("project must be in pending_edit_review state to approve edit")
+	}
+
+	// กลับสู่ previous state
+	if p.PreviousState == nil {
+		return errors.New("no previous state recorded for this project")
+	}
+	p.State = *p.PreviousState
+	p.PreviousState = nil
+	// ลบ snapshot เพราะอนุมัติแล้ว
+	p.EditSnapshot = nil
+
+	_, err = s.projectRepo.UpdateProject(p)
+	if err != nil {
+		return err
+	}
+	s.invalidatePublicProjectCache(context.Background(), p)
+
+	// notify pioneer ว่าการแก้ไขได้รับการอนุมัติ
+	if s.notifSvc != nil {
+		relatedID := p.ID
+		relatedType := "project"
+		body := fmt.Sprintf("การแก้ไขโปรเจกต์ \"%s\" ได้รับการอนุมัติแล้ว", p.Title)
+		s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifProjectStatus, "การแก้ไขโปรเจกต์ได้รับการอนุมัติ", body, &relatedID, &relatedType)
+	}
+	return nil
+}
+
+// RejectProjectEdit rejects the pending edit and reverts the project data to the snapshot
+func (s *projectService) RejectProjectEdit(projectID uint) error {
+	p, err := s.projectRepo.FindProjectByID(projectID)
+	if err != nil {
+		return err
+	}
+	if p.State != domain.StatePendingEditReview {
+		return errors.New("project must be in pending_edit_review state to reject edit")
+	}
+	if p.PreviousState == nil {
+		return errors.New("no previous state recorded for this project")
+	}
+	if p.EditSnapshot == nil {
+		return errors.New("no edit snapshot found for this project")
+	}
+
+	// parse snapshot แล้ว revert ข้อมูล
+	var snap map[string]interface{}
+	if err := json.Unmarshal([]byte(*p.EditSnapshot), &snap); err != nil {
+		return errors.New("failed to parse edit snapshot")
+	}
+
+	if v, ok := snap["title"].(string); ok {
+		p.Title = v
+	}
+	if v, ok := snap["description"]; ok && v != nil {
+		s := v.(string)
+		p.Description = &s
+	}
+	if v, ok := snap["risk"]; ok && v != nil {
+		s := v.(string)
+		p.Risk = &s
+	}
+	if v, ok := snap["funding_goal"].(float64); ok {
+		p.FundingGoal = v
+	}
+	if v, ok := snap["softcap"].(float64); ok {
+		p.Softcap = v
+	}
+	if v, ok := snap["duration_days"].(float64); ok {
+		p.DurationDays = int(v)
+	}
+	if v, ok := snap["duration_months"].(float64); ok {
+		p.DurationMonths = int(v)
+	}
+	if v, ok := snap["profit_share_pct"].(float64); ok {
+		p.ProfitSharePct = v
+	}
+	if v, ok := snap["min_invest_amount"].(float64); ok {
+		p.MinInvestAmount = v
+	}
+	if v, ok := snap["max_invest_amount"].(float64); ok {
+		p.MaxInvestAmount = v
+	}
+	if v, ok := snap["platform_fee"].(float64); ok {
+		p.PlatformFee = v
+	}
+	if v, ok := snap["slug"].(string); ok {
+		p.Slug = v
+	}
+	if v, ok := snap["category_id"].(float64); ok {
+		catID := uint(v)
+		p.CategoryID = &catID
+	}
+
+	// กลับสู่ previous state
+	p.State = *p.PreviousState
+	p.PreviousState = nil
+	p.EditSnapshot = nil
+
+	_, err = s.projectRepo.UpdateProject(p)
+	if err != nil {
+		return err
+	}
+	s.invalidatePublicProjectCache(context.Background(), p)
+
+	// notify pioneer ว่าการแก้ไขถูกปฏิเสธ
+	if s.notifSvc != nil {
+		relatedID := p.ID
+		relatedType := "project"
+		body := fmt.Sprintf("การแก้ไขโปรเจกต์ \"%s\" ถูกปฏิเสธ ข้อมูลถูก revert กลับเป็นเวอร์ชันก่อนหน้า", p.Title)
+		s.notifSvc.CreateAndPush(p.OwnerUserID, domain.NotifProjectStatus, "การแก้ไขโปรเจกต์ถูกปฏิเสธ", body, &relatedID, &relatedType)
 	}
 	return nil
 }

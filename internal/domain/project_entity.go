@@ -11,14 +11,15 @@ type ProjectStatus string
 type ProjectVisibility string
 
 const (
-	StateDraft         ProjectState = "draft"
-	StatePendingReview ProjectState = "pending_review"
-	StateFunding       ProjectState = "funding"
-	StateExecuting     ProjectState = "executing"
-	StateClosed        ProjectState = "closed"
-	StateCancelled     ProjectState = "cancelled"
-	StatePendingCancel ProjectState = "pending_cancel"
-	StateSuspended     ProjectState = "suspended"
+	StateDraft             ProjectState = "draft"
+	StatePendingReview     ProjectState = "pending_review"
+	StateFunding           ProjectState = "funding"
+	StateExecuting         ProjectState = "executing"
+	StateClosed            ProjectState = "closed"
+	StateCancelled         ProjectState = "cancelled"
+	StatePendingCancel     ProjectState = "pending_cancel"
+	StateSuspended         ProjectState = "suspended"
+	StatePendingEditReview ProjectState = "pending_edit_review"
 )
 
 const (
@@ -71,6 +72,8 @@ type Project struct {
 	CancelReason      string            `json:"cancel_reason"`
 	CancelDescription string            `json:"cancel_description"`
 	Slug              string            `json:"slug" gorm:"uniqueIndex;not null;default:''"`
+	// snapshot ข้อมูลก่อนแก้ไข สำหรับ revert เมื่อ admin reject การแก้ไข
+	EditSnapshot      *string           `json:"edit_snapshot,omitempty" gorm:"type:text"`
 	gorm.Model
 }
 

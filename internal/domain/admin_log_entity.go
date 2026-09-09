@@ -33,8 +33,10 @@ const (
 	AdminActionRejectComplaint    = "reject_complaint"
 	AdminActionConfirmDisbursement = "confirm_disbursement"
 	AdminActionConfirmProfitPayout = "confirm_profit_payout"
-	AdminActionSuspendProject     = "suspend_project"
-	AdminActionUnsuspendProject   = "unsuspend_project"
+	AdminActionSuspendProject      = "suspend_project"
+	AdminActionUnsuspendProject    = "unsuspend_project"
+	AdminActionApproveProjectEdit  = "approve_project_edit"
+	AdminActionRejectProjectEdit   = "reject_project_edit"
 )
 
 // target type constants

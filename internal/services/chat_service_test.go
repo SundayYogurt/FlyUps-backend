@@ -366,6 +366,13 @@ func (m *mockChatProjectSvc) AdminListProjects(filter dto.AdminProjectFilter) ([
 }
 func (m *mockChatProjectSvc) GetPlatformStats() (*dto.PlatformStatsResponse, error) { return nil, nil }
 
+// stubs — edit review
+func (m *mockChatProjectSvc) GetPendingEditReviewProjects() ([]domain.Project, error) {
+	return nil, nil
+}
+func (m *mockChatProjectSvc) ApproveProjectEdit(projectID uint) error { return nil }
+func (m *mockChatProjectSvc) RejectProjectEdit(projectID uint) error  { return nil }
+
 // stubs — meeting
 func (m *mockChatProjectSvc) Meeting(input dto.CreateMeetingRequest, userID uint) (*domain.Meeting, error) {
 	return nil, nil

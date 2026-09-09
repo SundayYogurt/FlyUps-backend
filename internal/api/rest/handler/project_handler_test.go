@@ -474,6 +474,19 @@ func (m *MockProjectService) GetMyMeetingsAsBooster(userID uint) ([]dto.Investor
 	return args.Get(0).([]dto.InvestorMeetingItem), args.Error(1)
 }
 
+func (m *MockProjectService) GetPendingEditReviewProjects() ([]domain.Project, error) {
+	args := m.Called()
+	return args.Get(0).([]domain.Project), args.Error(1)
+}
+
+func (m *MockProjectService) ApproveProjectEdit(projectID uint) error {
+	return m.Called(projectID).Error(0)
+}
+
+func (m *MockProjectService) RejectProjectEdit(projectID uint) error {
+	return m.Called(projectID).Error(0)
+}
+
 // Setup
 
 func setupProjectTest(t *testing.T) (*fiber.App, *MockProjectService, *ProjectHandler) {
