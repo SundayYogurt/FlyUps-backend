@@ -178,6 +178,9 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	adminProj.Patch("/:id<int>/approve-cancel", handler.ApproveCancel)
 	adminProj.Patch("/:id<int>/reject-cancel", handler.RejectCancel)
 	adminProj.Get("/cancel-request", handler.GetPendingCancel)
+	adminProj.Get("/pending-edit-review", handler.GetPendingEditReview)
+	adminProj.Patch("/:id<int>/approve-edit", handler.ApproveProjectEdit)
+	adminProj.Patch("/:id<int>/reject-edit", handler.RejectProjectEdit)
 }
 
 // GetRecommendationProjects godoc
@@ -2467,4 +2470,78 @@ func (h *ProjectHandler) GetPendingCancel(ctx fiber.Ctx) error {
 	}
 
 	return rest.SuccessResponse(ctx, "success", proj)
+}
+
+// GetPendingEditReview godoc
+// @Summary List projects pending edit review
+// @Description Admin gets all projects that have a pending edit waiting for approval
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} object "List of projects pending edit review"
+// @Failure 401 {object} object "Unauthorized"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /admin/projects/pending-edit-review [get]
+func (h *ProjectHandler) GetPendingEditReview(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.UnauthorizedError(ctx, "unauthorized")
+	}
+
+	projects, err := h.svc.GetPendingEditReviewProjects()
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "success", projects)
+}
+
+// ApproveProjectEdit godoc
+// @Summary Approve project edit
+// @Description Admin approves a pending project edit and restores the project to its previous state
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "Project edit approved"
+// @Failure 400 {object} object "Invalid project ID or error"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/projects/{id}/approve-edit [patch]
+func (h *ProjectHandler) ApproveProjectEdit(ctx fiber.Ctx) error {
+	admin := h.auth.GetCurrentUser(ctx)
+	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
+	}
+	if err := h.svc.ApproveProjectEdit(uint(id)); err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
+	}
+	pid := uint(id)
+	h.adminLogSvc.LogAction(admin.ID, domain.AdminActionApproveProjectEdit, domain.TargetTypeProject, &pid, nil)
+	return rest.SuccessResponse(ctx, "project edit approved", nil)
+}
+
+// RejectProjectEdit godoc
+// @Summary Reject project edit
+// @Description Admin rejects a pending project edit and reverts the project data to the previous version
+// @Tags Admin
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Project ID"
+// @Success 200 {object} object "Project edit rejected"
+// @Failure 400 {object} object "Invalid project ID or error"
+// @Failure 401 {object} object "Unauthorized"
+// @Router /admin/projects/{id}/reject-edit [patch]
+func (h *ProjectHandler) RejectProjectEdit(ctx fiber.Ctx) error {
+	admin := h.auth.GetCurrentUser(ctx)
+	id, err := strconv.Atoi(ctx.Params("id"))
+	if err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
+	}
+	if err := h.svc.RejectProjectEdit(uint(id)); err != nil {
+		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
+	}
+	pid := uint(id)
+	h.adminLogSvc.LogAction(admin.ID, domain.AdminActionRejectProjectEdit, domain.TargetTypeProject, &pid, nil)
+	return rest.SuccessResponse(ctx, "project edit rejected and reverted", nil)
 }

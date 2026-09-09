@@ -154,11 +154,13 @@ var stateTransitions = map[domain.ProjectState][]domain.ProjectState{
 		domain.StateClosed,
 		domain.StateCancelled,
 		domain.StateSuspended,
+		domain.StatePendingEditReview,
 	},
 	domain.StateExecuting: {
 		domain.StateClosed,
 		domain.StateCancelled,
 		domain.StateSuspended,
+		domain.StatePendingEditReview,
 	},
 	domain.StateClosed:    {},
 	domain.StateCancelled: {},
@@ -170,6 +172,11 @@ var stateTransitions = map[domain.ProjectState][]domain.ProjectState{
 	},
 	// suspended สามารถ restore กลับได้โดย admin เท่านั้น
 	domain.StateSuspended: {
+		domain.StateFunding,
+		domain.StateExecuting,
+	},
+	// pending_edit_review: admin approve (→ previous state) หรือ reject (→ previous state พร้อม revert ข้อมูล)
+	domain.StatePendingEditReview: {
 		domain.StateFunding,
 		domain.StateExecuting,
 	},
