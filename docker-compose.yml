@@ -83,6 +83,31 @@ services:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: flyup-grafana
+    restart: always
+    expose:
+      - "3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - flyup-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: flyup-prometheus
+    restart: always
+    expose:
+      - "9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - flyup-net
+
 networks:
   flyup-net:
 
@@ -90,3 +115,5 @@ volumes:
   redis-data:
   n8n-data:
   jenkins-data:
+  grafana-data:
+  prometheus-data:
