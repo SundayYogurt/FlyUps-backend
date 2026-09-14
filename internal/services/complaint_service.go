@@ -49,6 +49,11 @@ func (s *complaintService) Create(userID uint, req dto.CreateComplaintRequest) (
 		return nil, errors.New("you have already filed a complaint for this project")
 	}
 
+	// must have evidence
+	if req.Evidence == "" {
+		return nil, errors.New("evidence is required")
+	}
+
 	c := &domain.Complaint{
 		ComplainantID: userID,
 		ProjectID:     req.ProjectID,
