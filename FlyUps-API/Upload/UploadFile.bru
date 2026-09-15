@@ -6,7 +6,7 @@ meta {
 
 post {
   url: {{baseUrl}}/upload
-  body: multipart-form
+  body: multipartForm
   auth: bearer
 }
 
@@ -15,5 +15,5 @@ auth:bearer {
 }
 
 body:multipart-form {
-  file: @file(/path/to/your/file.jpg)
+  file: 
 }

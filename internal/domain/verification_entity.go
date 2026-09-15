@@ -18,7 +18,7 @@ type IdCardVerification struct {
 	ID         uint         `json:"id"`
 	UserID     uint         `json:"user_id"`
 	Document   string       `json:"document"`
-	SelfieURL  *string      `json:"selfie_url"`
+	SelfieURL  string       `json:"selfie_url"`
 	Status     VerifyStatus `json:"status"`
 	User       User         `gorm:"foreignKey:UserID"`
 	VerifiedAt *time.Time   `json:"verified_at,omitempty"`
