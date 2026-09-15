@@ -1590,21 +1590,24 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 		return errors.New("invalid user ID")
 	}
 
-	if input.IDCardURL == nil {
+	if input.IDCardURL == "" {
 		return errors.New("ID card required")
 	}
 
-	if input.SelfieURL == nil {
+	if input.SelfieURL == "" {
 		return errors.New("selfie image required")
 	}
 
-	if input.DeclareTruth == nil || !*input.DeclareTruth {
+	if input.DeclareTruth == nil {
+		return errors.New("declare_truth is required")
+	}
+	if !*input.DeclareTruth {
 		return errors.New("must confirm information is true")
 	}
 
 	// หา record ล่าสุด
 	existing, err := s.Repo.FindLatestIdVerification(userID)
-	if err != nil {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return errors.New("failed to fetch id verification")
 	}
 
@@ -1619,12 +1622,27 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 		}
 	}
 
+	const cloudPrefix = "https://res.cloudinary.com/dsvexmpb6/image/upload/"
+	if !strings.HasPrefix(input.IDCardURL, cloudPrefix) {
+		return errors.New("invalid ID card URL")
+	}
+
 	iappSvc := helper.NewIAppService(s.Config.IAppAPIKey)
 
-	idCardURL := toCloudinaryJPG(*input.IDCardURL)
-	selfieURL := toCloudinaryJPG(*input.SelfieURL)
+	idCardURL := toCloudinaryJPG(input.IDCardURL)
+	selfieURL := toCloudinaryJPG(input.SelfieURL)
 
-	ocrPayload, err := iappSvc.VerifyFaceAndIDCard(idCardURL, selfieURL)
+	ocrPayload, ocrErr := iappSvc.VerifyFaceAndIDCard(idCardURL, selfieURL)
+
+	if ocrErr != nil {
+		log.Printf("[VerifyID] OCR error: %v", ocrErr)
+
+		// ปัญหาฝั่งเรา — ไม่ควรสร้าง record ค้างไว้
+		if helper.IsProviderUnavailable(ocrErr) { // 402, 429, 5xx, timeout
+			return errors.New("verification service unavailable, please try again later")
+		}
+		// นอกนั้นปล่อยเป็น pending ให้ admin review
+	}
 
 	// default = pending
 	finalStatus := domain.VerifyStatusPending
@@ -1660,8 +1678,8 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 	// สร้าง object
 	verify := &domain.IdCardVerification{
 		UserID:     userID,
-		Document:   *input.IDCardURL,
-		SelfieURL:  input.SelfieURL,
+		Document:   idCardURL,
+		SelfieURL:  selfieURL,
 		Status:     finalStatus,
 		FaceScore:  faceScore,
 		OcrPayload: &ocrPayload,
@@ -1695,9 +1713,21 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 	return s.Repo.CreateConsents(consents)
 }
 
-func toCloudinaryJPG(url string) string {
-	if strings.Contains(url, "/upload/") && !strings.Contains(url, "/upload/f_") {
-		return strings.Replace(url, "/upload/", "/upload/f_jpg,q_auto/", 1)
+var imageExtRe = regexp.MustCompile(`(?i)\.(webp|avif|png|jpe?g|gif|heic|heif|bmp|tiff?)$`)
+
+func toCloudinaryJPG(rawURL string) string {
+	if !strings.Contains(rawURL, "/upload/") {
+		return rawURL
 	}
-	return url
+
+	base, suffix := rawURL, ""
+	if i := strings.IndexAny(rawURL, "?#"); i != -1 {
+		base, suffix = rawURL[:i], rawURL[i:]
+	}
+	base = imageExtRe.ReplaceAllString(base, ".jpg")
+
+	if !strings.Contains(base, "/upload/f_") {
+		base = strings.Replace(base, "/upload/", "/upload/f_jpg,q_auto/", 1)
+	}
+	return base + suffix
 }

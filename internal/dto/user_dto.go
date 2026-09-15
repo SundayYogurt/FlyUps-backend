@@ -65,9 +65,9 @@ type VerifyStudentInput struct {
 }
 
 type VerifyIDInput struct {
-	IDCardURL    *string `json:"id_card_url,omitempty" validate:"required"`
-	SelfieURL    *string `json:"selfie_url,omitempty" validate:"required"`
-	DeclareTruth *bool   `json:"declare_truth"`
+	IDCardURL    string `json:"id_card_url"    validate:"required,url"`
+	SelfieURL    string `json:"selfie_url"     validate:"required,url"`
+	DeclareTruth *bool  `json:"declare_truth"  validate:"required"`
 }
 
 type BankRequest struct {

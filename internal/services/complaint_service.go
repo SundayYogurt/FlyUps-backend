@@ -200,6 +200,7 @@ func (s *complaintService) toItem(c *domain.Complaint) dto.ComplaintItem {
 		Status:        string(c.Status),
 		AdminNote:     c.AdminNote,
 		ResolvedAt:    c.ResolvedAt,
+		Evidence:      c.Evidence,
 		CreatedAt:     c.CreatedAt,
 	}
 	if c.Complainant != nil {

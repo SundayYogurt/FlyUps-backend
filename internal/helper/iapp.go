@@ -6,10 +6,19 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"time"
 )
+
+type IAppError struct {
+	StatusCode int
+	Code       string // เช่น "INSUFFICIENT_CREDITS"
+	Message    string
+	Raw        string
+}
 
 type IAppService interface {
 	VerifyFaceAndIDCard(idCardURL, selfieURL string) (string, error)
@@ -27,7 +36,8 @@ func NewIAppService(apiKey string) IAppService {
 
 // helper function เอาไว้โหลดรูปทีละใบแล้วยัดใส่ writer
 func downloadAndAttachFile(writer *multipart.Writer, fieldName, imageURL string) error {
-	resp, err := http.Get(imageURL)
+	var httpClient = &http.Client{Timeout: 30 * time.Second}
+	resp, err := httpClient.Get(imageURL)
 	if err != nil {
 		return fmt.Errorf("failed to download %s: %w", fieldName, err)
 	}
@@ -44,14 +54,34 @@ func downloadAndAttachFile(writer *multipart.Writer, fieldName, imageURL string)
 		fmt.Sprintf(`form-data; name="%s"; filename="%s.jpg"`, fieldName, fieldName))
 	h.Set("Content-Type", "image/jpeg")
 
-	part, err := writer.CreatePart(h)
+	log.Printf("[iApp] %s → ctype=%s len=%s url=%s",
+		fieldName,
+		resp.Header.Get("Content-Type"),
+		resp.Header.Get("Content-Length"),
+		imageURL)
+
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to create form part for %s: %v", fieldName, err)
+		return fmt.Errorf("failed to read %s: %w", fieldName, err)
 	}
 
-	if _, err = io.Copy(part, resp.Body); err != nil {
-		return fmt.Errorf("failed to copy content for %s: %v", fieldName, err)
+	// RIFF....WEBP
+	if len(data) >= 12 && string(data[0:4]) == "RIFF" && string(data[8:12]) == "WEBP" {
+		return fmt.Errorf("%s is still webp, cloudinary transform failed: %s", fieldName, imageURL)
 	}
+	// JPEG ขึ้นต้นด้วย FF D8 FF
+	if len(data) < 3 || data[0] != 0xFF || data[1] != 0xD8 {
+		return fmt.Errorf("%s is not a valid jpeg: %s", fieldName, imageURL)
+	}
+
+	part, err := writer.CreatePart(h)
+	if err != nil {
+		return fmt.Errorf("failed to create form part for %s: %w", fieldName, err)
+	}
+	if _, err := part.Write(data); err != nil {
+		return fmt.Errorf("failed to write content for %s: %w", fieldName, err)
+	}
+
 	return nil
 }
 
@@ -86,22 +116,33 @@ func (s iAppService) VerifyFaceAndIDCard(idCardURL, selfieURL string) (string, e
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	// ส่ง request ออกไป
-	client := &http.Client{}
+	client := &http.Client{Timeout: 30 * time.Second}
 	iAppResp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("failed to execute request: %v", err)
+		return "", fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer iAppResp.Body.Close()
 
 	// อ่านและประมวลผล JSON Response จาก Iapp
 	respBody, err := io.ReadAll(iAppResp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read response body: %v", err)
+		return "", fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	// ถ้า status พัง
 	if iAppResp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("iapp api error (status: %d) : %s", iAppResp.StatusCode, string(respBody))
+		var apiErr struct {
+			Message   string `json:"message"`
+			ErrorCode string `json:"error_code"`
+		}
+		_ = json.Unmarshal(respBody, &apiErr) // best-effort, ไม่ต้องสน error
+
+		return "", &IAppError{
+			StatusCode: iAppResp.StatusCode,
+			Code:       apiErr.ErrorCode,
+			Message:    apiErr.Message,
+			Raw:        string(respBody),
+		}
 	}
 
 	// เช็คว่าเป็น JSON String
@@ -110,4 +151,34 @@ func (s iAppService) VerifyFaceAndIDCard(idCardURL, selfieURL string) (string, e
 	}
 
 	return string(respBody), nil
+}
+
+func (e *IAppError) Error() string {
+	return fmt.Sprintf("iapp api error (status: %d): %s", e.StatusCode, e.Raw)
+}
+
+// true = ปัญหาฝั่งเรา/provider ไม่ใช่ความผิด user
+func (e *IAppError) IsProviderUnavailable() bool {
+	switch {
+	case e.StatusCode == 402, // credits หมด
+		e.StatusCode == 401, // key ผิด
+		e.StatusCode == 429, // rate limit
+		e.StatusCode >= 500: // provider ล่ม
+		return true
+	}
+	return false
+}
+
+func IsProviderUnavailable(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	var e *IAppError
+	if errors.As(err, &e) {
+		return e.IsProviderUnavailable()
+	}
+
+	// network error, timeout, DNS — นับเป็นฝั่งเราไม่พร้อมเหมือนกัน
+	return true
 }

@@ -39,6 +39,7 @@ type ComplaintItem struct {
 	Complainant     *ComplaintComplainant `json:"complainant,omitempty"`
 	Project         *ComplaintProject     `json:"project,omitempty"`
 	TotalReports    int64                 `json:"total_reports"`
+	Evidence        string                `json:"evidence"   validate:"omitempty,url"`
 	ResolvedReports int64                 `json:"resolved_reports"`
 }
 
