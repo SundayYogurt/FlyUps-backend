@@ -39,10 +39,6 @@ func StartServer(cfg config.AppConfig) {
 	}
 	log.Println("database connected")
 
-	if err := database.BackfillProjectSlugs(db); err != nil {
-		log.Fatalf("project slug backfill error %v", err)
-	}
-
 	// run migration
 	err = db.AutoMigrate(
 		&domain.User{},
@@ -89,9 +85,6 @@ func StartServer(cfg config.AppConfig) {
 		&domain.ChatSession{},
 		&domain.ChatMessage{},
 		&domain.ChatAction{},
-		&domain.ChatSession{},
-		&domain.ChatMessage{},
-		&domain.ChatAction{},
 
 		// admin logs
 		&domain.AdminLog{},
@@ -102,6 +95,10 @@ func StartServer(cfg config.AppConfig) {
 	}
 
 	log.Println("migration was successful")
+
+	if err := database.BackfillProjectSlugs(db); err != nil {
+		log.Fatalf("project slug backfill error %v", err)
+	}
 
 	// cors configuration
 	c := cors.New(cors.Config{
