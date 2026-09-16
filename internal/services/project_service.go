@@ -286,19 +286,19 @@ func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRe
 	if needsEditReview && project.State != domain.StatePendingEditReview {
 		// บันทึก snapshot ของข้อมูลปัจจุบัน (ก่อนแก้ไข) เป็น JSON
 		snapshot, snapshotErr := json.Marshal(map[string]interface{}{
-			"title":            project.Title,
-			"description":      project.Description,
-			"category_id":      project.CategoryID,
-			"risk":             project.Risk,
-			"funding_goal":     project.FundingGoal,
-			"softcap":          project.Softcap,
-			"duration_days":    project.DurationDays,
-			"duration_months":  project.DurationMonths,
-			"profit_share_pct": project.ProfitSharePct,
+			"title":             project.Title,
+			"description":       project.Description,
+			"category_id":       project.CategoryID,
+			"risk":              project.Risk,
+			"funding_goal":      project.FundingGoal,
+			"softcap":           project.Softcap,
+			"duration_days":     project.DurationDays,
+			"duration_months":   project.DurationMonths,
+			"profit_share_pct":  project.ProfitSharePct,
 			"min_invest_amount": project.MinInvestAmount,
 			"max_invest_amount": project.MaxInvestAmount,
-			"platform_fee":     project.PlatformFee,
-			"slug":             project.Slug,
+			"platform_fee":      project.PlatformFee,
+			"slug":              project.Slug,
 		})
 		if snapshotErr != nil {
 			return nil, errors.New("failed to save edit snapshot")
@@ -2296,6 +2296,7 @@ func (s *projectService) GetProjectDetailAny(projectID uint) (*domain.Project, e
 func (s *projectService) AutoProjectLifecycleTick(now time.Time) error {
 	state := domain.StateFunding
 	status := domain.StatusActive
+
 	projects, err := s.projectRepo.FindProjects(&state, &status, nil, nil, "")
 	if err != nil {
 		return err
@@ -2346,6 +2347,7 @@ func (s *projectService) AutoProjectLifecycleTick(now time.Time) error {
 		// ระดมทุนหมดเวลาแต่ไม่ถึง softcap → ปิดโปรเจกต์
 		p.State = domain.StateClosed
 		p.Status = domain.StatusFailed
+		p.Visibility = domain.VisibilityPrivate
 		if _, err := s.projectRepo.UpdateProject(p); err != nil {
 			return err
 		}
