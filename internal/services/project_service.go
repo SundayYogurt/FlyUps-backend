@@ -2113,7 +2113,7 @@ func (s *projectService) CloseProject(projectID uint, user domain.User) error {
 
 	// CASE 1: เงินเต็ม → เข้าสู่ execution
 	if p.CurrentFunding >= p.FundingGoal {
-		startExecutionAt := time.Now().UTC()
+		startExecutionAt := now.UTC()
 		p.State = domain.StateExecuting
 		p.Status = domain.StatusActive
 		if p.DurationMonths > 0 {
