@@ -398,7 +398,7 @@ func (p *projectRepository) FindExecutingProjects() ([]domain.Project, error) {
 	err := p.db.
 		Preload("Category").
 		Where("state IN ? AND visibility = ?",
-			[]string{string(domain.StateExecuting), string(domain.StateClosed)},
+			[]string{string(domain.StateExecuting)},
 			domain.VisibilityPublic).
 		Order("current_funding DESC").
 		Limit(6).
