@@ -67,17 +67,30 @@ func (c *CloudinaryService) UploadImage(ctx context.Context, file multipart.File
 	return res.SecureURL, nil
 }
 
-func (c *CloudinaryService) UploadVideo(ctx context.Context, file multipart.File) (string, error) {
+func (c *CloudinaryService) UploadVideo(
+	ctx context.Context,
+	file multipart.File,
+) (string, error) {
+	const maxVideoSize int64 = 50 * 1024 * 1024
 
-	if err := validateFileSize(file); err != nil {
-		return "", err
+	size, err := file.Seek(0, io.SeekEnd)
+	if err != nil {
+		return "", fmt.Errorf("get video size: %w", err)
+	}
+
+	// กลับไปต้นไฟล์ก่อนอัปโหลด
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return "", fmt.Errorf("reset video position: %w", err)
+	}
+
+	if size > maxVideoSize {
+		return "", fmt.Errorf("video must not exceed 50 MB")
 	}
 
 	res, err := c.cld.Upload.Upload(ctx, file, uploader.UploadParams{
 		Folder:       "flyup/projects/videos",
-		ResourceType: "video", // ต้องระบุว่าเป็น video
+		ResourceType: "video",
 	})
-
 	if err != nil {
 		return "", err
 	}
