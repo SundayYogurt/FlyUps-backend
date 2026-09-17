@@ -23,7 +23,7 @@ import (
 
 func StartServer(cfg config.AppConfig) {
 	app := fiber.New(fiber.Config{
-		BodyLimit: 50 * 1024 * 1024, // 50 MB
+		BodyLimit: 55 * 1024 * 1024, // 55 MB
 	})
 
 	app.Use(fiberprometheus.New(fiberprometheus.Config{
