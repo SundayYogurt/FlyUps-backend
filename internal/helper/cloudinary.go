@@ -2,6 +2,8 @@ package helper
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"mime/multipart"
 
 	"github.com/cloudinary/cloudinary-go/v2"
@@ -22,7 +24,36 @@ func NewCloudinary(cloudName, apiKey, apiSecret string) (*CloudinaryService, err
 	return &CloudinaryService{cld: cld}, nil
 }
 
+const maxUploadFileSize int64 = 5 * 1024 * 1024
+
+func validateFileSize(file multipart.File) error {
+	current, err := file.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return fmt.Errorf("get file position: %w", err)
+	}
+
+	size, err := file.Seek(0, io.SeekEnd)
+	if err != nil {
+		return fmt.Errorf("get file size: %w", err)
+	}
+
+	// คืนตำแหน่งเดิมก่อนส่งไฟล์ไปอัปโหลด
+	if _, err := file.Seek(current, io.SeekStart); err != nil {
+		return fmt.Errorf("restore file position: %w", err)
+	}
+
+	if size > maxUploadFileSize {
+		return fmt.Errorf("file must not exceed 5 MB")
+	}
+
+	return nil
+}
+
 func (c *CloudinaryService) UploadImage(ctx context.Context, file multipart.File) (string, error) {
+
+	if err := validateFileSize(file); err != nil {
+		return "", err
+	}
 
 	res, err := c.cld.Upload.Upload(ctx, file, uploader.UploadParams{
 		Folder: "flyup/projects",
@@ -38,6 +69,10 @@ func (c *CloudinaryService) UploadImage(ctx context.Context, file multipart.File
 
 func (c *CloudinaryService) UploadVideo(ctx context.Context, file multipart.File) (string, error) {
 
+	if err := validateFileSize(file); err != nil {
+		return "", err
+	}
+
 	res, err := c.cld.Upload.Upload(ctx, file, uploader.UploadParams{
 		Folder:       "flyup/projects/videos",
 		ResourceType: "video", // ต้องระบุว่าเป็น video
@@ -51,6 +86,10 @@ func (c *CloudinaryService) UploadVideo(ctx context.Context, file multipart.File
 }
 
 func (c *CloudinaryService) UploadRawFile(ctx context.Context, file multipart.File, ext string) (string, error) {
+
+	if err := validateFileSize(file); err != nil {
+		return "", err
+	}
 
 	res, err := c.cld.Upload.Upload(ctx, file, uploader.UploadParams{
 		Folder:       "flyup/projects/documents",
