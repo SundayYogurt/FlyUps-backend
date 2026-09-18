@@ -100,8 +100,31 @@ func (s *investmentService) GetInvestment(boosterUserID uint, investmentID uint)
 		}
 		return nil, nil, errors.New("internal server error")
 	}
+	s.expirePendingInvestment(investment, txn)
 
 	return investment, txn, nil
+}
+
+func (s *investmentService) expirePendingInvestment(investment *domain.Investment, txn *domain.Transaction) {
+	if investment == nil || txn == nil || investment.Status != domain.InvestmentPending ||
+		(txn.Status != domain.TransactionPending && txn.Status != domain.TransactionExpired) ||
+		txn.ExpiresAt.IsZero() || time.Now().Before(txn.ExpiresAt) {
+		return
+	}
+
+	if err := s.investmentRepo.UpdateStatus(investment.ID, domain.InvestmentExpired); err != nil {
+		log.Printf("[expirePendingInvestment] update investment %d: %v", investment.ID, err)
+		return
+	}
+	investment.Status = domain.InvestmentExpired
+
+	if txn.Status == domain.TransactionPending {
+		if err := s.transactionRepo.UpdateStatus(txn.ID, domain.TransactionExpired); err != nil {
+			log.Printf("[expirePendingInvestment] update transaction %d: %v", txn.ID, err)
+			return
+		}
+		txn.Status = domain.TransactionExpired
+	}
 }
 
 func (s *investmentService) GenerateContractHTML(boosterUserID uint, investmentID uint) ([]byte, error) {
@@ -356,7 +379,23 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 
 // all my investments
 func (s *investmentService) ListUserInvestments(boosterUserID uint) ([]domain.Investment, error) {
-	return s.investmentRepo.ListByBoosterUserID(boosterUserID)
+	investments, err := s.investmentRepo.ListByBoosterUserID(boosterUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range investments {
+		if investments[i].Status != domain.InvestmentPending {
+			continue
+		}
+		txn, txnErr := s.transactionRepo.FindByInvestmentID(investments[i].ID)
+		if txnErr != nil {
+			continue
+		}
+		s.expirePendingInvestment(&investments[i], txn)
+	}
+
+	return investments, nil
 }
 
 func (s *investmentService) RefundInvestment(boosterUserID uint, investmentID uint, note string) (*dto.RefundResponse, error) {

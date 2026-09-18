@@ -10,6 +10,7 @@ type InvestmentStatus string
 
 const (
 	InvestmentPending       InvestmentStatus = "pending_payment"
+	InvestmentExpired       InvestmentStatus = "expired"
 	InvestmentVerified      InvestmentStatus = "verified"
 	InvestmentRejected      InvestmentStatus = "rejected"
 	InvestmentRefundPending InvestmentStatus = "refund_pending"
