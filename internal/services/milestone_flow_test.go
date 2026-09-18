@@ -48,7 +48,11 @@ func TestOpenMilestoneVoting_Success(t *testing.T) {
 
 	projRepo.On("FindMilestoneByID", milestoneID).Return(m, nil)
 	projRepo.On("FindProjectByID", projectID).Return(p, nil)
-	projRepo.On("FindMeetingByMilestoneID", milestoneID).Return(&domain.Meeting{ID: 1, MilestoneID: milestoneID}, nil)
+	previousHour := time.Now().In(time.FixedZone("Asia/Bangkok", 7*60*60)).Add(-time.Hour)
+	projRepo.On("FindMeetingByMilestoneID", milestoneID).Return(&domain.Meeting{
+		ID: milestoneID, MilestoneID: milestoneID, Status: domain.MeetingOpen,
+		Date: previousHour, Time: previousHour,
+	}, nil)
 	projRepo.On("UpdateMilestone", mock.AnythingOfType("*domain.Milestone")).Return(nil)
 	projRepo.On("DeleteVotesByMilestoneID", uint(11)).Return(nil)
 
@@ -57,6 +61,39 @@ func TestOpenMilestoneVoting_Success(t *testing.T) {
 	assert.NotNil(t, res)
 	assert.True(t, res.VotingOpen)
 	assert.NotNil(t, res.VotingOpenedAt)
+}
+
+func TestOpenMilestoneVoting_RequiresNewMeeting(t *testing.T) {
+	projRepo := new(ProjectRepository)
+	svc := NewProjectService(projRepo, nil, nil, nil, nil, nil, nil, nil)
+	user := domain.User{ID: 7}
+	m := &domain.Milestone{ID: 11, ProjectID: 99, Status: domain.MilestoneApproved}
+
+	projRepo.On("FindMilestoneByID", uint(11)).Return(m, nil)
+	projRepo.On("FindProjectByID", uint(99)).Return(&domain.Project{ID: 99, OwnerUserID: user.ID}, nil)
+	projRepo.On("FindMeetingByMilestoneID", uint(11)).Return(nil, nil)
+
+	_, err := svc.OpenMilestoneVoting(11, user)
+	assert.EqualError(t, err, "please schedule a new meeting first")
+	projRepo.AssertNotCalled(t, "DeleteVotesByMilestoneID", mock.Anything)
+}
+
+func TestOpenMilestoneVoting_BeforeMeetingTime(t *testing.T) {
+	projRepo := new(ProjectRepository)
+	svc := NewProjectService(projRepo, nil, nil, nil, nil, nil, nil, nil)
+	user := domain.User{ID: 7}
+	m := &domain.Milestone{ID: 11, ProjectID: 99, Status: domain.MilestoneApproved}
+	tomorrow := time.Now().In(time.FixedZone("Asia/Bangkok", 7*60*60)).Add(24 * time.Hour)
+
+	projRepo.On("FindMilestoneByID", uint(11)).Return(m, nil)
+	projRepo.On("FindProjectByID", uint(99)).Return(&domain.Project{ID: 99, OwnerUserID: user.ID}, nil)
+	projRepo.On("FindMeetingByMilestoneID", uint(11)).Return(&domain.Meeting{
+		ID: 1, MilestoneID: 11, Status: domain.MeetingOpen, Date: tomorrow, Time: tomorrow,
+	}, nil)
+
+	_, err := svc.OpenMilestoneVoting(11, user)
+	assert.EqualError(t, err, "meeting has not started yet")
+	projRepo.AssertNotCalled(t, "DeleteVotesByMilestoneID", mock.Anything)
 }
 
 func TestCloseProject_FundingToExecuting_AndActivatePhaseOne(t *testing.T) {

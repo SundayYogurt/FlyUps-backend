@@ -200,6 +200,9 @@ func (p *projectRepository) FindMeetingByMilestoneID(milestoneID uint) (*domain.
 		Order("id DESC").First(&meeting).Error
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 
