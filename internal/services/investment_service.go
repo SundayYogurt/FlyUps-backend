@@ -233,9 +233,10 @@ func (s *investmentService) GenerateContractHTML(boosterUserID uint, investmentI
   <div class="section">
     <div class="section-title">รายละเอียดการชำระเงิน</div>
     <div class="row"><span class="label">ยอดลงทุน</span><span class="value">฿{{printf "%.2f" .Amount}}</span></div>
-    <div class="row"><span class="label">ค่าธรรมเนียมแพลตฟอร์ม</span><span class="value">฿{{printf "%.2f" .PlatformFee}}</span></div>
-    <div class="row"><span class="label">VAT (7%)</span><span class="value">฿{{printf "%.2f" .VAT}}</span></div>
-    <div class="total-row"><span class="total-label">ยอดชำระสุทธิ</span><span class="total-value">฿{{printf "%.2f" .NetAmount}}</span></div>
+    <div class="row"><span class="label">ยอดที่ Booster ชำระ</span><span class="value">฿{{printf "%.2f" .Amount}}</span></div>
+    <div class="row"><span class="label">ค่าธรรมเนียมแพลตฟอร์ม (หักจาก Pioneer)</span><span class="value">฿{{printf "%.2f" .PlatformFee}}</span></div>
+    <div class="row"><span class="label">VAT 7% ของค่าธรรมเนียม (หักจาก Pioneer)</span><span class="value">฿{{printf "%.2f" .VAT}}</span></div>
+    <div class="total-row"><span class="total-label">ยอดสุทธิที่ Pioneer ได้รับ</span><span class="total-value">฿{{printf "%.2f" .NetAmount}}</span></div>
   </div>
 
   <div class="section">
