@@ -70,7 +70,7 @@ func TestComplaintService_Create_Success(t *testing.T) {
 	cr.On("FindByUserAndProject", uint(1), uint(10)).Return(nil, nil)
 	cr.On("Create", mock.Anything).Return(nil)
 
-	result, err := svc.Create(1, dto.CreateComplaintRequest{ProjectID: 10, Subject: "ปัญหา", Body: "รายละเอียด"})
+	result, err := svc.Create(1, dto.CreateComplaintRequest{Evidence: "https://example.com/evidence.png", ProjectID: 10, Subject: "ปัญหา", Body: "รายละเอียด"})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -85,7 +85,7 @@ func TestComplaintService_Create_ProjectNotFound(t *testing.T) {
 
 	pr.On("FindProjectByID", uint(99)).Return(nil, gorm.ErrRecordNotFound)
 
-	result, err := svc.Create(1, dto.CreateComplaintRequest{ProjectID: 99, Subject: "ปัญหา", Body: "รายละเอียด"})
+	result, err := svc.Create(1, dto.CreateComplaintRequest{Evidence: "https://example.com/evidence.png", ProjectID: 99, Subject: "ปัญหา", Body: "รายละเอียด"})
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -100,7 +100,7 @@ func TestComplaintService_Create_AlreadyFiled(t *testing.T) {
 	pr.On("FindProjectByID", uint(10)).Return(&domain.Project{ID: 10}, nil)
 	cr.On("FindByUserAndProject", uint(1), uint(10)).Return(&domain.Complaint{ID: 5}, nil)
 
-	result, err := svc.Create(1, dto.CreateComplaintRequest{ProjectID: 10, Subject: "ปัญหา", Body: "รายละเอียด"})
+	result, err := svc.Create(1, dto.CreateComplaintRequest{Evidence: "https://example.com/evidence.png", ProjectID: 10, Subject: "ปัญหา", Body: "รายละเอียด"})
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -116,7 +116,7 @@ func TestComplaintService_Create_RepoError(t *testing.T) {
 	cr.On("FindByUserAndProject", uint(1), uint(10)).Return(nil, nil)
 	cr.On("Create", mock.Anything).Return(errors.New("db error"))
 
-	result, err := svc.Create(1, dto.CreateComplaintRequest{ProjectID: 10, Subject: "ปัญหา", Body: "รายละเอียด"})
+	result, err := svc.Create(1, dto.CreateComplaintRequest{Evidence: "https://example.com/evidence.png", ProjectID: 10, Subject: "ปัญหา", Body: "รายละเอียด"})
 
 	assert.Error(t, err)
 	assert.Nil(t, result)

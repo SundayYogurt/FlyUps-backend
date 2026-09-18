@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
+	"flyup/internal/helper"
 	"flyup/internal/repository"
 	"flyup/pkg/llm"
 	"fmt"
@@ -118,7 +119,7 @@ func NewChatService(
 func (s *chatService) SendMessage(userID uint, req dto.SendChatMessageRequest) (*dto.SendChatMessageResponse, error) {
 	message := strings.TrimSpace(req.Message)
 	if message == "" {
-		return nil, errors.New("message is required")
+		return nil, helper.InvalidInput("message is required")
 	}
 
 	if s.aiClient == nil {

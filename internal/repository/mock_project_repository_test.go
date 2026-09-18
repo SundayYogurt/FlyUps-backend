@@ -269,6 +269,10 @@ func (_m *MockProjectRepository) CreateProject(project *domain.Project) (*domain
 }
 
 // CreateProjectMedia provides a mock function with given fields: media
+func (_m *MockProjectRepository) CreateProjectMediaBatch(media []domain.ProjectMedia) error {
+	return _m.Called(media).Error(0)
+}
+
 func (_m *MockProjectRepository) CreateProjectMedia(media *domain.ProjectMedia) error {
 	ret := _m.Called(media)
 

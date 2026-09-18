@@ -120,8 +120,8 @@ func (m *mockChatInvestSvc) CreateInvestment(boosterUserID uint, boosterEmail st
 	return nil, nil
 }
 func (m *mockChatInvestSvc) HandleStripeWebhook(payload []byte, sigHeader string) error { return nil }
-func (m *mockChatInvestSvc) ApproveRefund(investmentID uint) error                       { return nil }
-func (m *mockChatInvestSvc) ListRefundRequests() ([]dto.RefundRequestItem, error)         { return nil, nil }
+func (m *mockChatInvestSvc) ApproveRefund(investmentID uint) error                      { return nil }
+func (m *mockChatInvestSvc) ListRefundRequests() ([]dto.RefundRequestItem, error)       { return nil, nil }
 func (m *mockChatInvestSvc) GetProjectInvestors(projectID uint) ([]dto.ProjectInvestorItem, error) {
 	return nil, nil
 }
@@ -135,9 +135,9 @@ func (m *mockChatInvestSvc) RefundProjectInvestments(project domain.Project) {}
 func (m *mockChatInvestSvc) GetCancelPreview(projectID uint) (*dto.CancelPreviewResponse, error) {
 	return nil, nil
 }
-func (m *mockChatInvestSvc) FinalizeVotingIfExpired(milestoneID uint) error { return nil }
-func (m *mockChatInvestSvc) GetTotalFunding() (float64, error)              { return 0, nil }
-func (m *mockChatInvestSvc) GetUniqueBoostersCount() (int64, error)         { return 0, nil }
+func (m *mockChatInvestSvc) FinalizeVotingIfExpired(milestoneID uint) error   { return nil }
+func (m *mockChatInvestSvc) GetTotalFunding() (float64, error)                { return 0, nil }
+func (m *mockChatInvestSvc) GetUniqueBoostersCount() (int64, error)           { return 0, nil }
 func (m *mockChatInvestSvc) SyncProjectPrincipalAmounts(projectID uint) error { return nil }
 
 // --- Mock: ProjectService (for chatService) ---
@@ -192,8 +192,8 @@ func (m *mockChatProjectSvc) GetProjectDetailByID(id uint) (*domain.Project, err
 func (m *mockChatProjectSvc) UpdateProject(projectID uint, input dto.UpdateProjectRequest, user domain.User) (*domain.Project, error) {
 	return nil, nil
 }
-func (m *mockChatProjectSvc) DeleteProject(projectID uint, user domain.User) error  { return nil }
-func (m *mockChatProjectSvc) GetMyProjects(ownerID uint) ([]domain.Project, error)  { return nil, nil }
+func (m *mockChatProjectSvc) DeleteProject(projectID uint, user domain.User) error { return nil }
+func (m *mockChatProjectSvc) GetMyProjects(ownerID uint) ([]domain.Project, error) { return nil, nil }
 func (m *mockChatProjectSvc) GetOwnerProjectByID(id uint, ownerID uint) (*domain.Project, error) {
 	return nil, nil
 }
@@ -209,6 +209,10 @@ func (m *mockChatProjectSvc) GetPublicProjectBySlug(ctx context.Context, slug st
 }
 
 // stubs — media
+func (m *mockChatProjectSvc) AttachProjectMediaBatch(projectID uint, items []domain.ProjectMedia, user domain.User) error {
+	return m.Called(projectID, items, user).Error(0)
+}
+
 func (m *mockChatProjectSvc) AttachProjectMedia(ctx context.Context, projectID uint, url string, mediaTypes []domain.MediaType, user domain.User) error {
 	return nil
 }
@@ -340,11 +344,11 @@ func (m *mockChatProjectSvc) DeleteProjectThreadMessage(msgID uint, user domain.
 
 // stubs — lifecycle
 func (m *mockChatProjectSvc) SubmitForReview(projectID uint, user domain.User) error { return nil }
-func (m *mockChatProjectSvc) ApproveProject(projectID uint) error                     { return nil }
-func (m *mockChatProjectSvc) RejectProject(projectID uint) error                      { return nil }
-func (m *mockChatProjectSvc) CloseProject(projectID uint, user domain.User) error     { return nil }
-func (m *mockChatProjectSvc) CancelProject(projectID uint, user domain.User) error    { return nil }
-func (m *mockChatProjectSvc) GetAllProjectsRequest() ([]domain.Project, error)        { return nil, nil }
+func (m *mockChatProjectSvc) ApproveProject(projectID uint) error                    { return nil }
+func (m *mockChatProjectSvc) RejectProject(projectID uint) error                     { return nil }
+func (m *mockChatProjectSvc) CloseProject(projectID uint, user domain.User) error    { return nil }
+func (m *mockChatProjectSvc) CancelProject(projectID uint, user domain.User) error   { return nil }
+func (m *mockChatProjectSvc) GetAllProjectsRequest() ([]domain.Project, error)       { return nil, nil }
 func (m *mockChatProjectSvc) GetProjectDetailRequest(projectID uint) (*domain.Project, error) {
 	return nil, nil
 }
@@ -355,9 +359,9 @@ func (m *mockChatProjectSvc) AutoProjectLifecycleTick(now time.Time) error { ret
 func (m *mockChatProjectSvc) SubmitCancelRequest(projectID uint, input dto.CancelProjectRequest, user domain.User) error {
 	return nil
 }
-func (m *mockChatProjectSvc) ApproveCancelProject(projectID uint) error      { return nil }
-func (m *mockChatProjectSvc) RejectCancelProject(projectID uint) error       { return nil }
-func (m *mockChatProjectSvc) GetCancelRequest() ([]domain.Project, error)    { return nil, nil }
+func (m *mockChatProjectSvc) ApproveCancelProject(projectID uint) error   { return nil }
+func (m *mockChatProjectSvc) RejectCancelProject(projectID uint) error    { return nil }
+func (m *mockChatProjectSvc) GetCancelRequest() ([]domain.Project, error) { return nil, nil }
 func (m *mockChatProjectSvc) GetCancelPreview(projectID uint) (*dto.CancelPreviewResponse, error) {
 	return nil, nil
 }

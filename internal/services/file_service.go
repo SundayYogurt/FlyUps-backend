@@ -38,6 +38,9 @@ func NewUploadService(cld *helper.CloudinaryService) UploadService {
 
 func (s *uploadService) UploadFile(ctx context.Context, file multipart.File, fileHeader *multipart.FileHeader) (*UploadResult, error) {
 
+	if err := ValidateUpload(file, fileHeader); err != nil {
+		return nil, err
+	}
 	buffer := make([]byte, 512)
 	n, err := file.Read(buffer)
 	if err != nil {

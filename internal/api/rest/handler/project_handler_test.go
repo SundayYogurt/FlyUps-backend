@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"bytes"
@@ -119,6 +119,10 @@ func (m *MockProjectService) GetPublicProjectBySlug(ctx context.Context, slug st
 
 func (m *MockProjectService) AttachProjectMedia(ctx context.Context, projectID uint, url string, mediaTypes []domain.MediaType, user domain.User) error {
 	return m.Called(ctx, projectID, url, mediaTypes, user).Error(0)
+}
+
+func (m *MockProjectService) AttachProjectMediaBatch(projectID uint, items []domain.ProjectMedia, user domain.User) error {
+	return m.Called(projectID, items, user).Error(0)
 }
 
 func (m *MockProjectService) GetProjectMedia(projectID uint) ([]domain.ProjectMedia, error) {

@@ -137,7 +137,7 @@ func (h *UserHandler) SignUp(ctx fiber.Ctx) error {
 	user := dto.UserSignUp{}
 
 	//Bind JSON Body
-	if err := ctx.Bind().Body(&user); err != nil {
+	if err := rest.BindBody(ctx, &user); err != nil {
 		// ใช้ ErrorMessage เพื่อส่ง Error จากการ Bind กลับไปตรงๆ
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, err)
 	}
@@ -221,7 +221,7 @@ func (h *UserHandler) VerifyEmail(ctx fiber.Ctx) error {
 // @Router /signin [post]
 func (h *UserHandler) Signing(ctx fiber.Ctx) error {
 	signingInput := dto.UserSigning{}
-	err := ctx.Bind().Body(&signingInput)
+	err := rest.BindBody(ctx, &signingInput)
 	if err != nil {
 		return ctx.Status(http.StatusBadRequest).JSON(fiber.Map{
 			"message": "please provide valid inputs",
@@ -274,7 +274,7 @@ func (h *UserHandler) Signing(ctx fiber.Ctx) error {
 // @Router /forgot-password [post]
 func (h *UserHandler) ForgotPassword(ctx fiber.Ctx) error {
 	var req dto.ForgotPasswordRequest
-	if err := ctx.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid email")
 	}
 
@@ -303,7 +303,7 @@ func (h *UserHandler) SetPassword(ctx fiber.Ctx) error {
 		NewPassword string `json:"new_password"`
 	}
 
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid json body")
 	}
 
@@ -366,7 +366,7 @@ func (h *UserHandler) UpdateProfile(ctx fiber.Ctx) error {
 	log.Printf("[UpdateProfile] current user: id=%d email=%s role=%s", user.ID, user.Email, user.Role)
 	// bind JSON body
 	var req dto.ProfileInput
-	if err := ctx.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body: "+err.Error())
 	}
 
@@ -415,7 +415,7 @@ func (h *UserHandler) VerifyStudent(ctx fiber.Ctx) error {
 	}
 
 	var req dto.VerifyStudentInput
-	if err := ctx.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body: "+err.Error())
 	}
 
@@ -451,7 +451,7 @@ func (h *UserHandler) VerifyIDCard(ctx fiber.Ctx) error {
 	}
 
 	var req dto.VerifyIDInput
-	if err := ctx.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body: "+err.Error())
 	}
 
@@ -488,7 +488,7 @@ func (h *UserHandler) AddBankAccount(ctx fiber.Ctx) error {
 	}
 
 	var req dto.BankRequest
-	if err := ctx.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body: "+err.Error())
 	}
 
@@ -526,7 +526,7 @@ func (h *UserHandler) UpdateBankAccount(ctx fiber.Ctx) error {
 	}
 
 	var req dto.BankRequest
-	if err := ctx.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body: "+err.Error())
 	}
 
@@ -768,7 +768,7 @@ func (h *UserHandler) SuspendUser(ctx fiber.Ctx) error {
 	}
 
 	var req dto.SuspendUserInput
-	if err := ctx.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
@@ -984,7 +984,7 @@ func (h *UserHandler) SelectRole(ctx fiber.Ctx) error {
 		Role string `json:"role"`
 	}
 
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 
@@ -1034,7 +1034,7 @@ func (h *UserHandler) UpdateUniversity(ctx fiber.Ctx) error {
 	}
 	var req dto.CreateUniversityRequest
 
-	if err := ctx.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
@@ -1069,7 +1069,7 @@ func (h *UserHandler) CreateUniversity(ctx fiber.Ctx) error {
 
 	var req dto.CreateUniversityRequest
 
-	if err := ctx.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
@@ -1204,7 +1204,7 @@ func (h *UserHandler) CreateUniversityDomain(ctx fiber.Ctx) error {
 
 	var req dto.CreateDomainRequest
 
-	if err := ctx.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
@@ -1246,7 +1246,7 @@ func (h *UserHandler) UpdateUniversityDomain(ctx fiber.Ctx) error {
 
 	var req dto.UpdateDomainRequest
 
-	if err := ctx.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
@@ -1337,7 +1337,7 @@ func (h *UserHandler) UpdateNotificationPreferences(ctx fiber.Ctx) error {
 	}
 
 	var req dto.UpdateNotificationPrefsRequest
-	if err := ctx.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
@@ -1369,7 +1369,7 @@ func (h *UserHandler) ChangePassword(ctx fiber.Ctx) error {
 
 	var req dto.ChangePasswordRequest
 
-	if err := ctx.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
@@ -1458,7 +1458,7 @@ func (h *UserHandler) AddPassword(ctx fiber.Ctx) error {
 	}
 	var req dto.AddPasswordRequest
 
-	if err := ctx.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 

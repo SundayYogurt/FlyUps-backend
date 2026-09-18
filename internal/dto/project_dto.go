@@ -81,7 +81,7 @@ type ProjectDetailResponse struct {
 type UpdateProjectRequest struct {
 	CategoryID      *uint    `json:"category_id"`
 	CoverImage      *string  `json:"cover_image"` // URL รูปปก (upload ผ่าน /upload ก่อน)
-	Title           *string  `json:"title"`
+	Title           *string  `json:"title" validate:"omitempty,max=50"`
 	Description     *string  `json:"description" validate:"omitempty,max=40"`
 	Visibility      *string  `json:"visibility"`
 	Risk            *string  `json:"risk"`
@@ -116,7 +116,7 @@ type CreateMilestoneRequest struct {
 	AcceptanceCriteria *string                 `json:"acceptance_criteria,omitempty"`
 	Status             *domain.MilestoneStatus `json:"status,omitempty"`
 	PhaseNo            int                     `json:"phase_no"`
-	URLs               []string                `json:"urls,omitempty"`
+	URLs               []string                `json:"urls,omitempty" validate:"omitempty,max=5"`
 	Type               []domain.MediaType      `json:"type,omitempty"`
 	SortOrder          int                     `json:"sort_order,omitempty"`
 }

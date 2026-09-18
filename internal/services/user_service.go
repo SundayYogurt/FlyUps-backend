@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"golang.org/x/oauth2"
 
@@ -94,7 +95,10 @@ func NewUserService(
 
 // validatePassword ตรวจสอบ password policy และ hash ให้พร้อมใช้
 func validatePassword(password string) error {
-	if len(password) < 8 {
+	if len(password) > 72 {
+		return helper.InvalidInput("password must not exceed 72 bytes")
+	}
+	if !utf8.ValidString(password) || utf8.RuneCountInString(password) < 8 {
 		return errors.New("password must be at least 8 characters")
 	}
 	if !regexp.MustCompile(`[A-Z]`).MatchString(password) {

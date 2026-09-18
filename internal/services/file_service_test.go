@@ -1,6 +1,7 @@
 package services
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"errors"
@@ -43,9 +44,20 @@ func (m *mockCloudinaryClient) UploadRawFile(ctx context.Context, file multipart
 var (
 	pngMagic     = append([]byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}, make([]byte, 504)...)
 	pdfMagic     = append([]byte("%PDF-1.4 content here"), make([]byte, 491)...)
-	xlsxMagic    = append([]byte{0x50, 0x4b, 0x03, 0x04}, make([]byte, 508)...)
+	xlsxMagic    = testWorkbook()
 	unknownMagic = make([]byte, 512)
 )
+
+func testWorkbook() []byte {
+	var buffer bytes.Buffer
+	writer := zip.NewWriter(&buffer)
+	for _, name := range []string{"[Content_Types].xml", "xl/workbook.xml"} {
+		file, _ := writer.Create(name)
+		_, _ = file.Write([]byte("<?xml version=\"1.0\"?><root/>"))
+	}
+	_ = writer.Close()
+	return buffer.Bytes()
+}
 
 // Image
 

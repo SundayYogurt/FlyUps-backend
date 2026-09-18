@@ -40,6 +40,7 @@ type ProjectService interface {
 
 	// MEDIA
 	AttachProjectMedia(ctx context.Context, projectID uint, url string, mediaTypes []domain.MediaType, user domain.User) error
+	AttachProjectMediaBatch(projectID uint, items []domain.ProjectMedia, user domain.User) error
 	GetProjectMedia(projectID uint) ([]domain.ProjectMedia, error)
 	UpdateProjectMedia(mediaID uint, input *domain.ProjectMedia, user domain.User) error
 	DeleteProjectMedia(mediaID uint, user domain.User) error
@@ -237,6 +238,9 @@ func (s *projectService) CreateProject(ownerID uint) (*domain.Project, error) {
 }
 
 func (s *projectService) UpdateProject(projectID uint, input dto.UpdateProjectRequest, user domain.User) (*domain.Project, error) {
+	if err := helper.ValidateInputLimits(input); err != nil {
+		return nil, err
+	}
 	project, err := s.projectRepo.FindProjectByID(projectID)
 	if err != nil {
 		return nil, err
@@ -636,6 +640,9 @@ func (s *projectService) UpdateProjectStatus(projectID uint, newState domain.Pro
 
 // MEDIA
 func (s *projectService) AttachProjectMedia(ctx context.Context, projectID uint, url string, mediaTypes []domain.MediaType, user domain.User) error {
+	if err := helper.ValidateProjectMedia([]domain.ProjectMedia{{URL: url, Type: mediaTypes}}); err != nil {
+		return err
+	}
 	project, err := s.projectRepo.FindProjectByID(projectID)
 	if err != nil {
 		return err
@@ -665,7 +672,34 @@ func (s *projectService) GetProjectMedia(projectID uint) ([]domain.ProjectMedia,
 	return media, nil
 }
 
+func (s *projectService) AttachProjectMediaBatch(projectID uint, items []domain.ProjectMedia, user domain.User) error {
+	if len(items) == 0 {
+		return helper.InvalidInput("at least one media file is required")
+	}
+	if err := helper.ValidateProjectMedia(items); err != nil {
+		return err
+	}
+	project, err := s.projectRepo.FindProjectByID(projectID)
+	if err != nil {
+		return err
+	}
+	if project.OwnerUserID != user.ID {
+		return errors.New("permission denied")
+	}
+	media := make([]domain.ProjectMedia, len(items))
+	for i, item := range items {
+		media[i] = domain.ProjectMedia{ProjectID: projectID, URL: item.URL, Type: item.Type}
+	}
+	return s.projectRepo.CreateProjectMediaBatch(media)
+}
+
 func (s *projectService) UpdateProjectMedia(mediaID uint, input *domain.ProjectMedia, user domain.User) error {
+	if input == nil {
+		return helper.InvalidInput("media input is required")
+	}
+	if err := helper.ValidateInputLimits(input); err != nil {
+		return err
+	}
 	media, err := s.projectRepo.FindMediaByID(mediaID)
 	if err != nil {
 		return err
@@ -689,6 +723,9 @@ func (s *projectService) UpdateProjectMedia(mediaID uint, input *domain.ProjectM
 		media.SortOrder = input.SortOrder
 	}
 
+	if err := helper.ValidateProjectMedia([]domain.ProjectMedia{*media}); err != nil {
+		return err
+	}
 	return s.projectRepo.UpdateProjectMedia(media)
 }
 
@@ -711,6 +748,23 @@ func (s *projectService) DeleteProjectMedia(mediaID uint, user domain.User) erro
 
 // MILESTONE
 func (s *projectService) CreateMilestone(projectID uint, input dto.CreateMilestoneRequest, user domain.User) (*domain.Milestone, error) {
+	if err := helper.ValidateInputLimits(input); err != nil {
+		return nil, err
+	}
+	if input.Status != nil && *input.Status != domain.MilestoneDraft {
+		return nil, helper.InvalidInput("new milestones must have draft status")
+	}
+	for _, raw := range input.URLs {
+		u, err := url.Parse(raw)
+		if err != nil || u.Hostname() != "res.cloudinary.com" {
+			return nil, helper.InvalidInput("invalid file source")
+		}
+	}
+	for _, kind := range input.Type {
+		if kind != domain.MediaTypeRaw && kind != domain.MediaTypeImage && kind != domain.MediaTypeVideo {
+			return nil, helper.InvalidInput("unsupported media type")
+		}
+	}
 	project, err := s.projectRepo.FindProjectByID(projectID)
 	if err != nil {
 		return nil, err
@@ -732,19 +786,31 @@ func (s *projectService) CreateMilestone(projectID uint, input dto.CreateMilesto
 	percent, _ := helper.GetMilestonePercent(phaseNo)
 
 	milestone := &domain.Milestone{
-		ProjectID:       projectID,
-		PhaseNo:         phaseNo,
-		SortOrder:       phaseNo,
-		PercentRelease:  percent,
-		Status:          domain.MilestoneDraft,
-		DueDate:         input.DueDate,
-		OriginalDueDate: input.DueDate,
+		Title:              input.Title,
+		Description:        input.Description,
+		Duration:           input.Duration,
+		AcceptanceCriteria: input.AcceptanceCriteria,
+		URLs:               input.URLs,
+		Type:               input.Type,
+		ProjectID:          projectID,
+		PhaseNo:            phaseNo,
+		SortOrder:          phaseNo,
+		PercentRelease:     percent,
+		Status:             domain.MilestoneDraft,
+		DueDate:            input.DueDate,
+		OriginalDueDate:    input.DueDate,
 	}
 
 	return milestone, s.projectRepo.CreateMilestone(milestone)
 }
 
 func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMilestoneRequest, user domain.User) error {
+	if input.Status != nil {
+		return helper.InvalidInput("milestone status must be changed through its dedicated workflow")
+	}
+	if err := helper.ValidateInputLimits(input); err != nil {
+		return err
+	}
 	m, err := s.projectRepo.FindMilestoneByID(milestoneID)
 	if err != nil {
 		return err
@@ -810,7 +876,7 @@ func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMiles
 				}
 
 				// ป้องกัน fake URL (รองรับแต่ cloudinary)
-				if !strings.Contains(u.Host, "res.cloudinary.com") {
+				if u.Hostname() != "res.cloudinary.com" {
 					return errors.New("invalid file source")
 				}
 
@@ -833,43 +899,7 @@ func (s *projectService) UpdateMilestone(milestoneID uint, input dto.UpdateMiles
 		m.SortOrder = *input.SortOrder
 	}
 
-	if input.Status != nil {
-		validStatuses := map[domain.MilestoneStatus]bool{
-			domain.MilestoneDraft:     true,
-			domain.MilestoneWaiting:   true,
-			domain.MilestoneActive:    true,
-			domain.MilestoneSubmitted: true,
-			domain.MilestoneApproved:  true,
-			domain.MilestoneRejected:  true,
-			domain.MilestoneFailed:    true,
-			domain.MilestonePaid:      true,
-		}
-
-		if !validStatuses[*input.Status] {
-			return errors.New("invalid milestone status")
-		}
-
-		m.Status = *input.Status
-	}
-
-	if err := s.projectRepo.UpdateMilestone(m); err != nil {
-		return err
-	}
-
-	// when admin manually sets a milestone to paid, unlock the next phase
-	if input.Status != nil && *input.Status == domain.MilestonePaid {
-		if allMs, err := s.projectRepo.FindMilestonesByProjectID(m.ProjectID); err == nil {
-			for i := range allMs {
-				if allMs[i].PhaseNo == m.PhaseNo+1 && (allMs[i].Status == domain.MilestoneWaiting || allMs[i].Status == domain.MilestoneDraft) {
-					allMs[i].Status = domain.MilestoneActive
-					_ = s.projectRepo.UpdateMilestone(&allMs[i])
-					break
-				}
-			}
-		}
-	}
-
-	return nil
+	return s.projectRepo.UpdateMilestone(m)
 }
 
 func (s *projectService) AdminApproveMilestoneSubmission(milestoneID uint) (*domain.Milestone, error) {
@@ -1213,6 +1243,9 @@ func (s *projectService) CancelSubmit(milestoneID uint, user domain.User) (*doma
 }
 
 func (s *projectService) SubmitMilestone(milestoneID uint, input dto.SubmitMilestoneRequest, user domain.User) (*domain.Milestone, error) {
+	if err := helper.ValidateInputLimits(input); err != nil {
+		return nil, err
+	}
 	m, err := s.projectRepo.FindMilestoneByID(milestoneID)
 	if err != nil {
 		return nil, errors.New("milestone not found")
@@ -1275,7 +1308,7 @@ func (s *projectService) SubmitMilestone(milestoneID uint, input dto.SubmitMiles
 		if err != nil {
 			return nil, errors.New("invalid attachment url")
 		}
-		if !strings.Contains(u.Host, "res.cloudinary.com") {
+		if u.Hostname() != "res.cloudinary.com" {
 			return nil, errors.New("invalid attachment source")
 		}
 		attachments = append(attachments, raw)

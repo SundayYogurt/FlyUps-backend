@@ -85,7 +85,7 @@ func (h *InvestmentHandler) VoteMilestone(ctx fiber.Ctx) error {
 	}
 
 	var req dto.VoteMilestoneRequest
-	if err := ctx.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	if err := h.validator.Struct(req); err != nil {
@@ -197,7 +197,7 @@ func (h *InvestmentHandler) CreateInvestment(ctx fiber.Ctx) error {
 	}
 
 	var req dto.CreateInvestmentRequest
-	if err := ctx.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	if err := h.validator.Struct(req); err != nil {
@@ -342,7 +342,7 @@ func (h *InvestmentHandler) RefundInvestment(ctx fiber.Ctx) error {
 	}
 
 	var req dto.RefundInvestmentRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
+	if err := rest.BindJSON(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	if req.Note == "" {

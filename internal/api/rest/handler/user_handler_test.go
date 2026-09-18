@@ -460,7 +460,8 @@ func TestUserHandler_UpdateProfile(t *testing.T) {
 	app.Patch("/user/profile", handler.UpdateProfile)
 
 	firstName := "Updated"
-	body := dto.ProfileInput{FirstName: &firstName}
+	lastName, phone, address := "Tester", "0812345678", "Bangkok"
+	body := dto.ProfileInput{FirstName: &firstName, LastName: &lastName, Phone: &phone, Address: &address}
 	bodyJSON, _ := json.Marshal(body)
 	mockService.On("UpdateProfile", mock.Anything, uint(1), mock.Anything).Return(nil)
 	req := httptest.NewRequest(http.MethodPatch, "/user/profile", bytes.NewBuffer(bodyJSON))
@@ -856,7 +857,8 @@ func TestUserHandler_VerifyIDCard(t *testing.T) {
 
 	idURL := "https://example.com/id.jpg"
 	selfieURL := "https://example.com/selfie.jpg"
-	body := dto.VerifyIDInput{IDCardURL: &idURL, SelfieURL: &selfieURL}
+	declareTruth := true
+	body := dto.VerifyIDInput{IDCardURL: idURL, SelfieURL: selfieURL, DeclareTruth: &declareTruth}
 	bodyJSON, _ := json.Marshal(body)
 	mockService.On("VerifyID", uint(1), mock.Anything).Return(nil)
 	req := httptest.NewRequest(http.MethodPost, "/user/id-verify", bytes.NewBuffer(bodyJSON))
