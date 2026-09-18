@@ -66,7 +66,7 @@ func (h *ComplaintHandler) Create(ctx fiber.Ctx) error {
 	}
 
 	var req dto.CreateComplaintRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
+	if err := rest.BindJSON(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	if err := h.validator.Struct(req); err != nil {
@@ -214,7 +214,7 @@ func (h *ComplaintHandler) adminClose(ctx fiber.Ctx, resolve bool) error {
 		return rest.BadRequestError(ctx, "invalid complaint id")
 	}
 	var req dto.ResolveComplaintRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
+	if err := rest.BindJSON(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	if err := h.validator.Struct(req); err != nil {

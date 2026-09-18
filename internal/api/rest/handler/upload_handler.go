@@ -2,8 +2,11 @@ package handler
 
 import (
 	"flyup/internal/api/rest"
+	"flyup/internal/helper"
 	"flyup/internal/services"
 	"mime/multipart"
+	"net/http"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -43,14 +46,53 @@ func SetupUploadRoutes(rh *rest.RestHandler) {
 // @Failure 500 {object} object "Internal Server Error"
 // @Router /upload [post]
 func (h *UploadHandler) UploadFile(ctx fiber.Ctx) error {
+	form, err := ctx.MultipartForm()
+	if err != nil || form == nil {
+		return rest.BadRequestError(ctx, "invalid multipart form")
+	}
+	var headers []*multipart.FileHeader
+	for key, files := range form.File {
+		if key != "file" && key != "files" {
+			return rest.BadRequestError(ctx, "unsupported file field")
+		}
+		headers = append(headers, files...)
+	}
+	if len(headers) == 0 || len(headers) > 10 {
+		return rest.BadRequestError(ctx, "upload between 1 and 10 files, at most 5 of each type")
+	}
+	if len(form.File["file"]) > 1 || (len(form.File["file"]) > 0 && len(form.File["files"]) > 0) {
+		return rest.BadRequestError(ctx, "use either file or files")
+	}
+	// Validate the whole batch before uploading any item.
+	counts := make(map[string]int)
+	for _, header := range headers {
+		file, err := header.Open()
+		if err != nil {
+			return rest.BadRequestError(ctx, "cannot read file")
+		}
+		err = services.ValidateUpload(file, header)
+		if err == nil {
+			buffer := make([]byte, 512)
+			n, _ := file.Read(buffer)
+			kind := strings.SplitN(http.DetectContentType(buffer[:n]), "/", 2)[0]
+			if kind != "image" && kind != "video" {
+				kind = "raw"
+			}
+			counts[kind]++
+			if counts[kind] > helper.MaxFilesPerType {
+				err = helper.InvalidInput("at most 5 %s files are allowed", kind)
+			}
+		}
+		_ = file.Close()
+		if err != nil {
+			return rest.BadRequestError(ctx, err.Error())
+		}
+	}
 	// Support both:
 	// - single file: key "file"
 	// - multiple files: repeat key "files"
 	if form, err := ctx.MultipartForm(); err == nil && form != nil && len(form.File["files"]) > 0 {
 		fileHeaders := form.File["files"]
-		if len(fileHeaders) > 5 {
-			return rest.BadRequestError(ctx, "too many files (max 5)")
-		}
 		items := make([]fiber.Map, 0, len(fileHeaders))
 
 		for _, fh := range fileHeaders {

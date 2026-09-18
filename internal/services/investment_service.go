@@ -1486,6 +1486,9 @@ func amountEqual(a, b float64) bool   { return math.Abs(a-b) < amountEpsilon }
 // 1) ขั้นต่ำ ฿20 ต่อครั้ง (ไม่มีข้อยกเว้น) 2) ห้ามเกินยอดคงเหลือ 3) ขั้นต่ำ 1% ของเป้าหมาย
 // (ยกเว้นเมื่อปิดยอดพอดี หรือถึง softcap แล้ว) 4) เพดานสูงสุดของโปรเจกต์ 5) ห้ามทิ้งเศษ (ไม่มีข้อยกเว้น)
 func validateAmount(project *domain.Project, amount float64) error {
+	if err := helper.ValidateInputLimits(amount); err != nil {
+		return err
+	}
 	remaining := project.FundingGoal - project.CurrentFunding
 	left := remaining - amount
 

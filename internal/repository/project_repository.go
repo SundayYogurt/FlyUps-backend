@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
+	"flyup/internal/helper"
 	"time"
 
 	"github.com/gofiber/utils/v2/strings"
@@ -47,6 +48,7 @@ type ProjectRepository interface {
 	FindMediaByProjectID(projectID uint) ([]domain.ProjectMedia, error)
 	FindMediaByID(id uint) (*domain.ProjectMedia, error)
 	CreateProjectMedia(media *domain.ProjectMedia) error
+	CreateProjectMediaBatch(media []domain.ProjectMedia) error
 	UpdateProjectMedia(media *domain.ProjectMedia) error
 	DeleteProjectMedia(mediaID uint) error
 
@@ -703,11 +705,50 @@ func (p *projectRepository) FindMilestonesByProjectIDAndStatus(projectID uint, s
 }
 
 func (p *projectRepository) CreateMilestone(m *domain.Milestone) error {
-	return p.db.Create(m).Error
+	return p.db.Transaction(func(tx *gorm.DB) error {
+		if err := lockProject(tx, m.ProjectID); err != nil {
+			return err
+		}
+		var existing []domain.Milestone
+		if err := tx.Where("project_id = ?", m.ProjectID).Find(&existing).Error; err != nil {
+			return err
+		}
+		if len(existing) >= 4 {
+			return helper.InvalidInput("maximum 4 milestones allowed")
+		}
+		used := make(map[int]bool)
+		for _, item := range existing {
+			used[item.PhaseNo] = true
+		}
+		for phase := 1; phase <= 4; phase++ {
+			if !used[phase] {
+				m.PhaseNo = phase
+				m.SortOrder = phase
+				m.PercentRelease, _ = helper.GetMilestonePercent(phase)
+				break
+			}
+		}
+		return tx.Create(m).Error
+	})
 }
 
 func (p *projectRepository) UpdateMilestone(m *domain.Milestone) error {
-	return p.db.Save(m).Error
+	return p.db.Transaction(func(tx *gorm.DB) error {
+		if err := lockProject(tx, m.ProjectID); err != nil {
+			return err
+		}
+		if m.PhaseNo < 1 || m.PhaseNo > 4 {
+			return helper.InvalidInput("phase must be between 1 and 4")
+		}
+		var count int64
+		if err := tx.Model(&domain.Milestone{}).Where("project_id = ? AND phase_no = ? AND id <> ?", m.ProjectID, m.PhaseNo, m.ID).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return helper.InvalidInput("milestone phase already exists")
+		}
+		return tx.Save(m).Error
+	})
 }
 
 func (p *projectRepository) DeleteMilestone(id uint) error {
@@ -983,26 +1024,71 @@ func (p *projectRepository) FindMediaByID(id uint) (*domain.ProjectMedia, error)
 }
 
 func (p *projectRepository) CreateProjectMedia(media *domain.ProjectMedia) error {
-	var lastSortOrder int
-
-	err := p.db.
-		Model(&domain.ProjectMedia{}).
-		Where("project_id = ?", media.ProjectID).
-		Select("COALESCE(MAX(sort_order), 0)").
-		Scan(&lastSortOrder).Error
-	if err != nil {
-		return err
+	items := []domain.ProjectMedia{*media}
+	err := p.CreateProjectMediaBatch(items)
+	if err == nil {
+		*media = items[0]
 	}
+	return err
+}
 
-	if media.SortOrder == 0 {
-		media.SortOrder = lastSortOrder + 1
+func (p *projectRepository) CreateProjectMediaBatch(items []domain.ProjectMedia) error {
+	if len(items) == 0 {
+		return helper.InvalidInput("at least one media file is required")
 	}
-
-	return p.db.Create(media).Error
+	projectID := items[0].ProjectID
+	for _, item := range items {
+		if item.ProjectID != projectID {
+			return helper.InvalidInput("media must belong to one project")
+		}
+	}
+	return p.db.Transaction(func(tx *gorm.DB) error {
+		if err := lockProject(tx, projectID); err != nil {
+			return err
+		}
+		var existing []domain.ProjectMedia
+		if err := tx.Where("project_id = ?", projectID).Find(&existing).Error; err != nil {
+			return err
+		}
+		if err := helper.ValidateProjectMedia(append(existing, items...)); err != nil {
+			return err
+		}
+		lastSort := 0
+		for _, item := range existing {
+			if item.SortOrder > lastSort {
+				lastSort = item.SortOrder
+			}
+		}
+		for i := range items {
+			if items[i].SortOrder == 0 {
+				lastSort++
+				items[i].SortOrder = lastSort
+			}
+		}
+		return tx.Create(&items).Error
+	})
 }
 
 func (p *projectRepository) UpdateProjectMedia(media *domain.ProjectMedia) error {
-	return p.db.Save(media).Error
+	return p.db.Transaction(func(tx *gorm.DB) error {
+		if err := lockProject(tx, media.ProjectID); err != nil {
+			return err
+		}
+		var existing []domain.ProjectMedia
+		if err := tx.Where("project_id = ? AND id <> ?", media.ProjectID, media.ID).Find(&existing).Error; err != nil {
+			return err
+		}
+		if err := helper.ValidateProjectMedia(append(existing, *media)); err != nil {
+			return err
+		}
+		return tx.Save(media).Error
+	})
+}
+
+// Serialize count-and-write operations across all server instances.
+func lockProject(tx *gorm.DB, projectID uint) error {
+	var project domain.Project
+	return tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&project, projectID).Error
 }
 
 func (p *projectRepository) DeleteProjectMedia(mediaID uint) error {

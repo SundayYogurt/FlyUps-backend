@@ -337,7 +337,7 @@ func (h *ProjectHandler) SubmitCancelProject(ctx fiber.Ctx) error {
 	}
 
 	var body dto.CancelProjectRequest
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
@@ -474,7 +474,7 @@ func (h *ProjectHandler) AttachProjectMedia(ctx fiber.Ctx) error {
 	}
 
 	var items []mediaItem
-	if err := ctx.Bind().Body(&items); err != nil {
+	if err := rest.BindBody(ctx, &items); err != nil {
 		return rest.BadRequestError(ctx, "invalid body: expected array of {url, type[]}")
 	}
 
@@ -490,9 +490,6 @@ func (h *ProjectHandler) AttachProjectMedia(ctx fiber.Ctx) error {
 		if len(item.Type) == 0 {
 			return rest.BadRequestError(ctx, "type is required for each media item")
 		}
-		if err := h.svc.AttachProjectMedia(ctx.Context(), uint(id), item.URL, item.Type, user); err != nil {
-			return rest.InternalError(ctx, err)
-		}
 		created = append(created, domain.ProjectMedia{
 			ProjectID: uint(id),
 			URL:       item.URL,
@@ -500,6 +497,9 @@ func (h *ProjectHandler) AttachProjectMedia(ctx fiber.Ctx) error {
 		})
 	}
 
+	if err := h.svc.AttachProjectMediaBatch(uint(id), created, user); err != nil {
+		return rest.InternalError(ctx, err)
+	}
 	return rest.SuccessResponse(ctx, "media attached", created)
 }
 
@@ -519,7 +519,7 @@ func (h *ProjectHandler) CreateCategory(ctx fiber.Ctx) error {
 		Name string `json:"name" validate:"required,min=2,max=50"`
 	}
 
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 
@@ -561,7 +561,7 @@ func (h *ProjectHandler) UpdateCategory(ctx fiber.Ctx) error {
 	var body struct {
 		Name string `json:"name" validate:"required,min=2,max=50"`
 	}
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "Invalid request body")
 	}
 
@@ -671,7 +671,7 @@ func (h *ProjectHandler) UpdateProject(ctx fiber.Ctx) error {
 
 	// parse request body
 	var body dto.UpdateProjectRequest
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 	if err := h.validator.Struct(body); err != nil {
@@ -800,7 +800,7 @@ func (h *ProjectHandler) GetMyProjectByID(ctx fiber.Ctx) error {
 // @Router /projects [get]
 func (h *ProjectHandler) GetPublicProjects(ctx fiber.Ctx) error {
 	var filter dto.PublicProjectFilter
-	if err := ctx.Bind().Query(&filter); err != nil {
+	if err := rest.BindQuery(ctx, &filter); err != nil {
 		return rest.BadRequestError(ctx, "invalid query params")
 	}
 
@@ -957,7 +957,7 @@ func (h *ProjectHandler) AddProjectMilestone(ctx fiber.Ctx) error {
 	}
 
 	var body dto.CreateMilestoneRequest
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 
@@ -1022,7 +1022,7 @@ func (h *ProjectHandler) AddProjectStory(ctx fiber.Ctx) error {
 	}
 
 	var body domain.StorySection
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 
@@ -1060,7 +1060,7 @@ func (h *ProjectHandler) UpdateProjectStory(ctx fiber.Ctx) error {
 	}
 
 	var body domain.StorySection
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 
@@ -1169,7 +1169,7 @@ func (h *ProjectHandler) UpdateProjectMedia(ctx fiber.Ctx) error {
 	}
 	mediaID, _ := strconv.Atoi(ctx.Params("media_id"))
 	var body domain.ProjectMedia
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	if err := h.svc.UpdateProjectMedia(uint(mediaID), &body, user); err != nil {
@@ -1240,7 +1240,7 @@ func (h *ProjectHandler) UpdateProjectMilestone(ctx fiber.Ctx) error {
 	}
 	milestoneID, _ := strconv.Atoi(ctx.Params("milestone_id"))
 	var body dto.UpdateMilestoneRequest
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	if err := h.svc.UpdateMilestone(uint(milestoneID), body, user); err != nil {
@@ -1272,7 +1272,7 @@ func (h *ProjectHandler) SubmitProjectMilestone(ctx fiber.Ctx) error {
 	}
 
 	var body dto.SubmitMilestoneRequest
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	if err := h.validator.Struct(body); err != nil {
@@ -1414,7 +1414,11 @@ func (h *ProjectHandler) AdminRejectMilestoneSubmission(ctx fiber.Ctx) error {
 	var body struct {
 		Reason *string `json:"reason,omitempty"`
 	}
-	_ = ctx.Bind().Body(&body) // optional
+	if len(ctx.Body()) > 0 {
+		if err := rest.BindBody(ctx, &body); err != nil {
+			return rest.BadRequestError(ctx, err.Error())
+		}
+	}
 
 	m, err := h.svc.AdminRejectMilestoneSubmission(uint(milestoneID), body.Reason)
 	if err != nil {
@@ -1518,7 +1522,7 @@ func (h *ProjectHandler) UpdateProjectStatus(ctx fiber.Ctx) error {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	var body dto.UpdateProjectStatusRequest
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	if err := h.svc.UpdateProjectStatus(uint(id), domain.ProjectState(body.State), domain.ProjectStatus(body.Status)); err != nil {
@@ -1543,7 +1547,7 @@ func (h *ProjectHandler) UpdateProjectStatus(ctx fiber.Ctx) error {
 // @Router /admin/projects [get]
 func (h *ProjectHandler) AdminListProjects(ctx fiber.Ctx) error {
 	var filter dto.AdminProjectFilter
-	if err := ctx.Bind().Query(&filter); err != nil {
+	if err := rest.BindQuery(ctx, &filter); err != nil {
 		return rest.BadRequestError(ctx, "invalid query params")
 	}
 
@@ -1581,7 +1585,7 @@ func (h *ProjectHandler) CreateProjectUpdate(ctx fiber.Ctx) error {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	var body dto.CreateProjectUpdateRequest
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	if err := h.svc.CreateProjectUpdate(uint(id), body, user); err != nil {
@@ -1606,7 +1610,7 @@ func (h *ProjectHandler) UpdateProjectUpdate(ctx fiber.Ctx) error {
 	updateID, _ := strconv.Atoi(ctx.Params("update_id"))
 
 	var body dto.UpdateProjectUpdateRequest
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 
@@ -1698,7 +1702,7 @@ func (h *ProjectHandler) CreateProjectFAQ(ctx fiber.Ctx) error {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	var body domain.ProjectFAQ
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	body.ProjectID = uint(id)
@@ -1723,7 +1727,7 @@ func (h *ProjectHandler) UpdateProjectFAQ(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	faqID, _ := strconv.Atoi(ctx.Params("faq_id"))
 	var body domain.ProjectFAQ
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	body.ID = uint(faqID)
@@ -1800,7 +1804,7 @@ func (h *ProjectHandler) CreateProjectUpdateThread(ctx fiber.Ctx) error {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid update id"))
 	}
 	var body domain.ProjectThread
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	body.ProjectID = uint(id)
@@ -1823,7 +1827,7 @@ func (h *ProjectHandler) CreateBoosterProjectUpdateThread(ctx fiber.Ctx) error {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New("invalid update id"))
 	}
 	var body domain.ProjectThread
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	body.ProjectID = uint(id)
@@ -1853,7 +1857,7 @@ func (h *ProjectHandler) CreateProjectThread(ctx fiber.Ctx) error {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	var body domain.ProjectThread
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	body.ProjectID = uint(id)
@@ -1884,7 +1888,7 @@ func (h *ProjectHandler) CreateBoosterProjectThread(ctx fiber.Ctx) error {
 		return rest.ErrorMessage(ctx, http.StatusBadRequest, errors.New(errInvalidProjectID))
 	}
 	var body domain.ProjectThread
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	body.ProjectID = uint(id)
@@ -1909,7 +1913,7 @@ func (h *ProjectHandler) UpdateProjectThread(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	threadID, _ := strconv.Atoi(ctx.Params("thread_id"))
 	var body domain.ProjectThread
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	body.ID = uint(threadID)
@@ -1971,7 +1975,7 @@ func (h *ProjectHandler) CreateProjectThreadMessage(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	threadID, _ := strconv.Atoi(ctx.Params("thread_id"))
 	var body domain.ProjectThreadMessage
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	body.ThreadID = uint(threadID)
@@ -1996,7 +2000,7 @@ func (h *ProjectHandler) UpdateProjectThreadMessage(ctx fiber.Ctx) error {
 	user := h.auth.GetCurrentUser(ctx)
 	msgID, _ := strconv.Atoi(ctx.Params("message_id"))
 	var body domain.ProjectThreadMessage
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	body.ID = uint(msgID)
@@ -2215,7 +2219,7 @@ func (h *ProjectHandler) Meeting(ctx fiber.Ctx) error {
 	}
 
 	var body dto.CreateMeetingRequest
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 
@@ -2253,7 +2257,7 @@ func (h *ProjectHandler) EditMeeting(ctx fiber.Ctx) error {
 	}
 
 	var body dto.UpdateMeetingRequest
-	if err := ctx.Bind().Body(&body); err != nil {
+	if err := rest.BindBody(ctx, &body); err != nil {
 		return rest.BadRequestError(ctx, "invalid body")
 	}
 

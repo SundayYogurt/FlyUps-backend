@@ -769,13 +769,18 @@ func TestVerifyStudent_Fail_NotPioneer(t *testing.T) {
 // ─── VerifyID ───────────────────────────────────────────────────────────────
 
 func TestVerifyID_Success_FirstTime(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
 	repo := new(mockUserRepository)
-	// IApp OCR will fail → falls back to pending status (still success path)
+	// A low-confidence verification is saved for manual review.
 	svc := NewUserService(repo, nil, nil, config.AppConfig{IAppAPIKey: ""}, nil, nil)
 
 	userID := uint(30)
-	idCardURL := "https://res.cloudinary.com/test/idcard.jpg"
-	selfieURL := "https://res.cloudinary.com/test/selfie.jpg"
+	idCardURL := "https://res.cloudinary.com/dsvexmpb6/image/upload/idcard.jpg"
+	selfieURL := "https://res.cloudinary.com/dsvexmpb6/image/upload/selfie.jpg"
+	httpmock.RegisterResponder("GET", toCloudinaryJPG(idCardURL), httpmock.NewStringResponder(200, "\xff\xd8\xffimage"))
+	httpmock.RegisterResponder("GET", toCloudinaryJPG(selfieURL), httpmock.NewStringResponder(200, "\xff\xd8\xffimage"))
+	httpmock.RegisterResponder("POST", "https://api.iapp.co.th/v3/store/ekyc/face-and-id-card-verification", httpmock.NewStringResponder(200, `{"total":{"isSamePerson":"false","confidence":40}}`))
 	declareTruth := true
 
 	// No existing verification
@@ -786,8 +791,8 @@ func TestVerifyID_Success_FirstTime(t *testing.T) {
 	repo.On("CreateConsents", mock.AnythingOfType("[]*domain.UserConsent")).Return(nil)
 
 	input := dto.VerifyIDInput{
-		IDCardURL:    &idCardURL,
-		SelfieURL:    &selfieURL,
+		IDCardURL:    idCardURL,
+		SelfieURL:    selfieURL,
 		DeclareTruth: &declareTruth,
 	}
 
@@ -812,8 +817,8 @@ func TestVerifyID_Fail_AlreadyApproved(t *testing.T) {
 	)
 
 	input := dto.VerifyIDInput{
-		IDCardURL:    &idCardURL,
-		SelfieURL:    &selfieURL,
+		IDCardURL:    idCardURL,
+		SelfieURL:    selfieURL,
 		DeclareTruth: &declareTruth,
 	}
 

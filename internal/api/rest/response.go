@@ -1,6 +1,8 @@
 package rest
 
 import (
+	"errors"
+	"flyup/internal/helper"
 	"github.com/gofiber/fiber/v3"
 
 	"net/http"
@@ -13,6 +15,10 @@ func ErrorMessage(ctx fiber.Ctx, status int, err error) error {
 }
 
 func InternalError(ctx fiber.Ctx, err error) error {
+	var inputError *helper.InputError
+	if errors.As(err, &inputError) {
+		return BadRequestError(ctx, inputError.Error())
+	}
 	// ปล่อย Error Message แบบตรงไปตรงมาเพื่อให้อ่านง่ายและ Debug สะดวก
 	return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{
 		"message": err.Error(),

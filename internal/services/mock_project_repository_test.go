@@ -46,7 +46,7 @@ func (_m *ProjectRepository) FindProjectBySlug(slug string) (*domain.Project, er
 	return r0, r1
 }
 
-func (_m *ProjectRepository) FindProjectRecommendations()  ([]domain.Project, error) {
+func (_m *ProjectRepository) FindProjectRecommendations() ([]domain.Project, error) {
 	//TODO implement me
 	panic("implement me")
 }
@@ -67,7 +67,7 @@ func (_m *ProjectRepository) FindProjectEndingSoon() ([]domain.Project, error) {
 	return args.Get(0).([]domain.Project), args.Error(1)
 }
 
-func (_m *ProjectRepository) FindProjectsPendingDetail(projectID uint, state string)  (*domain.Project, error) {
+func (_m *ProjectRepository) FindProjectsPendingDetail(projectID uint, state string) (*domain.Project, error) {
 	args := _m.Called(projectID, state)
 
 	if args.Get(0) == nil {
@@ -135,8 +135,6 @@ func (_m *ProjectRepository) SumVerifiedInvestmentByProjectID(projectID uint) (f
 	return args.Get(0).(float64), args.Error(1)
 }
 
-
-
 func (_m *ProjectRepository) ListVotesByMilestoneID(milestoneID uint) ([]domain.MilestoneVote, error) {
 	args := _m.Called(milestoneID)
 	if args.Get(0) == nil {
@@ -170,7 +168,6 @@ func (_m *ProjectRepository) FindPublicProjects(filter dto.PublicProjectFilter) 
 	}
 	return args.Get(0).([]domain.Project), args.Error(1)
 }
-
 
 // CountFundedProjects provides a mock function with given fields:
 func (_m *ProjectRepository) CountFundedProjects() (int64, error) {
@@ -353,6 +350,10 @@ func (_m *ProjectRepository) CreateProject(project *domain.Project) (*domain.Pro
 }
 
 // CreateProjectMedia provides a mock function with given fields: media
+func (_m *ProjectRepository) CreateProjectMediaBatch(media []domain.ProjectMedia) error {
+	return _m.Called(media).Error(0)
+}
+
 func (_m *ProjectRepository) CreateProjectMedia(media *domain.ProjectMedia) error {
 	ret := _m.Called(media)
 

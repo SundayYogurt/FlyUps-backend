@@ -42,7 +42,7 @@ func TestUploadHandler_UploadFile(t *testing.T) {
 	writer := multipart.NewWriter(body)
 	part, err := writer.CreateFormFile("file", "test.png")
 	assert.NoError(t, err)
-	part.Write([]byte("fake image content"))
+	part.Write([]byte("\x89PNG\r\n\x1a\n"))
 	writer.Close()
 	req := httptest.NewRequest(http.MethodPost, "/upload", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType()) // สำคัญสุด
@@ -54,4 +54,47 @@ func TestUploadHandler_UploadFile(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	mockService.AssertExpectations(t)
+}
+
+func TestUploadBatchLimits(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		pictures, videos int
+		status           int
+	}{
+		{"five of each", 5, 5, 200},
+		{"six pictures", 6, 0, 400},
+		{"six videos", 0, 6, 400},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app, svc, handler := setupUploadTest(t)
+			app.Post("/upload", handler.UploadFile)
+			if tc.status == 200 {
+				svc.On("UploadFile", mock.Anything, mock.Anything, mock.Anything).Return(&services.UploadResult{URL: "https://example.com/file"}, nil).Times(tc.pictures + tc.videos)
+			}
+			body := new(bytes.Buffer)
+			writer := multipart.NewWriter(body)
+			for i := 0; i < tc.pictures; i++ {
+				part, _ := writer.CreateFormFile("files", "photo.png")
+				part.Write([]byte("\x89PNG\r\n\x1a\n"))
+			}
+			for i := 0; i < tc.videos; i++ {
+				part, _ := writer.CreateFormFile("files", "video.webm")
+				part.Write([]byte("\x1a\x45\xdf\xa3webm"))
+			}
+			writer.Close()
+			req := httptest.NewRequest(http.MethodPost, "/upload", body)
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+			resp, err := app.Test(req)
+			if !assert.NoError(t, err) {
+				return
+			}
+			defer resp.Body.Close()
+			assert.Equal(t, tc.status, resp.StatusCode)
+			svc.AssertExpectations(t)
+			if tc.status != 200 {
+				svc.AssertNotCalled(t, "UploadFile", mock.Anything, mock.Anything, mock.Anything)
+			}
+		})
+	}
 }

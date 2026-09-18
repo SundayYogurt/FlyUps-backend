@@ -126,7 +126,7 @@ func (h *DisbursementHandler) Confirm(ctx fiber.Ctx) error {
 	}
 
 	var req dto.ConfirmDisbursementRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
+	if err := rest.BindJSON(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, "invalid request body")
 	}
 	if err := h.validator.Struct(req); err != nil {

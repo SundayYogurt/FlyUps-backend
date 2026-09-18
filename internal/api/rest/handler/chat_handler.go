@@ -85,7 +85,7 @@ func (h *ChatHandler) SendMessage(c fiber.Ctx) error {
 	}
 
 	var req dto.SendChatMessageRequest
-	if err := c.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(c, &req); err != nil {
 		return rest.BadRequestError(c, "invalid request body")
 	}
 
@@ -104,7 +104,7 @@ func (h *ChatHandler) ConfirmAction(c fiber.Ctx) error {
 	}
 
 	var req dto.ConfirmChatActionRequest
-	if err := c.Bind().Body(&req); err != nil {
+	if err := rest.BindBody(c, &req); err != nil {
 		return rest.BadRequestError(c, "invalid request body")
 	}
 

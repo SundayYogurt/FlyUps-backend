@@ -64,7 +64,7 @@ func (h *ProfitPoolHandler) Create(ctx fiber.Ctx) error {
 		return ctx.Status(http.StatusUnauthorized).JSON(fiber.Map{"message": "unauthorized"})
 	}
 	var req dto.CreateProfitPoolRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
+	if err := rest.BindJSON(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, errInvalidBody)
 	}
 	if err := h.validator.Struct(req); err != nil {
@@ -148,7 +148,7 @@ func (h *ProfitPoolHandler) PioneerSubmit(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid project id")
 	}
 	var req dto.PioneerSubmitProfitRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
+	if err := rest.BindJSON(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, errInvalidBody)
 	}
 	if err := h.validator.Struct(req); err != nil {
@@ -199,7 +199,7 @@ func (h *ProfitPoolHandler) ConfirmPayout(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid payout id")
 	}
 	var req dto.ConfirmInvestorPayoutRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
+	if err := rest.BindJSON(ctx, &req); err != nil {
 		return rest.BadRequestError(ctx, errInvalidBody)
 	}
 	if err := h.validator.Struct(req); err != nil {
