@@ -185,6 +185,7 @@ type CreateMeetingRequest struct {
 	Time        string             `json:"time" validate:"required"`
 	MeetingType domain.MeetingType `json:"meeting_type" validate:"required,oneof=online onsite hybrid"`
 	Link        *string            `json:"link,omitempty"`
+	Place       *string            `json:"place,omitempty"`
 	Description *string            `json:"description,omitempty"`
 	About       string             `json:"about"`
 }

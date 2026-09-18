@@ -2526,27 +2526,13 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 		return nil, errors.New("meeting already exists for this milestone")
 	}
 
-	user, err := s.userRepo.FindUniversityByUserId(userID)
-	if err != nil {
-		return nil, err
-	}
-
-	if user.StudentProfile.ID == 0 {
-		return nil, errors.New("user has no student profile")
-	}
-
-	var place *string
-	if user.StudentProfile.University != nil {
-		place = user.StudentProfile.University.NameTH
-	}
-
 	meeting := &domain.Meeting{
 		MilestoneID: input.MilestoneID,
 		Date:        dateParsed,
 		Time:        timeParsed,
 		MeetingType: input.MeetingType,
 		Link:        input.Link,
-		Place:       place,
+		Place:       input.Place,
 		Description: input.Description,
 		About:       input.About,
 		Status:      domain.MeetingOpen,
@@ -2566,6 +2552,10 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 	if owner, err := s.userRepo.FindUserById(project.OwnerUserID); err == nil && owner != nil {
 		emailSet[owner.Email] = struct{}{}
 	}
+	pioneerName := ""
+	if creator, err := s.userRepo.FindUserById(userID); err == nil && creator != nil {
+		pioneerName = creator.FirstName + " " + creator.LastName
+	}
 
 	for email := range emailSet {
 		go func(m domain.Meeting, email string) {
@@ -2577,8 +2567,6 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 
 			dateStr := m.Date.Format("02 Jan 2006")
 			timeStr := m.Time.Format("15:04")
-			pioneerName := user.FirstName + " " + user.LastName
-
 			if err := s.emailClient.SendMeetingEmail(
 				email,
 				"Meeting Invitation",
