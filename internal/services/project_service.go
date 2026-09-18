@@ -995,7 +995,19 @@ func (s *projectService) OpenMilestoneVoting(milestoneID uint, user domain.User)
 		return nil, errors.New("failed to fetch meeting")
 	}
 	if meeting == nil {
-		return nil, errors.New("please create meeting first")
+		return nil, errors.New("please schedule a new meeting first")
+	}
+
+	// Meeting date/time are stored as separate UTC-shaped values, but represent
+	// the local time selected by the user in Thailand.
+	bangkok := time.FixedZone("Asia/Bangkok", 7*60*60)
+	meetingStartsAt := time.Date(
+		meeting.Date.Year(), meeting.Date.Month(), meeting.Date.Day(),
+		meeting.Time.Hour(), meeting.Time.Minute(), meeting.Time.Second(), 0,
+		bangkok,
+	)
+	if time.Now().In(bangkok).Before(meetingStartsAt) {
+		return nil, errors.New("meeting has not started yet")
 	}
 
 	// clear votes from any previous round before opening a new one
