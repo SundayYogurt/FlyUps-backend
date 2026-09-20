@@ -78,10 +78,15 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	pubRoutes.Post("/signin", handler.Signing)
 	pubRoutes.Post("/forgot-password", handler.ForgotPassword)
 	pubRoutes.Post("/reset-password", handler.SetPassword)
+	pubRoutes.Post("/resend-verification", handler.ResendVerificationEmail)
 
 	pubRoutes.Get("/auth/google", handler.GoogleLogin)
 	pubRoutes.Get("/auth/google/callback", handler.GoogleCallback)
 	pubRoutes.Post("/auth/refresh", handler.RefreshToken)
+	pubRoutes.Get("/kyc/session-status", handler.GetKYCSessionStatus)
+	// kyc route
+	kycGroup := app.Group("/kyc", rh.Middlewares.Authorize)
+	kycGroup.Post("/", handler.GenerateKYCSession)
 
 	//private route
 	privateRoutes := app.Group("/user", rh.Middlewares.Authorize)
@@ -134,6 +139,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 // @Failure 500 {object} object "Internal Server Error"
 // @Router /SignUp [post]
 func (h *UserHandler) SignUp(ctx fiber.Ctx) error {
+	//fmt.Println("ยิงเส้น Signin เข้ามาแล้วโว้ยยย!")
 	user := dto.UserSignUp{}
 
 	//Bind JSON Body
@@ -445,9 +451,28 @@ func (h *UserHandler) VerifyStudent(ctx fiber.Ctx) error {
 // @Failure 401 {object} object "Unauthorized"
 // @Router /user/id-verify [post]
 func (h *UserHandler) VerifyIDCard(ctx fiber.Ctx) error {
-	user := h.auth.GetCurrentUser(ctx)
-	if user.ID == 0 {
-		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	var userID uint
+
+	token := ctx.Query("token")
+	if token == "" {
+		token = ctx.FormValue("token") // เผื่อ Frontend แนบมาใน Form
+	}
+
+	// เช็คว่าใครเป็นคนยิง Request นี้มา
+	if token != "" {
+
+		kycSession, err := h.svc.GetKYCSessionByToken(ctx.Context(), token)
+		if err != nil || kycSession.Status != domain.VerifyStatusPending {
+			return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("invalid or expired kyc session"))
+		}
+		userID = kycSession.UserID
+	} else {
+		// กรณีทำผ่านเว็บปกติ (ไม่ได้สแกน QR): ใช้ Auth ปกติ
+		user := h.auth.GetCurrentUser(ctx)
+		if user.ID == 0 {
+			return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized: missing token or auth"))
+		}
+		userID = user.ID
 	}
 
 	var req dto.VerifyIDInput
@@ -455,14 +480,18 @@ func (h *UserHandler) VerifyIDCard(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "invalid request body: "+err.Error())
 	}
 
-	// validate input
 	if err := h.validator.Struct(req); err != nil {
 		return rest.BadRequestError(ctx, "validation failed: "+err.Error())
 	}
 
-	err := h.svc.VerifyID(user.ID, req)
+	// 4. ส่ง userID ไปทำงานต่อใน Service
+	err := h.svc.VerifyID(userID, req) // อาจจะต้องส่ง ctx.Context() ไปด้วยถ้า Service ต้องการ
 	if err != nil {
 		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	if token != "" {
+		_ = h.svc.MarkKYCSessionCompleted(ctx.Context(), token)
 	}
 
 	return rest.SuccessResponse(ctx, "verification submitted successfully", nil)
@@ -1521,5 +1550,64 @@ func (h *UserHandler) ListUsers(ctx fiber.Ctx) error {
 			"page":      page,
 			"page_size": pageSize,
 		},
+	})
+}
+
+func (h *UserHandler) GenerateKYCSession(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.UnauthorizedError(ctx, "unauthorized")
+	}
+
+	response, err := h.svc.GenerateKYCSession(user.ID)
+	if err != nil {
+		return rest.InternalError(ctx, err)
+	}
+
+	return rest.SuccessResponse(ctx, "session generated", response)
+}
+
+// ResendVerificationEmail godoc
+// @Summary Resend verification email
+// @Description Resend the verification email for a registered but unverified user
+// @Tags Users
+// @Accept json
+// @Produce json
+// @Param request body dto.ResendVerificationRequest true "Email request"
+// @Success 200 {object} object "Verification email sent"
+// @Failure 400 {object} object "Invalid email or already verified"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /resend-verification [post]
+func (h *UserHandler) ResendVerificationEmail(ctx fiber.Ctx) error {
+	var req dto.ResendVerificationRequest
+
+	if err := rest.BindBody(ctx, &req); err != nil {
+		return rest.BadRequestError(ctx, "invalid request body")
+	}
+
+	if err := h.validator.Struct(req); err != nil {
+		return rest.BadRequestError(ctx, "validation failed: "+err.Error())
+	}
+
+	if err := h.svc.ResendVerificationEmail(ctx.Context(), req.Email); err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	return rest.SuccessResponse(ctx, "verification email has been resent", nil)
+}
+
+func (h *UserHandler) GetKYCSessionStatus(ctx fiber.Ctx) error {
+	token := ctx.Query("token")
+	if token == "" {
+		return rest.BadRequestError(ctx, "token is required")
+	}
+
+	status, err := h.svc.CheckKYCStatus(ctx.Context(), token)
+	if err != nil {
+		return rest.BadRequestError(ctx, "invalid session token")
+	}
+
+	return rest.SuccessResponse(ctx, "success", fiber.Map{
+		"status": status,
 	})
 }

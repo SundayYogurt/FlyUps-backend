@@ -1,0 +1,23 @@
+meta {
+  name: resend verification
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/resend-verification
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "email":"test@gmail.com"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}

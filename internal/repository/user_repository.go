@@ -11,8 +11,8 @@ import (
 )
 
 type UserRepository interface {
-	CreateUser(ctc context.Context, usr *domain.User, consent *domain.UserConsent, profile *domain.StudentProfile) (*domain.User, error)
-	FindUser(ctc context.Context, email string) (*domain.User, error)
+	CreateUser(ctx context.Context, usr *domain.User, consent *domain.UserConsent, profile *domain.StudentProfile) (*domain.User, error)
+	FindUser(ctx context.Context, email string) (*domain.User, error)
 	FindUserByResetToken(token string) (*domain.User, error)
 	FindUserById(id uint) (*domain.User, error)
 	FindAdminUserIDs() ([]uint, error)
@@ -40,10 +40,38 @@ type UserRepository interface {
 	FindUserIDCardRequest(status string) ([]domain.IdCardVerification, error)
 	FindAllUsers(page, limit int, role, status, search string) ([]domain.User, int64, error)
 	FindUniversityByUserId(userID uint) (*domain.User, error)
+
+	// CreateSession session
+	CreateSession(session *domain.KYCUploadSession) error
+	FindKYCSessionByToken(ctx context.Context, token string) (*domain.KYCUploadSession, error)
+	UpdateKYCSessionStatus(ctx context.Context, token string, status string) error
 }
 
 type userRepository struct {
 	db *gorm.DB
+}
+
+// Create สร้าง Session ใหม่ใน Database
+func (r *userRepository) CreateSession(session *domain.KYCUploadSession) error {
+	return r.db.Create(session).Error
+}
+
+// / ดึงข้อมูล Session จาก Token
+func (r *userRepository) FindKYCSessionByToken(ctx context.Context, token string) (*domain.KYCUploadSession, error) {
+	var session domain.KYCUploadSession
+	err := r.db.WithContext(ctx).Where("token = ?", token).First(&session).Error
+	if err != nil {
+		return nil, err
+	}
+	return &session, nil
+}
+
+// อัปเดตสถานะ Session
+func (r *userRepository) UpdateKYCSessionStatus(ctx context.Context, token string, status string) error {
+	return r.db.WithContext(ctx).
+		Model(&domain.KYCUploadSession{}).
+		Where("token = ?", token).
+		Update("status", status).Error
 }
 
 func (r *userRepository) FindUniversityByUserId(userID uint) (*domain.User, error) {
