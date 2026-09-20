@@ -8,7 +8,7 @@ import (
 )
 
 type InvestmentRepository interface {
-	Create(investment *domain.Investment, tx *gorm.DB) error
+	Create(tx *gorm.DB, investment *domain.Investment) error
 	FindByID(id uint) (*domain.Investment, error)
 	FindByIDWithProject(id uint) (*domain.Investment, error)
 	FindByReferenceNumber(ref string) (*domain.Investment, error)
@@ -34,7 +34,7 @@ func NewInvestmentRepository(db *gorm.DB) InvestmentRepository {
 	return &investmentRepository{db}
 }
 
-func (r *investmentRepository) Create(investment *domain.Investment, tx *gorm.DB) error {
+func (r *investmentRepository) Create(tx *gorm.DB, investment *domain.Investment) error {
 	return tx.Create(investment).Error
 }
 

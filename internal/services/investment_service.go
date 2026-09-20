@@ -331,7 +331,7 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 			Status:          domain.InvestmentPending,
 		}
 
-		if err := s.investmentRepo.CreateTx(tx, investment); err != nil {
+		if err := s.investmentRepo.Create(tx, investment); err != nil {
 			log.Printf("[CreateInvestment] db error: %v", err)
 			return errors.New("failed to create investment")
 		}
