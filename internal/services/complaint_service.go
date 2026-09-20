@@ -24,13 +24,19 @@ type ComplaintService interface {
 type complaintService struct {
 	complaintRepo repository.ComplaintRepository
 	projectRepo   repository.ProjectRepository
+	notifSvc      NotificationService
 }
 
 func NewComplaintService(
 	complaintRepo repository.ComplaintRepository,
 	projectRepo repository.ProjectRepository,
+	notifSvcs ...NotificationService,
 ) ComplaintService {
-	return &complaintService{complaintRepo, projectRepo}
+	var notifSvc NotificationService
+	if len(notifSvcs) > 0 {
+		notifSvc = notifSvcs[0]
+	}
+	return &complaintService{complaintRepo: complaintRepo, projectRepo: projectRepo, notifSvc: notifSvc}
 }
 
 func (s *complaintService) Create(userID uint, req dto.CreateComplaintRequest) (*domain.Complaint, error) {
@@ -140,6 +146,20 @@ func (s *complaintService) adminClose(id, adminID uint, note string, target doma
 		go s.checkAndSuspendProject(c.ProjectID)
 	}
 
+	if s.notifSvc != nil {
+		title := "คำร้องเรียนได้รับการดำเนินการแล้ว"
+		body := "แอดมินปิดเรื่องร้องเรียน: " + c.Subject
+		if target == domain.ComplaintRejected {
+			title = "คำร้องเรียนถูกปฏิเสธ"
+			body = "แอดมินปฏิเสธเรื่องร้องเรียน: " + c.Subject
+		}
+		relatedID := c.ID
+		relatedType := "complaint"
+		if err := s.notifSvc.CreateAndPush(c.ComplainantID, domain.NotifComplaint, title, body, &relatedID, &relatedType); err != nil {
+			log.Printf("[ComplaintService] failed to notify complainant %d: %v", c.ComplainantID, err)
+		}
+	}
+
 	return c, nil
 }
 
@@ -165,6 +185,15 @@ func (s *complaintService) checkAndSuspendProject(projectID uint) {
 	project.Status = domain.StatusSuspended
 	if _, err := s.projectRepo.UpdateProject(project); err != nil {
 		log.Printf("[checkAndSuspendProject] failed to suspend project %d: %v", projectID, err)
+		return
+	}
+	if s.notifSvc != nil {
+		relatedID := project.ID
+		relatedType := "project"
+		body := "โปรเจกต์ \"" + project.Title + "\" ถูกระงับหลังคำร้องเรียนที่ยืนยันแล้วถึงเกณฑ์"
+		if err := s.notifSvc.CreateAndPush(project.OwnerUserID, domain.NotifProjectStatus, "โปรเจกต์ถูกระงับ", body, &relatedID, &relatedType); err != nil {
+			log.Printf("[checkAndSuspendProject] failed to notify project owner %d: %v", project.OwnerUserID, err)
+		}
 	}
 }
 

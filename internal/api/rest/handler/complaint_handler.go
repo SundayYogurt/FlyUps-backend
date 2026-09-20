@@ -24,6 +24,7 @@ func SetupComplaintRoutes(rh *rest.RestHandler) {
 	svc := services.NewComplaintService(
 		repository.NewComplaintRepository(rh.DB),
 		repository.NewProjectRepository(rh.DB),
+		rh.NotifSvc,
 	)
 
 	h := &ComplaintHandler{
