@@ -1774,9 +1774,10 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 	if ocrErr != nil {
 		log.Printf("[VerifyID] OCR error: %v", ocrErr)
 
-		// ปัญหาฝั่งเรา — ไม่ควรสร้าง record ค้างไว้
+		// Provider/key/credit failure must never auto-approve the user. Keep the
+		// request pending for manual admin review instead of making them retake it.
 		if helper.IsProviderUnavailable(ocrErr) { // 402, 429, 5xx, timeout
-			return errors.New("verification service unavailable, please try again later")
+			log.Printf("[VerifyID] provider unavailable; falling back to admin review")
 		}
 		// นอกนั้นปล่อยเป็น pending ให้ admin review
 	}
@@ -1787,8 +1788,8 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 	var faceScore *float64
 
 	// fallback ถ้า OCR พัง
-	if err != nil {
-		log.Printf("[VerifyID] OCR error: %v", err)
+	if ocrErr != nil {
+		log.Printf("[VerifyID] OCR fallback to pending: %v", ocrErr)
 	} else {
 
 		var iAppResult struct {

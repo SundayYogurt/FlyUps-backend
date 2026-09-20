@@ -84,6 +84,10 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	pubRoutes.Get("/auth/google/callback", handler.GoogleCallback)
 	pubRoutes.Post("/auth/refresh", handler.RefreshToken)
 	pubRoutes.Get("/kyc/session-status", handler.GetKYCSessionStatus)
+	// These handlers accept either the normal JWT or a short-lived KYC token.
+	// They perform both authorization paths internally.
+	pubRoutes.Post("/user/student-verify", handler.VerifyStudent)
+	pubRoutes.Post("/user/id-verify", handler.VerifyIDCard)
 	// kyc route
 	kycGroup := app.Group("/kyc", rh.Middlewares.Authorize)
 	kycGroup.Post("/", handler.GenerateKYCSession)
@@ -92,8 +96,6 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	privateRoutes := app.Group("/user", rh.Middlewares.Authorize)
 	privateRoutes.Get("/me", handler.Me)
 	privateRoutes.Patch("/profile", handler.UpdateProfile)
-	privateRoutes.Post("/student-verify", handler.VerifyStudent)
-	privateRoutes.Post("/id-verify", handler.VerifyIDCard)
 	privateRoutes.Post("/add-bank", handler.AddBankAccount)
 	privateRoutes.Patch("/update-bank/:id", handler.UpdateBankAccount)
 	privateRoutes.Patch("/set-default-bank/:id", handler.SetDefaultBankAccount)
