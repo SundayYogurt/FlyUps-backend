@@ -37,6 +37,7 @@ func SetupChatRoutes(rh *rest.RestHandler) {
 		rh.Config.StripeWebhookSecret,
 		notifSvc,
 		rh.Notification,
+		rh.DB,
 	)
 
 	projectSvc := services.NewProjectService(

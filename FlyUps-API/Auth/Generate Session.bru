@@ -1,0 +1,17 @@
+meta {
+  name: Generate Session
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/kyc
+  body: json
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+  forwardAuthorizationHeader: false
+}

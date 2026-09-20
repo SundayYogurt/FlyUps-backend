@@ -12,6 +12,7 @@ const (
 	VerifyStatusPending  VerifyStatus = "pending"
 	VerifyStatusApproved VerifyStatus = "approved"
 	VerifyStatusRejected VerifyStatus = "rejected"
+	VerifyStatusExpired  VerifyStatus = "expired"
 )
 
 type IdCardVerification struct {
@@ -37,4 +38,14 @@ type StudentCardVerification struct {
 	VerifiedAt *time.Time   `json:"verified_at,omitempty"`
 	ReviewedBy *uint        `json:"reviewed_by,omitempty"`
 	gorm.Model
+}
+
+type KYCUploadSession struct {
+	ID        uint         `json:"primaryKey"`
+	Token     string       `json:"type:varchar(100);uniqueIndex;not null"` // Token แบบสุ่ม (เช่น UUID)
+	UserID    uint         `json:"not null;index"`                         // ผูกกับ User ที่กดขอ QR Code
+	Status    VerifyStatus `json:"type:varchar(20);default:'pending'"`     // pending, approved, expired
+	ExpiresAt time.Time    `json:"not null"`                               // เวลาหมดอายุ
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }

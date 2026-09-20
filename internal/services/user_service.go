@@ -11,6 +11,7 @@ import (
 	"flyup/internal/port/cache"
 	"flyup/internal/repository"
 	"flyup/pkg/notification"
+	"fmt"
 	"io"
 	"log"
 	"regexp"
@@ -19,6 +20,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 
 	"golang.org/x/crypto/bcrypt"
@@ -64,6 +66,12 @@ type UserService interface {
 	DeleteDomain(id uint) error
 	UpdateDomain(ctx context.Context, id uint, req dto.UpdateDomainRequest) (*domain.UniversityDomain, error)
 	SelectRole(ctx context.Context, userID uint, newRole string) error
+	// GenerateKYCSession KYC
+	GenerateKYCSession(userID uint) (*dto.KYCSessionResponse, error)
+	ResendVerificationEmail(ctx context.Context, email string) error
+	GetKYCSessionByToken(ctx context.Context, token string) (*domain.KYCUploadSession, error)
+	MarkKYCSessionCompleted(ctx context.Context, token string) error
+	CheckKYCStatus(ctx context.Context, token string) (string, error)
 }
 
 type userService struct {
@@ -91,6 +99,71 @@ func NewUserService(
 		NotifSvc: NotifSvc,
 		cache:    cache,
 	}
+}
+
+func (s *userService) GetKYCSessionByToken(ctx context.Context, token string) (*domain.KYCUploadSession, error) {
+	session, err := s.Repo.FindKYCSessionByToken(ctx, token)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("invalid kyc session token")
+		}
+		return nil, errors.New("internal server error")
+	}
+
+	// เช็คสถานะว่ายังเป็น pending อยู่ไหม
+	if session.Status != domain.VerifyStatusPending {
+		return nil, errors.New("kyc session is not pending or already completed")
+	}
+
+	// ตรวจสอบว่าหมดอายุหรือยัง
+	if time.Now().After(session.ExpiresAt) {
+		return nil, errors.New("kyc session has expired")
+	}
+
+	return session, nil
+}
+
+func (s *userService) MarkKYCSessionCompleted(ctx context.Context, token string) error {
+	err := s.Repo.UpdateKYCSessionStatus(ctx, token, string(domain.VerifyStatusApproved))
+	if err != nil {
+		return errors.New("failed to update kyc session status")
+	}
+	return nil
+}
+
+func (s *userService) GenerateKYCSession(userID uint) (*dto.KYCSessionResponse, error) {
+	MobileKYCBaseURL := "https://www.fly-up.app/mobile-kyc"
+
+	token := uuid.New().String()
+
+	expiresAt := time.Now().Add(15 * time.Minute)
+
+	session := &domain.KYCUploadSession{
+		Token:     token,
+		UserID:    userID,
+		Status:    domain.VerifyStatusPending,
+		ExpiresAt: expiresAt,
+	}
+
+	if err := s.Repo.CreateSession(session); err != nil {
+		return nil, errors.New("failed to generate KYC session")
+	}
+
+	mobileURL := fmt.Sprintf("%s?token=%s", MobileKYCBaseURL, token)
+
+	return &dto.KYCSessionResponse{
+		Token:     token,
+		MobileURL: mobileURL,
+		ExpiresAt: expiresAt.Format(time.RFC3339),
+	}, nil
+}
+
+func (s *userService) CheckKYCStatus(ctx context.Context, token string) (string, error) {
+	session, err := s.Repo.FindKYCSessionByToken(ctx, token)
+	if err != nil {
+		return "", errors.New("invalid session token")
+	}
+	return string(session.Status), nil
 }
 
 // validatePassword ตรวจสอบ password policy และ hash ให้พร้อมใช้
@@ -1132,6 +1205,48 @@ func (s *userService) SignUp(ctx context.Context, input dto.UserSignUp) (string,
 	return "registration successful, please verify your email", nil
 }
 
+func (s *userService) ResendVerificationEmail(ctx context.Context, email string) error {
+	user, err := s.Repo.FindUser(ctx, email)
+	if err != nil {
+		return errors.New("user not found")
+	}
+
+	if user.EmailVerifiedAt != nil {
+		return errors.New("this email is already verified")
+	}
+
+	newToken, err := s.Auth.GenerateCode()
+	if err != nil {
+		return errors.New("internal server error")
+	}
+
+	newExpireTime := time.Now().Add(24 * time.Hour)
+
+	updateData := map[string]interface{}{
+		"verification_token":            newToken,
+		"verification_token_expires_at": newExpireTime,
+	}
+	if err := s.Repo.UpdateUser(user.ID, updateData); err != nil {
+		return errors.New("failed to generate new verification token")
+	}
+
+	redisKey := "verify:token:" + newToken
+	err = s.cache.Set(ctx, redisKey, user.Email, 24*time.Hour)
+	if err != nil {
+		return err
+	}
+
+	// fmt.Printf("[Debug] เซฟลง Redis สำเร็จ! Token: %s\n", newToken)
+
+	go func() {
+		verifyLink := strings.TrimRight(s.Config.BaseURL, "/") + "/verify?token=" + newToken
+		notificationClient := notification.NewNotificationClient(s.Config)
+		_ = notificationClient.SendVerifyEmail(email, verifyLink)
+	}()
+
+	return nil
+}
+
 func (s *userService) VerifyEmail(ctx context.Context, input dto.VerifyEmailRequest) (string, error) {
 	key := "verify:token:" + input.Token
 
@@ -1161,6 +1276,8 @@ func (s *userService) VerifyEmail(ctx context.Context, input dto.VerifyEmailRequ
 		"verification_token":            nil,
 		"verification_token_expires_at": nil,
 	}
+
+	log.Printf("verify email token received (len=%d, prefix=%s...)", len(input.Token), input.Token[:min(4, len(input.Token))])
 
 	if err := s.Repo.UpdateUser(user.ID, updates); err != nil {
 		return "", errors.New("failed to verify email")

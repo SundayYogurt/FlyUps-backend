@@ -108,3 +108,13 @@ type AddPasswordRequest struct {
 type UpdateNotificationPrefsRequest struct {
 	Preferences map[string]bool `json:"notification_preferences" validate:"required"`
 }
+
+type KYCSessionResponse struct {
+	Token     string `json:"token"`      // ใช้เพื่ออ้างอิงตอนมือถืออัปโหลดรูปกลับมา หรือตอน PC เช็คสถานะ
+	MobileURL string `json:"mobile_url"` // ลิงก์สำเร็จรูปที่ประกอบ URL + Token ให้เรียบร้อย
+	ExpiresAt string `json:"expires_at"` // เวลาหมดอายุ เพื่อให้ Frontend โชว์เวลานับถอยหลังได้
+}
+
+type ResendVerificationRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}

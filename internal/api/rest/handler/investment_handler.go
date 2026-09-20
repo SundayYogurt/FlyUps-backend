@@ -31,6 +31,7 @@ func SetupInvestmentRoutes(rh *rest.RestHandler) {
 		rh.Config.StripeWebhookSecret,
 		rh.NotifSvc,
 		rh.Notification,
+		rh.DB,
 	)
 
 	h := &InvestmentHandler{

@@ -49,6 +49,7 @@ func StartServer(cfg config.AppConfig) {
 		&domain.BankAccount{},
 		&domain.IdCardVerification{},
 		&domain.StudentCardVerification{},
+		&domain.KYCUploadSession{},
 
 		// project
 		&domain.Project{},
@@ -215,6 +216,7 @@ func StartServer(cfg config.AppConfig) {
 		cfg.StripeWebhookSecret,
 		notifSvc,
 		notificationClient,
+		db,
 	)
 	rh.InvestmentSvc = investmentSvc
 	projectSvc := services.NewProjectService(
