@@ -73,10 +73,11 @@ type investmentService struct {
 	webhookSecret    string
 	notifSvc         NotificationService
 	emailClient      notification.NotificationClient
+	db               *gorm.DB
 }
 
-func NewInvestmentService(projectRepo repository.ProjectRepository, investmentRepo repository.InvestmentRepository, transactionRepo repository.TransactionRepository, userRepo repository.UserRepository, disbursementRepo repository.DisbursementRepository, stripeSecretKey string, webhookSecret string, notifSvc NotificationService, emailClient notification.NotificationClient) InvestmentService {
-	return &investmentService{projectRepo, investmentRepo, transactionRepo, userRepo, disbursementRepo, stripeSecretKey, webhookSecret, notifSvc, emailClient}
+func NewInvestmentService(projectRepo repository.ProjectRepository, investmentRepo repository.InvestmentRepository, transactionRepo repository.TransactionRepository, userRepo repository.UserRepository, disbursementRepo repository.DisbursementRepository, stripeSecretKey string, webhookSecret string, notifSvc NotificationService, emailClient notification.NotificationClient, db *gorm.DB) InvestmentService {
+	return &investmentService{projectRepo, investmentRepo, transactionRepo, userRepo, disbursementRepo, stripeSecretKey, webhookSecret, notifSvc, emailClient, db}
 }
 
 func (s *investmentService) GetInvestment(boosterUserID uint, investmentID uint) (*domain.Investment, *domain.Transaction, error) {
@@ -267,6 +268,7 @@ func (s *investmentService) GenerateContractHTML(boosterUserID uint, investmentI
 }
 
 func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail string, req dto.CreateInvestmentRequest) (*dto.InvestmentResponse, error) {
+	// เช็คสิทธิ์ผู้ใช้ก่อน ไม่เกี่ยวกับยอดเงิน ไม่ต้องอยู่ใน transaction
 	user, err := s.userRepo.FindUserById(boosterUserID)
 	if err != nil {
 		return nil, errors.New("user not found")
@@ -274,74 +276,75 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 	if user.Role == "admin" {
 		return nil, errors.New("admin cannot invest")
 	}
-
 	if user.Role == "pioneer" {
 		return nil, errors.New("pioneer cannot invest")
 	}
-
 	if user.IdCardVerification == nil || user.IdCardVerification.Status != domain.VerifyStatusApproved {
 		return nil, errors.New("identity verification required before investing")
-	}
-
-	project, err := s.projectRepo.FindProjectByID(req.ProjectID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("project not found")
-		}
-		return nil, errors.New("internal server error")
-	}
-
-	if project.OwnerUserID == user.ID {
-		return nil, errors.New("cannot invest in your own project")
-	}
-
-	if project.State != domain.StateFunding {
-		return nil, errors.New("project is not open for investment")
-	}
-
-	// reload โปรเจกต์ก่อนคำนวณยอดคงเหลือ เพื่อให้ current_funding เป็นค่าล่าสุดจาก DB
-	// (project ที่โหลดไว้ด้านบนอาจค้างจากการลงทุนอื่นที่ verified แทรกเข้ามาระหว่างนี้)
-	project, err = s.projectRepo.FindProjectByID(req.ProjectID)
-	if err != nil {
-		return nil, errors.New("internal server error")
-	}
-
-	if err := validateAmount(project, req.Amount); err != nil {
-		return nil, err
 	}
 
 	if req.Amount > MaxInvestmentPerTransaction {
 		return nil, fmt.Errorf("ยอดลงทุนต่อรายการต้องไม่เกิน ฿%.0f (กรุณาแบ่งเป็นหลายรายการหากต้องการลงทุนสูงกว่านี้)", MaxInvestmentPerTransaction)
 	}
 
-	fee, vat, principal := calculateFees(req.Amount, project.PlatformFee)
+	//  ส่วนที่ต้อง atomic: ล็อก project, validate ยอด, insert investment
+	var investment *domain.Investment
+	var project *domain.Project
 
-	refNum, err := generateReferenceNumber()
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		var err error
+
+		project, err = s.projectRepo.FindProjectByIDForUpdateTx(tx, req.ProjectID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("project not found")
+			}
+			return errors.New("internal server error")
+		}
+
+		if project.OwnerUserID == user.ID {
+			return errors.New("cannot invest in your own project")
+		}
+		if project.State != domain.StateFunding {
+			return errors.New("project is not open for investment")
+		}
+		if err := validateAmount(project, req.Amount); err != nil {
+			return err
+		}
+
+		fee, vat, principal := calculateFees(req.Amount, project.PlatformFee)
+
+		refNum, err := generateReferenceNumber()
+		if err != nil {
+			return errors.New("failed to generate reference number")
+		}
+
+		investment = &domain.Investment{
+			ReferenceNumber: refNum,
+			ProjectID:       req.ProjectID,
+			BoosterUserID:   boosterUserID,
+			TotalAmount:     req.Amount,
+			PlatformFee:     fee,
+			VATAmount:       vat,
+			PrincipalAmount: principal,
+			ProfitSharePct:  project.ProfitSharePct,
+			Status:          domain.InvestmentPending,
+		}
+
+		if err := s.investmentRepo.CreateTx(tx, investment); err != nil {
+			log.Printf("[CreateInvestment] db error: %v", err)
+			return errors.New("failed to create investment")
+		}
+
+		return nil
+	})
 	if err != nil {
-		return nil, errors.New("failed to generate reference number")
+		return nil, err
 	}
 
-	investment := &domain.Investment{
-		ReferenceNumber: refNum,
-		ProjectID:       req.ProjectID,
-		BoosterUserID:   boosterUserID,
-		TotalAmount:     req.Amount,
-		PlatformFee:     fee,
-		VATAmount:       vat,
-		PrincipalAmount: principal,
-		ProfitSharePct:  project.ProfitSharePct,
-		Status:          domain.InvestmentPending,
-	}
-
-	if err := s.investmentRepo.Create(investment); err != nil {
-		log.Printf("[CreateInvestment] db error: %v", err)
-		return nil, errors.New("failed to create investment")
-	}
-
-	// สร้าง Stripe QR Code
-	qrURL, qrData, intentID, clientSecret, expiresAt, err := s.createStripePromptPay(req.Amount, refNum, project.Title, boosterEmail)
+	// ---- 3. เรียก Stripe "นอก" transaction เสมอ (external call ห้าม hold DB lock) ----
+	qrURL, qrData, intentID, clientSecret, expiresAt, err := s.createStripePromptPay(req.Amount, investment.ReferenceNumber, project.Title, boosterEmail)
 	if err != nil {
-		// Stripe ล้มเหลว → mark investment เป็น rejected
 		_ = s.investmentRepo.UpdateStatus(investment.ID, domain.InvestmentRejected)
 		log.Printf("[CreateInvestment] stripe error: %v", err)
 		return nil, errors.New("failed to create payment QR code")
@@ -369,7 +372,7 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 
 	return &dto.InvestmentResponse{
 		InvestmentID:    investment.ID,
-		ReferenceNumber: refNum,
+		ReferenceNumber: investment.ReferenceNumber,
 		QRCodeImageURL:  qrURL,
 		QRCodeBase64:    qrBase64,
 		ExpiresAt:       expiresAt.Format(time.RFC3339),
