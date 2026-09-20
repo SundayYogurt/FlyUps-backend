@@ -561,7 +561,15 @@ func (s *userService) RollbackActiveUser(userID uint) error {
 		"suspended_by":   nil,
 	}
 
-	return s.Repo.UpdateUser(userID, updates)
+	if err := s.Repo.UpdateUser(userID, updates); err != nil {
+		return err
+	}
+	if s.NotifSvc != nil {
+		relatedID := userID
+		relatedType := "user"
+		_ = s.NotifSvc.CreateAndPush(userID, domain.NotifUserStatus, "บัญชีได้รับการเปิดใช้งาน", "แอดมินเปิดใช้งานบัญชีของคุณอีกครั้งแล้ว", &relatedID, &relatedType)
+	}
+	return nil
 }
 
 func (s *userService) GetNotificationPreferences(userID uint) (map[string]bool, error) {
@@ -637,7 +645,15 @@ func (s *userService) SuspendUser(adminID uint, userID uint, reason string) erro
 		}
 	}(email, reason)
 
-	return s.Repo.UpdateUser(userID, updates)
+	if err := s.Repo.UpdateUser(userID, updates); err != nil {
+		return err
+	}
+	if s.NotifSvc != nil {
+		relatedID := userID
+		relatedType := "user"
+		_ = s.NotifSvc.CreateAndPush(userID, domain.NotifUserStatus, "บัญชีถูกระงับ", "บัญชีของคุณถูกระงับ: "+reason, &relatedID, &relatedType)
+	}
+	return nil
 
 }
 

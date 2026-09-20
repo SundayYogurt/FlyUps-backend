@@ -24,8 +24,7 @@ func SetupChatRoutes(rh *rest.RestHandler) {
 	transactionRepo := repository.NewTransactionRepository(rh.DB)
 	disbursementRepo := repository.NewDisbursementRepository(rh.DB)
 	userRepo := repository.NewUserRepository(rh.DB)
-	notifRepo := repository.NewNotificationRepository(rh.DB)
-	notifSvc := services.NewNotificationService(notifRepo)
+	notifSvc := rh.NotifSvc
 	projectRepo := repository.NewProjectRepository(rh.DB)
 
 	investmentSvc := services.NewInvestmentService(
@@ -61,6 +60,7 @@ func SetupChatRoutes(rh *rest.RestHandler) {
 	complaintSvc := services.NewComplaintService(
 		repository.NewComplaintRepository(rh.DB),
 		projectRepo,
+		notifSvc,
 	)
 
 	chatService := services.NewChatService(chatRepo, chatAIClient, investmentSvc, projectSvc, notifSvc, disburseSvc, complaintSvc)

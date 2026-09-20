@@ -5,17 +5,19 @@ import "gorm.io/gorm"
 type NotificationType string
 
 const (
-	NotifNewInvestment          NotificationType = "new_investment"
-	NotifPaymentFailed          NotificationType = "payment_failed"
-	NotifMilestone              NotificationType = "milestone"
-	NotifMilestoneSubmitted     NotificationType = "milestone_submitted"
-	NotifMilestoneRejected      NotificationType = "milestone_rejected"
-	NotifVote                   NotificationType = "vote"
-	NotifProjectStatus          NotificationType = "project_status"
-	NotifProfit                 NotificationType = "profit"
-	NotifMeeting                NotificationType = "meeting"
-	NotifVerificationApproved   NotificationType = "verification_approved"
-	NotifVerificationRejected   NotificationType = "verification_rejected"
+	NotifNewInvestment        NotificationType = "new_investment"
+	NotifPaymentFailed        NotificationType = "payment_failed"
+	NotifMilestone            NotificationType = "milestone"
+	NotifMilestoneSubmitted   NotificationType = "milestone_submitted"
+	NotifMilestoneRejected    NotificationType = "milestone_rejected"
+	NotifVote                 NotificationType = "vote"
+	NotifProjectStatus        NotificationType = "project_status"
+	NotifProfit               NotificationType = "profit"
+	NotifMeeting              NotificationType = "meeting"
+	NotifVerificationApproved NotificationType = "verification_approved"
+	NotifVerificationRejected NotificationType = "verification_rejected"
+	NotifComplaint            NotificationType = "complaint"
+	NotifUserStatus           NotificationType = "user_status"
 )
 
 type Notification struct {
