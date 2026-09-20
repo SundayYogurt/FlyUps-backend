@@ -58,6 +58,7 @@ type ProjectRepository interface {
 	UpdateCategory(category *domain.ProjectCategory) (*domain.ProjectCategory, error)
 	DeleteCategory(categoryId uint) error
 	CountProjectsByCategoryID(categoryID uint) (int64, error)
+	FindProjectByIDForUpdateTx(tx *gorm.DB, id uint) (*domain.Project, error)
 
 	// milestone
 	FindMilestoneByID(id uint) (*domain.Milestone, error)
@@ -124,6 +125,16 @@ type ProjectRepository interface {
 
 type projectRepository struct {
 	db *gorm.DB
+}
+
+func (p *projectRepository) FindProjectByIDForUpdateTx(tx *gorm.DB, id uint) (*domain.Project, error) {
+	var project domain.Project
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		First(&project, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &project, nil
 }
 
 func (p *projectRepository) FindProjectBySlug(slug string) (*domain.Project, error) {
