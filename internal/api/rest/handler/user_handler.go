@@ -415,9 +415,28 @@ func (h *UserHandler) UpdateProfile(ctx fiber.Ctx) error {
 // @Failure 401 {object} object "Unauthorized"
 // @Router /user/student-verify [post]
 func (h *UserHandler) VerifyStudent(ctx fiber.Ctx) error {
-	user := h.auth.GetCurrentUser(ctx)
-	if user.ID == 0 {
-		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+
+	var userID uint
+
+	token := ctx.Query("token")
+	if token == "" {
+		token = ctx.FormValue("token")
+	}
+
+	// เช็คว่าใครเป็นคนยิง Request นี้มา
+	if token != "" {
+		kycSession, err := h.svc.GetKYCSessionByToken(ctx.Context(), token)
+		if err != nil || kycSession.Status != domain.VerifyStatusPending {
+			return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("invalid or expired kyc session"))
+		}
+		userID = kycSession.UserID
+	} else {
+		// กรณีทำผ่านเว็บปกติ (ไม่ได้สแกน QR): ใช้ Auth ปกติ
+		user := h.auth.GetCurrentUser(ctx)
+		if user.ID == 0 {
+			return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized: missing token or auth"))
+		}
+		userID = user.ID // เก็บค่าเข้าตัวแปรกลาง
 	}
 
 	var req dto.VerifyStudentInput
@@ -430,9 +449,13 @@ func (h *UserHandler) VerifyStudent(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, "validation failed: "+err.Error())
 	}
 
-	err := h.svc.VerifyStudent(user.ID, req)
+	err := h.svc.VerifyStudent(userID, req)
 	if err != nil {
 		return rest.BadRequestError(ctx, err.Error())
+	}
+
+	if token != "" {
+		_ = h.svc.MarkKYCSessionCompleted(ctx.Context(), token)
 	}
 
 	return rest.SuccessResponse(ctx, "successfully submit verify to admin!", nil)
