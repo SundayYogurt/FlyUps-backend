@@ -74,10 +74,12 @@ type investmentService struct {
 	notifSvc         NotificationService
 	emailClient      notification.NotificationClient
 	db               *gorm.DB
+	paymentRepo      repository.PaymentRepository
+	feeLookup        func(string) (float64, float64, float64)
 }
 
 func NewInvestmentService(projectRepo repository.ProjectRepository, investmentRepo repository.InvestmentRepository, transactionRepo repository.TransactionRepository, userRepo repository.UserRepository, disbursementRepo repository.DisbursementRepository, stripeSecretKey string, webhookSecret string, notifSvc NotificationService, emailClient notification.NotificationClient, db *gorm.DB) InvestmentService {
-	return &investmentService{projectRepo, investmentRepo, transactionRepo, userRepo, disbursementRepo, stripeSecretKey, webhookSecret, notifSvc, emailClient, db}
+	return &investmentService{projectRepo: projectRepo, investmentRepo: investmentRepo, transactionRepo: transactionRepo, userRepo: userRepo, disbursementRepo: disbursementRepo, stripeSecretKey: stripeSecretKey, webhookSecret: webhookSecret, notifSvc: notifSvc, emailClient: emailClient, db: db, paymentRepo: repository.NewPaymentRepository(db)}
 }
 
 func (s *investmentService) GetInvestment(boosterUserID uint, investmentID uint) (*domain.Investment, *domain.Transaction, error) {
@@ -113,17 +115,13 @@ func (s *investmentService) expirePendingInvestment(investment *domain.Investmen
 		return
 	}
 
-	if err := s.investmentRepo.UpdateStatus(investment.ID, domain.InvestmentExpired); err != nil {
-		log.Printf("[expirePendingInvestment] update investment %d: %v", investment.ID, err)
+	expired, err := s.paymentRepo.Expire(investment.ID, time.Now())
+	if err != nil {
+		log.Printf("[expirePendingInvestment] investment %d: %v", investment.ID, err)
 		return
 	}
-	investment.Status = domain.InvestmentExpired
-
-	if txn.Status == domain.TransactionPending {
-		if err := s.transactionRepo.UpdateStatus(txn.ID, domain.TransactionExpired); err != nil {
-			log.Printf("[expirePendingInvestment] update transaction %d: %v", txn.ID, err)
-			return
-		}
+	if expired {
+		investment.Status = domain.InvestmentExpired
 		txn.Status = domain.TransactionExpired
 	}
 }
@@ -308,7 +306,11 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 		if project.State != domain.StateFunding {
 			return errors.New("project is not open for investment")
 		}
-		if err := validateAmount(project, req.Amount); err != nil {
+		reserved, err := repository.SumReservedByProjectIDTx(tx, project.ID, time.Now(), 0)
+		if err != nil {
+			return fmt.Errorf("check pending payment reservations: %w", err)
+		}
+		if err := validateAmountWithReserved(project, req.Amount, reserved); err != nil {
 			return err
 		}
 
@@ -568,7 +570,8 @@ func (s *investmentService) ApproveRefund(investmentID uint) error {
 		return errors.New("investment not found")
 	}
 
-	if investment.Status != domain.InvestmentRefundPending {
+	overfund := investment.Status == domain.InvestmentOverfundRefundPending
+	if investment.Status != domain.InvestmentRefundPending && !overfund {
 		return errors.New("investment is not pending refund")
 	}
 
@@ -581,10 +584,12 @@ func (s *investmentService) ApproveRefund(investmentID uint) error {
 	// โดยไม่ได้คืนเงินผ่าน Stripe เลย ทำให้ booster ไม่ได้รับเงินคืนจริง
 	stripe.Key = s.stripeSecretKey
 	refundAmountSatang := int64(math.Round(investment.RefundAmount * 100))
-	if _, err := refund.New(&stripe.RefundParams{
+	refundParams := &stripe.RefundParams{
 		PaymentIntent: stripe.String(txn.StripePaymentIntentID),
 		Amount:        stripe.Int64(refundAmountSatang),
-	}); err != nil {
+	}
+	refundParams.SetIdempotencyKey(fmt.Sprintf("investment-refund-%d", investment.ID))
+	if _, err := refund.New(refundParams); err != nil {
 		log.Printf("[ApproveRefund] stripe refund failed for investment %d: %v", investment.ID, err)
 		return fmt.Errorf("stripe refund failed: %v", err)
 	}
@@ -598,8 +603,10 @@ func (s *investmentService) ApproveRefund(investmentID uint) error {
 	}
 
 	// ลด current_funding ณ จุดนี้ เมื่อเงินถูกคืนจริงแล้ว
-	if err := s.investmentRepo.IncrementProjectFunding(investment.ProjectID, -investment.TotalAmount); err != nil {
-		log.Printf("[ApproveRefund] decrement current_funding error: %v", err)
+	if !overfund {
+		if err := s.investmentRepo.IncrementProjectFunding(investment.ProjectID, -investment.TotalAmount); err != nil {
+			log.Printf("[ApproveRefund] decrement current_funding error: %v", err)
+		}
 	}
 
 	// notify booster ว่าคำขอคืนเงินได้รับการอนุมัติแล้ว
@@ -881,22 +888,28 @@ func (s *investmentService) HandleStripeWebhook(payload []byte, sigHeader string
 		IgnoreAPIVersionMismatch: true,
 	})
 	if err != nil {
-		return fmt.Errorf("webhook signture verification failed: %v", err)
+		return fmt.Errorf("%w: %v", ErrInvalidStripeWebhook, err)
 	}
 
 	switch event.Type {
 	case "payment_intent.succeeded":
-		if id, ok := event.Data.Object["id"].(string); ok {
-			s.handlePaymentSucceeded(id)
+		id, ok := event.Data.Object["id"].(string)
+		if !ok || id == "" {
+			return fmt.Errorf("%w: missing payment intent id", ErrInvalidStripeWebhook)
 		}
+		return s.handlePaymentSucceeded(id)
 	case "payment_intent.payment_failed":
-		if id, ok := event.Data.Object["id"].(string); ok {
-			s.handlePaymentFailed(id)
+		id, ok := event.Data.Object["id"].(string)
+		if !ok || id == "" {
+			return fmt.Errorf("%w: missing payment intent id", ErrInvalidStripeWebhook)
 		}
+		return s.handlePaymentFailed(id)
 	}
 
 	return nil
 }
+
+var ErrInvalidStripeWebhook = errors.New("invalid stripe webhook")
 
 func (s *investmentService) GetProjectInvestors(projectID uint) ([]dto.ProjectInvestorItem, error) {
 	_, err := s.projectRepo.FindProjectByID(projectID)
@@ -1372,79 +1385,34 @@ func generateQRBase64(data string) (string, error) {
 	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(png), nil
 }
 
-func (s *investmentService) handlePaymentSucceeded(intentID string) {
-	txn, err := s.transactionRepo.FindByPaymentIntentID(intentID)
-	if err != nil {
-		log.Printf("[Webhook] transaction not found for intent %s: %v", intentID, err)
-		return
-	}
-
-	if err := s.transactionRepo.UpdateStatus(txn.ID, domain.TransactionSucceeded); err != nil {
-		log.Printf("[Webhook] update transaction status error: %v", err)
-		return
-	}
-
+func (s *investmentService) handlePaymentSucceeded(intentID string) error {
 	stripe.Key = s.stripeSecretKey
-	stripeFee, stripeFeeVAT, netAmount := s.fetchStripeFeesFromIntent(intentID)
-	if err := s.transactionRepo.UpdateStripeFeesAndNet(txn.ID, stripeFee, stripeFeeVAT, netAmount); err != nil {
-		log.Printf("[Webhook] update stripe fees error: %v", err)
+	feeLookup := s.feeLookup
+	if feeLookup == nil {
+		feeLookup = s.fetchStripeFeesFromIntent
 	}
-
-	investment, err := s.investmentRepo.FindByID(txn.InvestmentID)
+	stripeFee, stripeFeeVAT, netAmount := feeLookup(intentID)
+	result, err := s.paymentRepo.Complete(intentID, stripeFee, stripeFeeVAT, netAmount)
 	if err != nil {
-		log.Printf("[Webhook] investment not found: %v", err)
-		return
+		return fmt.Errorf("complete payment %s: %w", intentID, err)
+	}
+	if !result.Applied {
+		return nil
+	}
+	if result.Overfund {
+		log.Printf("[Webhook] payment %s exceeded project %d capacity; full refund pending for investment %d", intentID, result.Investment.ProjectID, result.Investment.ID)
+		return nil
 	}
 
-	now := time.Now()
-	investment.Status = domain.InvestmentVerified
-	investment.PaidAt = &now
-	// principal ที่แท้จริง = net จาก Stripe - platform_fee - vat
-	if netAmount > 0 {
-		investment.PrincipalAmount = math.Round((netAmount-investment.PlatformFee-investment.VATAmount)*100) / 100
-	}
-
-	if err := s.investmentRepo.UpdatePaid(investment); err != nil {
-		log.Printf("[Webhook] update investment error: %v", err)
-	}
-
-	if err := s.investmentRepo.IncrementProjectFunding(investment.ProjectID, investment.TotalAmount); err != nil {
-		log.Printf("[Webhook] update project current_funding error: %v", err)
-	}
-
-	// ตรวจสอบว่าถึงเป้าหมายหรือยัง → เปลี่ยน state เป็น executing อัตโนมัติ
-	project, projErr := s.projectRepo.FindProjectByID(investment.ProjectID)
-	if projErr == nil && project.State == domain.StateFunding && project.CurrentFunding >= project.FundingGoal {
-		project.State = domain.StateExecuting
-		project.Status = domain.StatusActive
-		if _, err := s.projectRepo.UpdateProject(project); err != nil {
-			log.Printf("[Webhook] auto-transition to executing error: %v", err)
-		} else {
-			log.Printf("[Webhook] project %d reached funding goal → state=executing", project.ID)
-			// เริ่ม milestone phase 1 ทันทีที่ครบเป้า
-			milestones, err := s.projectRepo.FindMilestonesByProjectID(project.ID)
-			if err == nil {
-				for i := range milestones {
-					if milestones[i].Status == domain.MilestoneWaiting && milestones[i].PhaseNo == 1 {
-						milestones[i].Status = domain.MilestoneActive
-						if err := s.projectRepo.UpdateMilestone(&milestones[i]); err != nil {
-							log.Printf("[Webhook] activate milestone phase 1 error: %v", err)
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// notify pioneer ที่เป็นเจ้าของโปรเจกต์
-	if s.notifSvc != nil && projErr == nil {
-		relatedID := investment.ProjectID
+	if s.notifSvc != nil {
+		relatedID := result.Investment.ProjectID
 		relatedType := "project"
-		body := fmt.Sprintf("มีการลงทุนใหม่ในโปรเจกต์ %s จำนวน %.2f บาท", project.Title, investment.TotalAmount)
-		if err := s.notifSvc.CreateAndPush(project.OwnerUserID, domain.NotifNewInvestment, "มีการลงทุนใหม่", body, &relatedID, &relatedType); err != nil {
+		body := fmt.Sprintf("มีการลงทุนใหม่ในโปรเจกต์ %s จำนวน %.2f บาท", result.Project.Title, result.Investment.TotalAmount)
+		if err := s.notifSvc.CreateAndPush(result.Project.OwnerUserID, domain.NotifNewInvestment, "มีการลงทุนใหม่", body, &relatedID, &relatedType); err != nil {
 			log.Printf("[Webhook] send notification error: %v", err)
 		}
 	}
+	return nil
 }
 
 func (s *investmentService) fetchStripeFeesFromIntent(intentID string) (stripeFee, stripeFeeVAT, netAmount float64) {
@@ -1485,29 +1453,20 @@ func (s *investmentService) fetchStripeFeesFromIntent(intentID string) (stripeFe
 	return
 }
 
-func (s *investmentService) handlePaymentFailed(intentID string) {
-	txn, err := s.transactionRepo.FindByPaymentIntentID(intentID)
+func (s *investmentService) handlePaymentFailed(intentID string) error {
+	result, err := s.paymentRepo.Fail(intentID)
 	if err != nil {
-		log.Printf("[Webhook] transaction not found for intent %s: %v", intentID, err)
-		return
+		return fmt.Errorf("fail payment %s: %w", intentID, err)
 	}
-
-	_ = s.transactionRepo.UpdateStatus(txn.ID, domain.TransactionFailed)
-	_ = s.investmentRepo.UpdateStatus(txn.InvestmentID, domain.InvestmentRejected)
-
-	// notify booster ว่าการชำระเงินไม่สำเร็จ/QR หมดอายุ เพื่อให้รู้ว่าต้องทำรายการใหม่
-	if s.notifSvc != nil {
-		investment, err := s.investmentRepo.FindByID(txn.InvestmentID)
-		if err != nil {
-			log.Printf("[Webhook] investment not found: %v", err)
-			return
-		}
-		relatedID := investment.ProjectID
-		relatedType := "project"
-		if err := s.notifSvc.CreateAndPush(investment.BoosterUserID, domain.NotifPaymentFailed, "การชำระเงินไม่สำเร็จ", "การชำระเงินสำหรับการลงทุนของคุณไม่สำเร็จ หรือ QR Code หมดอายุ กรุณาทำรายการใหม่", &relatedID, &relatedType); err != nil {
-			log.Printf("[Webhook] send notification error: %v", err)
-		}
+	if !result.Applied || s.notifSvc == nil {
+		return nil
 	}
+	relatedID := result.Investment.ProjectID
+	relatedType := "project"
+	if err := s.notifSvc.CreateAndPush(result.Investment.BoosterUserID, domain.NotifPaymentFailed, "การชำระเงินไม่สำเร็จ", "การชำระเงินสำหรับการลงทุนของคุณไม่สำเร็จ หรือ QR Code หมดอายุ กรุณาทำรายการใหม่", &relatedID, &relatedType); err != nil {
+		log.Printf("[Webhook] send notification error: %v", err)
+	}
+	return nil
 }
 
 // // helper functions
@@ -1529,10 +1488,14 @@ func amountEqual(a, b float64) bool   { return math.Abs(a-b) < amountEpsilon }
 // 1) ขั้นต่ำ ฿20 ต่อครั้ง (ไม่มีข้อยกเว้น) 2) ห้ามเกินยอดคงเหลือ 3) ขั้นต่ำ 1% ของเป้าหมาย
 // (ยกเว้นเมื่อปิดยอดพอดี หรือถึง softcap แล้ว) 4) เพดานสูงสุดของโปรเจกต์ 5) ห้ามทิ้งเศษ (ไม่มีข้อยกเว้น)
 func validateAmount(project *domain.Project, amount float64) error {
+	return validateAmountWithReserved(project, amount, 0)
+}
+
+func validateAmountWithReserved(project *domain.Project, amount, reserved float64) error {
 	if err := helper.ValidateInputLimits(amount); err != nil {
 		return err
 	}
-	remaining := project.FundingGoal - project.CurrentFunding
+	remaining := project.FundingGoal - project.CurrentFunding - reserved
 	left := remaining - amount
 
 	// 1. ขั้นต่ำของช่องทางชำระเงิน Stripe (PromptPay) — บังคับใช้เสมอ ไม่มีข้อยกเว้นใด ๆ แม้ถึง softcap แล้ว

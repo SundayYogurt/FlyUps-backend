@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"flyup/internal/api/rest"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/helper"
 	"flyup/internal/repository"
 	"flyup/internal/services"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -370,13 +372,18 @@ func (h *InvestmentHandler) RefundInvestment(ctx fiber.Ctx) error {
 // @Param        Stripe-Signature  header    string  true  "Stripe webhook signature"
 // @Success      200               {object}  map[string]bool    "webhook received"
 // @Failure      400               {object}  map[string]string  "invalid signature or payload"
+// @Failure      500               {object}  map[string]string  "payment processing failed; Stripe should retry"
 // @Router       /stripe/webhook [post]
 func (h *InvestmentHandler) StripeWebhook(ctx fiber.Ctx) error {
 	sig := ctx.Get("Stripe-Signature")
 	payload := ctx.Body()
 
 	if err := h.svc.HandleStripeWebhook(payload, sig); err != nil {
-		return ctx.Status(http.StatusBadRequest).JSON(fiber.Map{"message": err.Error()})
+		if errors.Is(err, services.ErrInvalidStripeWebhook) {
+			return ctx.Status(http.StatusBadRequest).JSON(fiber.Map{"message": err.Error()})
+		}
+		log.Printf("[Webhook] processing failed: %v", err)
+		return ctx.Status(http.StatusInternalServerError).JSON(fiber.Map{"message": "webhook processing failed"})
 	}
 
 	return ctx.Status(http.StatusOK).JSON(fiber.Map{"received": true})
