@@ -9,12 +9,13 @@ import (
 type InvestmentStatus string
 
 const (
-	InvestmentPending       InvestmentStatus = "pending_payment"
-	InvestmentExpired       InvestmentStatus = "expired"
-	InvestmentVerified      InvestmentStatus = "verified"
-	InvestmentRejected      InvestmentStatus = "rejected"
-	InvestmentRefundPending InvestmentStatus = "refund_pending"
-	InvestmentRefunded      InvestmentStatus = "refunded"
+	InvestmentPending               InvestmentStatus = "pending_payment"
+	InvestmentExpired               InvestmentStatus = "expired"
+	InvestmentVerified              InvestmentStatus = "verified"
+	InvestmentRejected              InvestmentStatus = "rejected"
+	InvestmentRefundPending         InvestmentStatus = "refund_pending"
+	InvestmentOverfundRefundPending InvestmentStatus = "overfund_refund_pending"
+	InvestmentRefunded              InvestmentStatus = "refunded"
 )
 
 type Investment struct {

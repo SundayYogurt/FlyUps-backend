@@ -1721,6 +1721,8 @@ func (s *userService) VerifyStudent(userID uint, input dto.VerifyStudentInput) e
 	return s.Repo.CreateConsents(consents)
 }
 
+const minIDVerificationConfidence = 30.0
+
 func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 
 	if userID == 0 {
@@ -1752,7 +1754,11 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 	if existing != nil {
 		switch existing.Status {
 		case domain.VerifyStatusPending:
-			return errors.New("verification is already pending")
+			// A previous iApp failure left no OCR result. Allow the same record to
+			// be retried after the image/provider issue is fixed.
+			if existing.FaceScore != nil || (existing.OcrPayload != nil && *existing.OcrPayload != "") {
+				return errors.New("verification is already pending")
+			}
 
 		case domain.VerifyStatusApproved:
 			return errors.New("already verified")
@@ -1763,23 +1769,35 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 	if !strings.HasPrefix(input.IDCardURL, cloudPrefix) {
 		return errors.New("invalid ID card URL")
 	}
+	if !strings.HasPrefix(input.SelfieURL, cloudPrefix) {
+		return errors.New("invalid selfie URL")
+	}
 
 	iappSvc := helper.NewIAppService(s.Config.IAppAPIKey)
 
-	idCardURL := toCloudinaryJPG(input.IDCardURL)
-	selfieURL := toCloudinaryJPG(input.SelfieURL)
+	idCardURL := input.IDCardURL
+	selfieURL := input.SelfieURL
 
 	ocrPayload, ocrErr := iappSvc.VerifyFaceAndIDCard(idCardURL, selfieURL)
 
 	if ocrErr != nil {
 		log.Printf("[VerifyID] OCR error: %v", ocrErr)
+		if !helper.IsProviderUnavailable(ocrErr) {
+			var providerErr *helper.IAppError
+			if errors.As(ocrErr, &providerErr) && (providerErr.StatusCode == 421 || providerErr.StatusCode == 422) {
+				switch {
+				case strings.Contains(providerErr.Raw, "[file0]"):
+					return errors.New("Selfie or card in selfie not detected; hold the entire card in frame with your face visible and try again")
+				case strings.Contains(providerErr.Raw, "[file1]"):
+					return errors.New("ID card not detected; retake the full front of the card closer to the camera")
+				}
+			}
+			return errors.New("ID card or face not detected; retake the photos and try again")
+		}
 
 		// Provider/key/credit failure must never auto-approve the user. Keep the
 		// request pending for manual admin review instead of making them retake it.
-		if helper.IsProviderUnavailable(ocrErr) { // 402, 429, 5xx, timeout
-			log.Printf("[VerifyID] provider unavailable; falling back to admin review")
-		}
-		// นอกนั้นปล่อยเป็น pending ให้ admin review
+		log.Printf("[VerifyID] provider unavailable; falling back to admin review")
 	}
 
 	// default = pending
@@ -1805,7 +1823,7 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 			conf := iAppResult.Total.Confidence
 			faceScore = &conf
 
-			if iAppResult.Total.IsSamePerson == "true" && conf >= 80.0 {
+			if iAppResult.Total.IsSamePerson == "true" && conf >= minIDVerificationConfidence {
 				finalStatus = domain.VerifyStatusApproved
 				now := time.Now()
 				verifiedAt = &now
@@ -1849,23 +1867,4 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 	}
 
 	return s.Repo.CreateConsents(consents)
-}
-
-var imageExtRe = regexp.MustCompile(`(?i)\.(webp|avif|png|jpe?g|gif|heic|heif|bmp|tiff?)$`)
-
-func toCloudinaryJPG(rawURL string) string {
-	if !strings.Contains(rawURL, "/upload/") {
-		return rawURL
-	}
-
-	base, suffix := rawURL, ""
-	if i := strings.IndexAny(rawURL, "?#"); i != -1 {
-		base, suffix = rawURL[:i], rawURL[i:]
-	}
-	base = imageExtRe.ReplaceAllString(base, ".jpg")
-
-	if !strings.Contains(base, "/upload/f_") {
-		base = strings.Replace(base, "/upload/", "/upload/f_jpg,q_auto/", 1)
-	}
-	return base + suffix
 }

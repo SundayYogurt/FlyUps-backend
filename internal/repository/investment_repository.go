@@ -106,7 +106,7 @@ func (r *investmentRepository) ListByBoosterUserID(boosterUserID uint) ([]domain
 
 func (r *investmentRepository) ListRefundPending() ([]domain.Investment, error) {
 	var investments []domain.Investment
-	err := r.db.Where("status = ?", domain.InvestmentRefundPending).Order("refunded_at ASC").Find(&investments).Error
+	err := r.db.Where("status IN ?", []domain.InvestmentStatus{domain.InvestmentRefundPending, domain.InvestmentOverfundRefundPending}).Order("refunded_at ASC").Find(&investments).Error
 	return investments, err
 }
 

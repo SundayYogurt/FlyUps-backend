@@ -85,9 +85,9 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	pubRoutes.Post("/auth/refresh", handler.RefreshToken)
 	pubRoutes.Get("/kyc/session-status", handler.GetKYCSessionStatus)
 	// These handlers accept either the normal JWT or a short-lived KYC token.
-	// They perform both authorization paths internally.
-	pubRoutes.Post("/user/student-verify", handler.VerifyStudent)
-	pubRoutes.Post("/user/id-verify", handler.VerifyIDCard)
+	kycOrUserAuth := requireUserUnlessKYCSession(rh.Middlewares.Authorize)
+	pubRoutes.Post("/user/student-verify", kycOrUserAuth, handler.VerifyStudent)
+	pubRoutes.Post("/user/id-verify", kycOrUserAuth, handler.VerifyIDCard)
 	// kyc route
 	kycGroup := app.Group("/kyc", rh.Middlewares.Authorize)
 	kycGroup.Post("/", handler.GenerateKYCSession)
@@ -126,6 +126,15 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	adminRoutes.Get("/student-verifications", handler.GetStudentsCardRequest)
 	adminRoutes.Get("/id-card-verifications", handler.GetCardIDRequests)
 	adminRoutes.Get("/list-users", handler.ListUsers)
+}
+
+func requireUserUnlessKYCSession(authorize fiber.Handler) fiber.Handler {
+	return func(ctx fiber.Ctx) error {
+		if ctx.Query("token") != "" || ctx.FormValue("token") != "" {
+			return ctx.Next()
+		}
+		return authorize(ctx)
+	}
 }
 
 // SignUp godoc
@@ -466,7 +475,8 @@ func (h *UserHandler) VerifyStudent(ctx fiber.Ctx) error {
 // VerifyIDCard godoc
 // @Summary Submit ID card verification
 // @Description Submit ID card info for verification
-// @Tags Users
+// @
+// Tags Users
 // @Accept json
 // @Produce json
 // @Security BearerAuth
