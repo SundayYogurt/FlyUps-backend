@@ -5,12 +5,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	_ "image/gif"
+	"image/jpeg"
+	_ "image/png"
 	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
 	"time"
+
+	_ "golang.org/x/image/webp"
 )
 
 type IAppError struct {
@@ -34,7 +42,11 @@ func NewIAppService(apiKey string) IAppService {
 	}
 }
 
-// helper function เอาไว้โหลดรูปทีละใบแล้วยัดใส่ writer
+const maxIAppImageBytes = 10 * 1024 * 1024
+const maxIAppImagePixels = 20_000_000
+
+// Download the Cloudinary image and transcode it for iApp without changing the
+// WebP asset used by the rest of the application.
 func downloadAndAttachFile(writer *multipart.Writer, fieldName, imageURL string) error {
 	var httpClient = &http.Client{Timeout: 30 * time.Second}
 	resp, err := httpClient.Get(imageURL)
@@ -47,32 +59,43 @@ func downloadAndAttachFile(writer *multipart.Writer, fieldName, imageURL string)
 		return fmt.Errorf("failed to download %s, status: %d", fieldName, resp.StatusCode)
 	}
 
-	// บังคับ filename .jpg + content-type image/jpeg
-	// (Cloudinary ส่ง byte เป็น jpg มาแล้วจาก f_jpg แต่ iApp ดูนามสกุล/ctype)
-	h := make(textproto.MIMEHeader)
-	h.Set("Content-Disposition",
-		fmt.Sprintf(`form-data; name="%s"; filename="%s.jpg"`, fieldName, fieldName))
-	h.Set("Content-Type", "image/jpeg")
-
-	log.Printf("[iApp] %s → ctype=%s len=%s url=%s",
-		fieldName,
-		resp.Header.Get("Content-Type"),
-		resp.Header.Get("Content-Length"),
-		imageURL)
-
-	data, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxIAppImageBytes+1))
 	if err != nil {
 		return fmt.Errorf("failed to read %s: %w", fieldName, err)
 	}
+	if len(data) > maxIAppImageBytes {
+		return fmt.Errorf("%s exceeds iApp's 10 MB image limit", fieldName)
+	}
+	config, format, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("%s is not a supported image: %w", fieldName, err)
+	}
+	if config.Width <= 0 || config.Height <= 0 || int64(config.Width)*int64(config.Height) > maxIAppImagePixels {
+		return fmt.Errorf("%s image dimensions exceed the limit", fieldName)
+	}
+	decoded, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("decode %s: %w", fieldName, err)
+	}
+	if format != "jpeg" {
+		bounds := decoded.Bounds()
+		opaque := image.NewRGBA(image.Rect(0, 0, bounds.Dx(), bounds.Dy()))
+		draw.Draw(opaque, opaque.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
+		draw.Draw(opaque, opaque.Bounds(), decoded, bounds.Min, draw.Over)
+		var converted bytes.Buffer
+		if err := jpeg.Encode(&converted, opaque, &jpeg.Options{Quality: 85}); err != nil {
+			return fmt.Errorf("encode %s as jpeg: %w", fieldName, err)
+		}
+		if converted.Len() > maxIAppImageBytes {
+			return fmt.Errorf("converted %s exceeds iApp's 10 MB image limit", fieldName)
+		}
+		data = converted.Bytes()
+	}
+	log.Printf("[iApp] %s source=%s %dx%d outbound=jpeg (%d bytes)", fieldName, format, config.Width, config.Height, len(data))
 
-	// RIFF....WEBP
-	if len(data) >= 12 && string(data[0:4]) == "RIFF" && string(data[8:12]) == "WEBP" {
-		return fmt.Errorf("%s is still webp, cloudinary transform failed: %s", fieldName, imageURL)
-	}
-	// JPEG ขึ้นต้นด้วย FF D8 FF
-	if len(data) < 3 || data[0] != 0xFF || data[1] != 0xD8 {
-		return fmt.Errorf("%s is not a valid jpeg: %s", fieldName, imageURL)
-	}
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s.jpg"`, fieldName, fieldName))
+	h.Set("Content-Type", "image/jpeg")
 
 	part, err := writer.CreatePart(h)
 	if err != nil {
@@ -89,7 +112,8 @@ func (s iAppService) VerifyFaceAndIDCard(idCardURL, selfieURL string) (string, e
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	// สลับ field! iApp คาดหวังให้ file0 เป็นรูป Selfie และ file1 เป็นรูปบัตรประชาชน
+	// The live store endpoint expects the selfie holding the card in file0 and
+	// the separate ID-card photo in file1 (confirmed with iApp's demo images).
 	if err := downloadAndAttachFile(writer, "file0", selfieURL); err != nil {
 		return "", err
 	}

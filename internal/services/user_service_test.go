@@ -1,11 +1,15 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flyup/config"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
+	"image"
+	"image/color"
+	"image/jpeg"
 	"testing"
 	"time"
 
@@ -778,8 +782,14 @@ func TestVerifyID_Success_FirstTime(t *testing.T) {
 	userID := uint(30)
 	idCardURL := "https://res.cloudinary.com/dsvexmpb6/image/upload/idcard.jpg"
 	selfieURL := "https://res.cloudinary.com/dsvexmpb6/image/upload/selfie.jpg"
-	httpmock.RegisterResponder("GET", toCloudinaryJPG(idCardURL), httpmock.NewStringResponder(200, "\xff\xd8\xffimage"))
-	httpmock.RegisterResponder("GET", toCloudinaryJPG(selfieURL), httpmock.NewStringResponder(200, "\xff\xd8\xffimage"))
+	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
+	img.Set(0, 0, color.RGBA{R: 200, A: 255})
+	var jpg bytes.Buffer
+	if err := jpeg.Encode(&jpg, img, nil); err != nil {
+		t.Fatal(err)
+	}
+	httpmock.RegisterResponder("GET", idCardURL, httpmock.NewBytesResponder(200, jpg.Bytes()))
+	httpmock.RegisterResponder("GET", selfieURL, httpmock.NewBytesResponder(200, jpg.Bytes()))
 	httpmock.RegisterResponder("POST", "https://api.iapp.co.th/v3/store/ekyc/face-and-id-card-verification", httpmock.NewStringResponder(200, `{"total":{"isSamePerson":"false","confidence":40}}`))
 	declareTruth := true
 
