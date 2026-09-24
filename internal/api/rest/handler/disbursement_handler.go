@@ -2,6 +2,7 @@ package handler
 
 import (
 	"flyup/internal/api/rest"
+	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/helper"
 	"flyup/internal/repository"
@@ -14,9 +15,10 @@ import (
 )
 
 type DisbursementHandler struct {
-	svc       services.DisbursementService
-	validator *validator.Validate
-	auth      helper.Auth
+	svc         services.DisbursementService
+	validator   *validator.Validate
+	auth        helper.Auth
+	adminLogSvc services.AdminLogService
 }
 
 func SetupDisbursementRoutes(rh *rest.RestHandler) {
@@ -28,9 +30,10 @@ func SetupDisbursementRoutes(rh *rest.RestHandler) {
 	)
 
 	h := &DisbursementHandler{
-		svc:       svc,
-		validator: rh.Validator,
-		auth:      rh.Auth,
+		svc:         svc,
+		validator:   rh.Validator,
+		auth:        rh.Auth,
+		adminLogSvc: rh.AdminLogSvc,
 	}
 
 	admin := rh.App.Group("/admin/disbursements", rh.Middlewares.AuthorizeAdmin)
@@ -139,6 +142,11 @@ func (h *DisbursementHandler) Confirm(ctx fiber.Ctx) error {
 			return ctx.Status(http.StatusNotFound).JSON(fiber.Map{"message": err.Error()})
 		}
 		return rest.BadRequestError(ctx, err.Error())
+	}
+	if h.adminLogSvc != nil {
+		disbursementID := uint(id)
+		note := req.TransferRef
+		h.adminLogSvc.LogAction(currentUser.ID, domain.AdminActionConfirmDisbursement, domain.TargetTypeDisbursement, &disbursementID, &note)
 	}
 
 	return rest.SuccessResponse(ctx, "disbursement confirmed", result)

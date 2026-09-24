@@ -1528,6 +1528,18 @@ func (h *ProjectHandler) UpdateProjectStatus(ctx fiber.Ctx) error {
 	if err := h.svc.UpdateProjectStatus(uint(id), domain.ProjectState(body.State), domain.ProjectStatus(body.Status)); err != nil {
 		return rest.InternalError(ctx, err)
 	}
+	if h.adminLogSvc != nil {
+		projectID := uint(id)
+		var action string
+		switch domain.ProjectState(body.State) {
+		case domain.StateSuspended:
+			action = domain.AdminActionSuspendProject
+		default:
+			action = domain.AdminActionUnsuspendProject
+		}
+		note := "state=" + body.State + ", status=" + body.Status
+		h.adminLogSvc.LogAction(user.ID, action, domain.TargetTypeProject, &projectID, &note)
+	}
 	return rest.SuccessResponse(ctx, "status updated successfully", nil)
 }
 

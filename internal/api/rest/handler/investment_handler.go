@@ -17,9 +17,10 @@ import (
 )
 
 type InvestmentHandler struct {
-	svc       services.InvestmentService
-	validator *validator.Validate
-	auth      helper.Auth
+	svc         services.InvestmentService
+	validator   *validator.Validate
+	auth        helper.Auth
+	adminLogSvc services.AdminLogService
 }
 
 func SetupInvestmentRoutes(rh *rest.RestHandler) {
@@ -37,9 +38,10 @@ func SetupInvestmentRoutes(rh *rest.RestHandler) {
 	)
 
 	h := &InvestmentHandler{
-		svc:       svc,
-		validator: rh.Validator,
-		auth:      rh.Auth,
+		svc:         svc,
+		validator:   rh.Validator,
+		auth:        rh.Auth,
+		adminLogSvc: rh.AdminLogSvc,
 	}
 
 	rh.App.Post("/stripe/webhook", h.StripeWebhook)
@@ -273,6 +275,10 @@ func (h *InvestmentHandler) ListRefundRequests(ctx fiber.Ctx) error {
 // @Failure      403  {object}  map[string]string  "access denied"
 // @Router       /admin/investments/{id}/approve-refund [patch]
 func (h *InvestmentHandler) ApproveRefund(ctx fiber.Ctx) error {
+	admin := h.auth.GetCurrentUser(ctx)
+	if admin.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
 	id, err := strconv.ParseUint(ctx.Params("id"), 10, 32)
 	if err != nil {
 		return rest.BadRequestError(ctx, "invalid investment id")
@@ -280,6 +286,11 @@ func (h *InvestmentHandler) ApproveRefund(ctx fiber.Ctx) error {
 
 	if err := h.svc.ApproveRefund(uint(id)); err != nil {
 		return rest.BadRequestError(ctx, err.Error())
+	}
+	if h.adminLogSvc != nil {
+		investmentID := uint(id)
+		note := "Stripe accepted refund request"
+		h.adminLogSvc.LogAction(admin.ID, domain.AdminActionApproveRefund, domain.TargetTypeInvestment, &investmentID, &note)
 	}
 
 	return rest.SuccessResponse(ctx, "refund approved successfully", nil)

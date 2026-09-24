@@ -15,9 +15,10 @@ import (
 )
 
 type ComplaintHandler struct {
-	svc       services.ComplaintService
-	validator *validator.Validate
-	auth      helper.Auth
+	svc         services.ComplaintService
+	validator   *validator.Validate
+	auth        helper.Auth
+	adminLogSvc services.AdminLogService
 }
 
 func SetupComplaintRoutes(rh *rest.RestHandler) {
@@ -28,9 +29,10 @@ func SetupComplaintRoutes(rh *rest.RestHandler) {
 	)
 
 	h := &ComplaintHandler{
-		svc:       svc,
-		validator: rh.Validator,
-		auth:      rh.Auth,
+		svc:         svc,
+		validator:   rh.Validator,
+		auth:        rh.Auth,
+		adminLogSvc: rh.AdminLogSvc,
 	}
 
 	// Logged-in users
@@ -236,6 +238,15 @@ func (h *ComplaintHandler) adminClose(ctx fiber.Ctx, resolve bool) error {
 			return ctx.Status(http.StatusNotFound).JSON(fiber.Map{"message": opErr.Error()})
 		}
 		return rest.BadRequestError(ctx, opErr.Error())
+	}
+	if h.adminLogSvc != nil {
+		complaintID := uint(id)
+		action := domain.AdminActionResolveComplaint
+		if !resolve {
+			action = domain.AdminActionRejectComplaint
+		}
+		note := req.AdminNote
+		h.adminLogSvc.LogAction(admin.ID, action, domain.TargetTypeComplaint, &complaintID, &note)
 	}
 
 	msg := "complaint resolved"
