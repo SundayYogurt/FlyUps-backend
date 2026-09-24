@@ -22,14 +22,14 @@ const (
 // ProfitPool records a profit transfer from a pioneer for a project
 type ProfitPool struct {
 	ID            uint             `json:"id"`
-	ProjectID     uint             `json:"project_id" gorm:"index"`
+	ProjectID     uint             `json:"project_id" gorm:"index;uniqueIndex:idx_profit_pool_project_quarter"`
 	PioneerUserID uint             `json:"pioneer_user_id" gorm:"index"`
 	TotalAmount   float64          `json:"total_amount"`
 	TransferRef   string           `json:"transfer_ref"`
 	SlipImage     string           `json:"slip_image" gorm:"default:''"`
 	Status        ProfitPoolStatus `json:"status" gorm:"default:'pending'"`
 	AdminNote     string           `json:"admin_note"`
-	QuarterNo     int              `json:"quarter_no" gorm:"default:0"` // 0 = unspecified, 1-4 = quarterly payment
+	QuarterNo     int              `json:"quarter_no" gorm:"default:0;uniqueIndex:idx_profit_pool_project_quarter"` // 1-4 = quarterly payment
 	gorm.Model
 }
 

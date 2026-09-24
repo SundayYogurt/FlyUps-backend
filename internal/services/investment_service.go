@@ -1011,6 +1011,7 @@ func (s *investmentService) VoteMilestone(boosterUserID uint, milestoneID uint, 
 						_ = s.projectRepo.UpdateMilestone(&allMs[i])
 					}
 				}
+				s.closeProjectWhenAllMilestonesPaid(m.ProjectID, allMs)
 			}
 
 			if p, pErr := s.projectRepo.FindProjectByID(m.ProjectID); pErr == nil {
@@ -1180,6 +1181,7 @@ func (s *investmentService) FinalizeVotingIfExpired(milestoneID uint) error {
 					_ = s.projectRepo.UpdateMilestone(&allMs[i])
 				}
 			}
+			s.closeProjectWhenAllMilestonesPaid(m.ProjectID, allMs)
 		}
 
 		if p, pErr := s.projectRepo.FindProjectByID(m.ProjectID); pErr == nil {
@@ -1286,6 +1288,31 @@ func (s *investmentService) GetMilestoneVoters(pioneerUserID uint, milestoneID u
 }
 
 // // private methods
+
+func (s *investmentService) closeProjectWhenAllMilestonesPaid(projectID uint, milestones []domain.Milestone) {
+	if len(milestones) == 0 {
+		return
+	}
+	for i := range milestones {
+		if milestones[i].Status != domain.MilestonePaid {
+			return
+		}
+	}
+
+	project, err := s.projectRepo.FindProjectByID(projectID)
+	if err != nil || project == nil {
+		return
+	}
+	if project.State == domain.StateClosed && project.Status == domain.StatusCompleted {
+		return
+	}
+
+	project.State = domain.StateClosed
+	project.Status = domain.StatusCompleted
+	if _, err := s.projectRepo.UpdateProject(project); err != nil {
+		log.Printf("[closeProjectWhenAllMilestonesPaid] update project %d error: %v", projectID, err)
+	}
+}
 
 // createDisbursementForMilestone creates a pending disbursement record when
 // a milestone passes booster voting. Idempotent — safe to call if one already exists.

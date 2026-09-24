@@ -2372,6 +2372,17 @@ func (s *projectService) AutoProjectLifecycleTick(now time.Time) error {
 	for i := range projects {
 		p := &projects[i]
 
+		// Reconcile legacy/inconsistent data: a project with every milestone paid
+		// is completed even if its state was left behind as funding.
+		if milestones, milestoneErr := s.projectRepo.FindMilestonesByProjectID(p.ID); milestoneErr == nil && allMilestonesPaid(milestones) {
+			p.State = domain.StateClosed
+			p.Status = domain.StatusCompleted
+			if _, updateErr := s.projectRepo.UpdateProject(p); updateErr != nil {
+				return updateErr
+			}
+			continue
+		}
+
 		// 1. Success condition: Reached Hardcap OR (time expired AND reached Softcap)
 		isHardcapReached := p.CurrentFunding >= p.FundingGoal
 		isExpiredAndSoftcap := !p.EndDate.IsZero() && !now.Before(p.EndDate) && p.CurrentFunding >= p.Softcap
@@ -2505,6 +2516,16 @@ func (s *projectService) AutoProjectLifecycleTick(now time.Time) error {
 			continue
 		}
 
+		// Completion must not wait for ExecutionEndAt once every phase is paid.
+		if allMilestonesPaid(milestones) {
+			p.State = domain.StateClosed
+			p.Status = domain.StatusCompleted
+			if _, err := s.projectRepo.UpdateProject(p); err != nil {
+				return err
+			}
+			continue
+		}
+
 		if p.ExecutionEndAt == nil {
 			continue
 		}
@@ -2532,6 +2553,18 @@ func (s *projectService) AutoProjectLifecycleTick(now time.Time) error {
 	}
 
 	return nil
+}
+
+func allMilestonesPaid(milestones []domain.Milestone) bool {
+	if len(milestones) == 0 {
+		return false
+	}
+	for i := range milestones {
+		if milestones[i].Status != domain.MilestonePaid {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*domain.Meeting, error) {
