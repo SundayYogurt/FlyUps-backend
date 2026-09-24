@@ -2,6 +2,7 @@ package handler
 
 import (
 	"flyup/internal/api/rest"
+	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/helper"
 	"flyup/internal/repository"
@@ -16,9 +17,10 @@ import (
 const errInvalidBody = "invalid request body"
 
 type ProfitPoolHandler struct {
-	svc       services.ProfitPoolService
-	validator *validator.Validate
-	auth      helper.Auth
+	svc         services.ProfitPoolService
+	validator   *validator.Validate
+	auth        helper.Auth
+	adminLogSvc services.AdminLogService
 }
 
 func SetupProfitPoolRoutes(rh *rest.RestHandler) {
@@ -30,7 +32,7 @@ func SetupProfitPoolRoutes(rh *rest.RestHandler) {
 		rh.InvestmentSvc,
 		rh.NotifSvc,
 	)
-	h := &ProfitPoolHandler{svc, rh.Validator, rh.Auth}
+	h := &ProfitPoolHandler{svc: svc, validator: rh.Validator, auth: rh.Auth, adminLogSvc: rh.AdminLogSvc}
 
 	admin := rh.App.Group("/admin/profit-pools", rh.Middlewares.AuthorizeAdmin)
 	admin.Post("/", h.Create)
@@ -210,6 +212,11 @@ func (h *ProfitPoolHandler) ConfirmPayout(ctx fiber.Ctx) error {
 			return ctx.Status(http.StatusNotFound).JSON(fiber.Map{"message": err.Error()})
 		}
 		return rest.BadRequestError(ctx, err.Error())
+	}
+	if h.adminLogSvc != nil {
+		id := uint(payoutID)
+		note := req.TransferRef
+		h.adminLogSvc.LogAction(currentUser.ID, domain.AdminActionConfirmProfitPayout, domain.TargetTypeProfitPayout, &id, &note)
 	}
 	return rest.SuccessResponse(ctx, "payout confirmed", nil)
 }
