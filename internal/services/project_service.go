@@ -1022,6 +1022,28 @@ func (s *projectService) OpenMilestoneVoting(milestoneID uint, user domain.User)
 	if err := s.projectRepo.UpdateMilestone(m); err != nil {
 		return nil, err
 	}
+
+	if s.notifSvc != nil {
+		if investorIDs, findErr := s.projectRepo.FindInvestorIDsByProjectID(m.ProjectID); findErr == nil {
+			relatedID := m.ID
+			relatedType := "vote"
+			body := fmt.Sprintf("โปรเจกต์ %s เปิดโหวต Milestone Phase %d: %s แล้ว", project.Title, m.PhaseNo, m.Title)
+			for _, investorID := range investorIDs {
+				if notifyErr := s.notifSvc.CreateAndPush(
+					investorID,
+					domain.NotifVote,
+					"เปิดโหวต Milestone แล้ว",
+					body,
+					&relatedID,
+					&relatedType,
+				); notifyErr != nil {
+					log.Printf("[OpenMilestoneVoting] send notification to investor %d error: %v", investorID, notifyErr)
+				}
+			}
+		} else {
+			log.Printf("[OpenMilestoneVoting] find investors error: %v", findErr)
+		}
+	}
 	return m, nil
 }
 
@@ -2585,6 +2607,35 @@ func (s *projectService) Meeting(input dto.CreateMeetingRequest, userID uint) (*
 
 	if err := s.projectRepo.SaveMeeting(meeting); err != nil {
 		return nil, err
+	}
+
+	if s.notifSvc != nil {
+		if investorIDs, findErr := s.projectRepo.FindInvestorIDsByProjectID(milestone.ProjectID); findErr == nil {
+			relatedID := meeting.ID
+			relatedType := "meeting"
+			body := fmt.Sprintf(
+				"โปรเจกต์ %s นัดประชุม Milestone Phase %d: %s วันที่ %s เวลา %s น.",
+				project.Title,
+				milestone.PhaseNo,
+				milestone.Title,
+				meeting.Date.Format("02/01/2006"),
+				meeting.Time.Format("15:04"),
+			)
+			for _, investorID := range investorIDs {
+				if notifyErr := s.notifSvc.CreateAndPush(
+					investorID,
+					domain.NotifMeeting,
+					"มีนัดประชุม Milestone ใหม่",
+					body,
+					&relatedID,
+					&relatedType,
+				); notifyErr != nil {
+					log.Printf("[Meeting] send notification to investor %d error: %v", investorID, notifyErr)
+				}
+			}
+		} else {
+			log.Printf("[Meeting] find investors error: %v", findErr)
+		}
 	}
 
 	investorEmails, _ := s.projectRepo.FindInvestorsEmailByProjectID(milestone.ProjectID)
