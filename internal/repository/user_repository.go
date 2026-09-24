@@ -322,22 +322,22 @@ func (r *userRepository) UpsertStudentProfileByUserID(profile *domain.StudentPro
 			"university_id": profile.UniversityID,
 		}
 		if profile.StudentCode != nil {
-			updates["student_code"] = profile.StudentCode
+			updates["student_code"] = *profile.StudentCode
 		}
 		if profile.Faculty != nil {
-			updates["faculty"] = profile.Faculty
+			updates["faculty"] = *profile.Faculty
 		}
 		if profile.Major != nil {
-			updates["major"] = profile.Major
+			updates["major"] = *profile.Major
 		}
 		if profile.Bio != nil {
-			updates["bio"] = profile.Bio
+			updates["bio"] = *profile.Bio
 		}
 		if profile.Portfolio != nil {
-			updates["portfolio"] = profile.Portfolio
+			updates["portfolio"] = *profile.Portfolio
 		}
 		if profile.Skills != nil {
-			updates["skills"] = profile.Skills
+			updates["skills"] = *profile.Skills
 		}
 		return tx.Model(&domain.StudentProfile{}).Where("user_id = ?", profile.UserID).Updates(updates).Error
 	})
