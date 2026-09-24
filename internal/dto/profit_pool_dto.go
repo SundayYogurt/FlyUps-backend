@@ -7,7 +7,7 @@ type CreateProfitPoolRequest struct {
 	TotalAmount float64 `json:"total_amount" validate:"required,gt=0"`
 	TransferRef string  `json:"transfer_ref" validate:"required"`
 	AdminNote   string  `json:"admin_note"`
-	QuarterNo   int     `json:"quarter_no" validate:"min=0,max=4"`
+	QuarterNo   int     `json:"quarter_no" validate:"required,min=1,max=4"`
 }
 
 type PioneerSubmitProfitRequest struct {

@@ -48,6 +48,19 @@ func (s *profitPoolService) Create(adminID uint, req dto.CreateProfitPoolRequest
 	if err != nil {
 		return nil, errors.New("project not found")
 	}
+	allPools, err := s.repo.ListAll()
+	if err != nil {
+		return nil, errors.New(errInternalServer)
+	}
+	projectPools := make([]domain.ProfitPool, 0)
+	for _, existingPool := range allPools {
+		if existingPool.ProjectID == req.ProjectID {
+			projectPools = append(projectPools, existingPool)
+		}
+	}
+	if err := s.validateProfitEligibility(project, req.QuarterNo, projectPools); err != nil {
+		return nil, err
+	}
 
 	if err := s.investmentSvc.SyncProjectPrincipalAmounts(req.ProjectID); err != nil {
 		log.Printf("[ProfitPool.Create] sync principal amounts error: %v", err)
@@ -98,7 +111,9 @@ func (s *profitPoolService) Create(adminID uint, req dto.CreateProfitPoolRequest
 			SharePct:      sharePct,
 			Status:        domain.InvestorPayoutPending,
 		}
-		_ = s.repo.CreatePayout(payout)
+		if err := s.repo.CreatePayout(payout); err != nil {
+			return nil, errors.New("failed to create investor payout")
+		}
 	}
 
 	return s.GetDetail(pool.ID)
@@ -267,10 +282,90 @@ func (s *profitPoolService) ConfirmPayout(poolID uint, payoutID uint, adminID ui
 	}
 	if allDone {
 		pool.Status = domain.ProfitPoolCompleted
-		_ = s.repo.Update(pool)
+		if err := s.repo.Update(pool); err != nil {
+			return errors.New("failed to complete profit pool")
+		}
+		if pool.QuarterNo == 4 {
+			s.completeProjectAfterFourQuarters(pool)
+		}
 	}
 
 	return nil
+}
+
+func (s *profitPoolService) validateProfitEligibility(project *domain.Project, quarterNo int, existing []domain.ProfitPool) error {
+	if project.State != domain.StateExecuting && project.State != domain.StateClosed {
+		return errors.New("project must be in executing or closed state")
+	}
+	milestones, err := s.projectRepo.FindMilestonesByProjectID(project.ID)
+	if err != nil || len(milestones) != 4 {
+		return errors.New("โปรเจกต์ต้องมี Milestone ครบ 4 Phase ก่อนจ่ายปันผล")
+	}
+	for _, m := range milestones {
+		if m.Status != domain.MilestonePaid {
+			return errors.New("ต้องผ่านครบทุก Phase Milestone ก่อนจึงจะจ่ายปันผลได้")
+		}
+	}
+
+	quarterMap := make(map[int]domain.ProfitPool, len(existing))
+	for _, pool := range existing {
+		quarterMap[pool.QuarterNo] = pool
+	}
+	if _, exists := quarterMap[quarterNo]; exists {
+		return fmt.Errorf("ไตรมาสที่ %d ส่งไปแล้ว", quarterNo)
+	}
+	for q := 1; q < quarterNo; q++ {
+		pool, exists := quarterMap[q]
+		if !exists {
+			return fmt.Errorf("ต้องส่งปันผลไตรมาสที่ %d ก่อน", q)
+		}
+		if pool.Status != domain.ProfitPoolCompleted {
+			return fmt.Errorf("ต้องแจกจ่ายปันผลไตรมาสที่ %d ให้ครบก่อน", q)
+		}
+	}
+	return nil
+}
+
+func (s *profitPoolService) completeProjectAfterFourQuarters(finalPool *domain.ProfitPool) {
+	pools, err := s.repo.ListByPioneerUserID(finalPool.PioneerUserID)
+	if err != nil {
+		return
+	}
+	completed := make(map[int]bool, 4)
+	for _, pool := range pools {
+		if pool.ProjectID == finalPool.ProjectID && pool.Status == domain.ProfitPoolCompleted {
+			completed[pool.QuarterNo] = true
+		}
+	}
+	for quarter := 1; quarter <= 4; quarter++ {
+		if !completed[quarter] {
+			return
+		}
+	}
+
+	project, err := s.projectRepo.FindProjectByID(finalPool.ProjectID)
+	if err != nil || project == nil {
+		return
+	}
+	project.State = domain.StateClosed
+	project.Status = domain.StatusCompleted
+	if _, err := s.projectRepo.UpdateProject(project); err != nil {
+		log.Printf("[completeProjectAfterFourQuarters] update project %d error: %v", project.ID, err)
+		return
+	}
+
+	if s.notifSvc != nil {
+		relatedID := project.ID
+		relatedType := "project"
+		_ = s.notifSvc.CreateAndPush(
+			project.OwnerUserID,
+			domain.NotifProfit,
+			"จ่ายปันผลครบ 4 ไตรมาสแล้ว",
+			fmt.Sprintf("โปรเจกต์ %s แจกจ่ายปันผลให้นักลงทุนครบทั้ง 4 ไตรมาสแล้ว", project.Title),
+			&relatedID,
+			&relatedType,
+		)
+	}
 }
 
 func (s *profitPoolService) validatePioneerProjectForProfit(pioneerID, projectID uint, quarterNo int) (*domain.Project, error) {
@@ -281,35 +376,15 @@ func (s *profitPoolService) validatePioneerProjectForProfit(pioneerID, projectID
 	if project.OwnerUserID != pioneerID {
 		return nil, errors.New("permission denied")
 	}
-	if project.State != domain.StateExecuting && project.State != domain.StateClosed {
-		return nil, errors.New("project must be in executing or closed state")
-	}
-	// ตรวจว่า milestone ครบ 4 phase และทุก phase เป็น paid ก่อนจ่ายปันผล
-	milestones, err := s.projectRepo.FindMilestonesByProjectID(projectID)
-	if err != nil || len(milestones) == 0 {
-		return nil, errors.New("ยังไม่มีข้อมูล Milestone")
-	}
-	for _, m := range milestones {
-		if m.Status != domain.MilestonePaid {
-			return nil, errors.New("ต้องผ่านครบทุก Phase Milestone ก่อนจึงจะจ่ายปันผลได้")
-		}
-	}
-	exists, err := s.repo.ExistsByProjectAndQuarter(projectID, quarterNo)
-	if err != nil {
-		return nil, errors.New(errInternalServer)
-	}
-	if exists {
-		return nil, fmt.Errorf("ไตรมาสที่ %d ส่งไปแล้ว", quarterNo)
-	}
 	existing, _ := s.repo.ListByPioneerUserID(pioneerID)
-	count := 0
+	projectPools := make([]domain.ProfitPool, 0)
 	for _, p := range existing {
 		if p.ProjectID == projectID {
-			count++
+			projectPools = append(projectPools, p)
 		}
 	}
-	if count >= 4 {
-		return nil, errors.New("ส่งครบ 4 ไตรมาสแล้ว")
+	if err := s.validateProfitEligibility(project, quarterNo, projectPools); err != nil {
+		return nil, err
 	}
 	return project, nil
 }
@@ -348,6 +423,9 @@ func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dt
 	for _, inv := range investors {
 		totalPrincipal += inv.PrincipalAmount
 	}
+	if totalPrincipal <= 0 {
+		return nil, errors.New("total principal is zero")
+	}
 
 	pool := &domain.ProfitPool{
 		ProjectID:     projectID,
@@ -362,17 +440,26 @@ func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dt
 		return nil, errors.New("failed to create profit pool")
 	}
 
-	for _, inv := range investors {
+	var totalAllocated float64
+	for i, inv := range investors {
 		sharePct := math.Round((inv.PrincipalAmount/totalPrincipal)*10000) / 100
-		amount := math.Round((inv.PrincipalAmount/totalPrincipal)*req.TotalAmount*100) / 100
-		_ = s.repo.CreatePayout(&domain.InvestorProfitPayout{
+		var amount float64
+		if i == len(investors)-1 {
+			amount = math.Round((req.TotalAmount-totalAllocated)*100) / 100
+		} else {
+			amount = math.Round((inv.PrincipalAmount/totalPrincipal)*req.TotalAmount*100) / 100
+			totalAllocated += amount
+		}
+		if err := s.repo.CreatePayout(&domain.InvestorProfitPayout{
 			ProfitPoolID:  pool.ID,
 			ProjectID:     projectID,
 			BoosterUserID: inv.UserID,
 			Amount:        amount,
 			SharePct:      sharePct,
 			Status:        domain.InvestorPayoutPending,
-		})
+		}); err != nil {
+			return nil, errors.New("failed to create investor payout")
+		}
 	}
 
 	s.notifyAdminsNewProfit(pool, project.Title)
