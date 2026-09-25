@@ -417,10 +417,31 @@ func TestCreateInvestment_ExceedsMaxPerTransaction(t *testing.T) {
 	}
 	projectRepo.On("FindProjectByID", uint(1)).Return(project, nil)
 
-	_, err := svc.CreateInvestment(10, "user@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 600_000})
+	_, err := svc.CreateInvestment(10, "user@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 1_000_000})
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "ยอดลงทุนต่อรายการต้องไม่เกิน")
+	investRepo.AssertNotCalled(t, "Create", mock.Anything)
+}
+
+func TestCreateInvestment_RejectsFractionalBaht(t *testing.T) {
+	projectRepo := new(ProjectRepository)
+	investRepo := new(mockInvestmentRepo)
+	txnRepo := new(mockTransactionRepo)
+	userRepo := new(mockUserRepository)
+
+	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
+
+	userRepo.On("FindUserById", uint(10)).Return(&domain.User{
+		ID:                 10,
+		Role:               "booster",
+		IdCardVerification: &domain.IdCardVerification{Status: domain.VerifyStatusApproved},
+	}, nil)
+
+	_, err := svc.CreateInvestment(10, "user@test.com", dto.CreateInvestmentRequest{ProjectID: 1, Amount: 1_000.50})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "จำนวนเต็มบาท")
 	investRepo.AssertNotCalled(t, "Create", mock.Anything)
 }
 
@@ -719,11 +740,30 @@ func TestApproveRefund_TransactionNotFound(t *testing.T) {
 
 	inv := &domain.Investment{ID: 1, ProjectID: 5, Status: domain.InvestmentRefundPending, TotalAmount: 1000}
 	investRepo.On("FindByID", uint(1)).Return(inv, nil)
+	projectRepo.On("FindProjectByID", uint(5)).Return(&domain.Project{ID: 5, State: domain.StateFunding}, nil)
 	txnRepo.On("FindByInvestmentID", uint(1)).Return(&domain.Transaction{}, errors.New("not found"))
 
 	err := svc.ApproveRefund(1)
 
 	assert.EqualError(t, err, "transaction not found")
+}
+
+func TestApproveRefund_ProjectCancellationOwnsRefund(t *testing.T) {
+	projectRepo := new(ProjectRepository)
+	investRepo := new(mockInvestmentRepo)
+	txnRepo := new(mockTransactionRepo)
+	userRepo := new(mockUserRepository)
+
+	svc := newTestInvestmentService(projectRepo, investRepo, txnRepo, userRepo)
+
+	inv := &domain.Investment{ID: 1, ProjectID: 5, Status: domain.InvestmentRefundPending, TotalAmount: 1000}
+	investRepo.On("FindByID", uint(1)).Return(inv, nil)
+	projectRepo.On("FindProjectByID", uint(5)).Return(&domain.Project{ID: 5, State: domain.StateCancelled}, nil)
+
+	err := svc.ApproveRefund(1)
+
+	assert.EqualError(t, err, "project cancellation handles this refund automatically")
+	txnRepo.AssertNotCalled(t, "FindByInvestmentID", mock.Anything)
 }
 
 // ─── ListRefundRequests ───────────────────────────────────────────────────────

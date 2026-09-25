@@ -31,9 +31,9 @@ import (
 )
 
 // MaxInvestmentPerTransaction คือเพดานต่อรายการ (THB)
-// — ต่ำกว่า limit ของ Stripe API (~999,999.99 THB) เพื่อเผื่อ fees/rounding
-// — เลขกลมตามมาตรฐาน fintech ไทย; ผู้ใช้ที่ลงทุนสูงกว่านี้ต้องแบ่งหลายรายการ
-const MaxInvestmentPerTransaction = 500_000.0
+// Stripe รองรับ amount สูงสุด 8 หลักในหน่วยย่อยของสกุลเงิน
+// ระบบรับยอดลงทุนเป็นจำนวนเต็มบาท จึงใช้เพดาน 999,999 บาท
+const MaxInvestmentPerTransaction = 999_999.0
 
 // MinInvestmentPerTransaction คือขั้นต่ำต่อรายการ (THB) ตามขั้นต่ำของช่องทางชำระเงิน Stripe (PromptPay)
 const MinInvestmentPerTransaction = 20.0
@@ -279,6 +279,10 @@ func (s *investmentService) CreateInvestment(boosterUserID uint, boosterEmail st
 	}
 	if user.IdCardVerification == nil || user.IdCardVerification.Status != domain.VerifyStatusApproved {
 		return nil, errors.New("identity verification required before investing")
+	}
+
+	if req.Amount != math.Trunc(req.Amount) {
+		return nil, errors.New("ยอดลงทุนต้องเป็นจำนวนเต็มบาทเท่านั้น")
 	}
 
 	if req.Amount > MaxInvestmentPerTransaction {
@@ -575,6 +579,14 @@ func (s *investmentService) ApproveRefund(investmentID uint) error {
 		return errors.New("investment is not pending refund")
 	}
 
+	// เมื่อโปรเจกต์เข้าสู่ขั้นตอนยกเลิก การคืนเงินทั้งหมดจะถูกจัดการโดย
+	// RefundProjectInvestments เพียงทางเดียว เพื่อไม่ให้ Admin ยิง refund ซ้ำรายรายการ
+	if project, projectErr := s.projectRepo.FindProjectByID(investment.ProjectID); projectErr == nil {
+		if project.State == domain.StatePendingCancel || project.State == domain.StateCancelled {
+			return errors.New("project cancellation handles this refund automatically")
+		}
+	}
+
 	txn, err := s.transactionRepo.FindByInvestmentID(investment.ID)
 	if err != nil {
 		return errors.New("transaction not found")
@@ -647,7 +659,15 @@ func (s *investmentService) RefundProjectInvestments(project domain.Project) {
 		log.Printf("[RefundProjectInvestments] sync principal amounts error: %v", err)
 	}
 
-	investments, err := s.investmentRepo.FindVerifiedByProjectID(project.ID)
+	// รวมทั้งรายการปกติและรายการที่ Booster ขอคืนไว้ก่อนโปรเจกต์เข้าสู่
+	// pending_cancel เพื่อไม่ให้ refund_pending ตกหล่นจากการคืนเงินทั้งโครงการ
+	var investments []domain.Investment
+	err := s.db.
+		Where("project_id = ? AND status IN ?", project.ID, []domain.InvestmentStatus{
+			domain.InvestmentVerified,
+			domain.InvestmentRefundPending,
+		}).
+		Find(&investments).Error
 	if err != nil {
 		log.Printf("[RefundProjectInvestments] find investments error: %v", err)
 		return
@@ -726,10 +746,14 @@ func (s *investmentService) RefundProjectInvestments(project domain.Project) {
 
 		// ยิง Stripe Refund
 		refundAmountSatang := int64(math.Round(refundAmount * 100))
-		_, err = refund.New(&stripe.RefundParams{
+		refundParams := &stripe.RefundParams{
 			PaymentIntent: stripe.String(txn.StripePaymentIntentID),
 			Amount:        stripe.Int64(refundAmountSatang),
-		})
+		}
+		// ใช้ key เดียวกับ ApproveRefund เพื่อให้ Stripe รับคำสั่งคืนเงินของ
+		// Investment หนึ่งรายการได้เพียงครั้งเดียว แม้สอง flow ชนกัน
+		refundParams.SetIdempotencyKey(fmt.Sprintf("investment-refund-%d", inv.ID))
+		_, err = refund.New(refundParams)
 		if err != nil {
 			log.Printf("[RefundProjectInvestments] stripe refund fail inv %d: %v", inv.ID, err)
 			continue
@@ -816,7 +840,13 @@ func (s *investmentService) GetCancelPreview(projectID uint) (*dto.CancelPreview
 	}
 
 	// use same logic as RefundProjectInvestments — ใช้ฐาน PrincipalAmount (สุทธิหลังหักค่าธรรมเนียม)
-	investments, err := s.investmentRepo.FindVerifiedByProjectID(projectID)
+	var investments []domain.Investment
+	err = s.db.
+		Where("project_id = ? AND status IN ?", projectID, []domain.InvestmentStatus{
+			domain.InvestmentVerified,
+			domain.InvestmentRefundPending,
+		}).
+		Find(&investments).Error
 	if err != nil {
 		return nil, err
 	}

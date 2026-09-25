@@ -556,7 +556,7 @@ transaction pending                investment verified
 - **Platform Fee:** 3% of investment amount
 - **VAT:** 7% on platform fee
 - **Stripe Fee:** Varies (deducted by Stripe)
-- **Max Investment per Transaction:** 500,000 THB
+- **Max Investment per Transaction:** 999,999 THB (whole baht only)
 
 ---
 
