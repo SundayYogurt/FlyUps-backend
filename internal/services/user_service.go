@@ -1540,10 +1540,6 @@ func (s *userService) UpdateProfile(ctx context.Context, userID uint, input dto.
 		return errors.New("lastName name cannot be empty")
 	}
 
-	if input.Phone == nil {
-		return errors.New("invalid phone")
-	}
-
 	if input.Address != nil && strings.TrimSpace(*input.Address) == "" {
 		return errors.New("address cannot be empty")
 	}
