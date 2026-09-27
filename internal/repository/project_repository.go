@@ -968,6 +968,9 @@ func (p *projectRepository) FindPublicProjects(filter dto.PublicProjectFilter) (
 func (p *projectRepository) FindProjectsByOwnerID(ownerID uint) ([]domain.Project, error) {
 	var projects []domain.Project
 	err := p.db.
+		Preload("Milestones", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC, phase_no ASC")
+		}).
 		Where("owner_user_id = ?", ownerID).
 		Order("created_at DESC").
 		Find(&projects).Error
