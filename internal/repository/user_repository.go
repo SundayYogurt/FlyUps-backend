@@ -32,6 +32,7 @@ type UserRepository interface {
 	CreateConsents(consents []*domain.UserConsent) error
 	UpdateIdVerification(v *domain.IdCardVerification) error
 	FindLatestIdVerification(userID uint) (*domain.IdCardVerification, error)
+	FindIdVerificationByCardFingerprint(fingerprint string) (*domain.IdCardVerification, error)
 	UpdateStudentVerification(v *domain.StudentCardVerification) error
 	FindLatestStudentVerification(userID uint) (*domain.StudentCardVerification, error)
 	CreateStudentVerification(v *domain.StudentCardVerification) error
@@ -190,7 +191,7 @@ func (r *userRepository) FindStudentStatus(userID uint) (*domain.StudentCardVeri
 
 func (r *userRepository) UpdateIdCardVerification(v *domain.IdCardVerification) error {
 	return r.db.Model(&domain.IdCardVerification{}).
-		Where("user_id = ?", v.UserID).
+		Where("id = ? AND user_id = ?", v.ID, v.UserID).
 		Updates(map[string]interface{}{
 			"status":      v.Status,
 			"verified_at": v.VerifiedAt,
@@ -275,12 +276,13 @@ func (r *userRepository) UpdateIdVerification(v *domain.IdCardVerification) erro
 	return r.db.Model(&domain.IdCardVerification{}).
 		Where("id = ?", v.ID).
 		Updates(map[string]interface{}{
-			"document":    v.Document,
-			"selfie_url":  v.SelfieURL,
-			"status":      v.Status,
-			"face_score":  v.FaceScore,
-			"ocr_payload": v.OcrPayload,
-			"verified_at": v.VerifiedAt,
+			"document":         v.Document,
+			"selfie_url":       v.SelfieURL,
+			"status":           v.Status,
+			"face_score":       v.FaceScore,
+			"ocr_payload":      v.OcrPayload,
+			"card_fingerprint": v.CardFingerprint,
+			"verified_at":      v.VerifiedAt,
 		}).Error
 }
 
@@ -291,6 +293,15 @@ func (r *userRepository) FindLatestIdVerification(userID uint) (*domain.IdCardVe
 		Order("created_at DESC").
 		First(&v).Error
 
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	return &v, err
+}
+
+func (r *userRepository) FindIdVerificationByCardFingerprint(fingerprint string) (*domain.IdCardVerification, error) {
+	var v domain.IdCardVerification
+	err := r.db.Where("card_fingerprint = ?", fingerprint).First(&v).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}

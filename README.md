@@ -176,6 +176,21 @@ docker-compose up -d
 go run main.go
 ```
 
+For ID card verifications created before card-number matching was added, run the
+backfill after the server migration has added `card_fingerprint`:
+
+```bash
+go run ./cmd/backfill_id_cards
+go run ./cmd/backfill_id_cards -apply
+```
+
+The first command only counts legacy records. `-apply` calls the billed iApp ID
+card OCR endpoint for each old card image and stores a keyed fingerprint. It
+uses `DSN`, `APP_SECRET`, and `IAPP_API_KEY` from the environment or `.env`.
+Review any unresolved records reported by the command; those cards cannot be
+matched against new submissions until their numbers are recovered. Keep
+`APP_SECRET` stable so stored fingerprints remain comparable.
+
 6. **Access the application**
 - API Server: `http://localhost:8080`
 - Swagger Docs: `http://localhost:8080/swagger/index.html`
