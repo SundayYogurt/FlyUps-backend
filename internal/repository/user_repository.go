@@ -20,6 +20,7 @@ type UserRepository interface {
 	UpsertStudentProfileByUserID(profile *domain.StudentProfile) error
 	CreateBankAccount(bank *domain.BankAccount) error
 	UpdateBankAccount(bank *domain.BankAccount) error
+	DeleteBankAccount(userID uint, bankID uint) error
 	FindBankByUserId(userID uint) ([]domain.BankAccount, error)
 	FindBankById(id uint) (*domain.BankAccount, error)
 	FindBankByAccountNumber(accountNumber string) (*domain.BankAccount, error)
@@ -448,4 +449,24 @@ func (r *userRepository) FindAllByRole(role string) ([]domain.User, error) {
 	var users []domain.User
 	err := r.db.Where("role = ?", role).Find(&users).Error
 	return users, err
+}
+
+func (r *userRepository) DeleteBankAccount(userID uint, bankID uint) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var bank domain.BankAccount
+		if err := tx.Where("id = ? AND user_id = ?", bankID, userID).First(&bank).Error; err != nil {
+			return err
+		}
+		if bank.IsDefault {
+			return errors.New("cannot delete default bank account")
+		}
+		result := tx.Where("id = ? AND user_id = ? AND is_default = ?", bankID, userID, false).Delete(&domain.BankAccount{})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return errors.New("cannot delete default bank account")
+		}
+		return nil
+	})
 }

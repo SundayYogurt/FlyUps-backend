@@ -46,6 +46,7 @@ type UserService interface {
 	UpdateBankAccount(userID uint, bankID uint, input dto.BankRequest) error
 	FindBankByUserID(id uint) ([]domain.BankAccount, error)
 	SetDefaultBankAccount(userID uint, bankID uint) error
+	DeleteBankAccount(userID uint, bankID uint) error
 	ApproveIdCard(userID uint, adminID uint) error
 	ApproveStudentCard(userID uint, adminID uint) error
 	RejectIdCard(userID uint, adminID uint) error
@@ -1904,4 +1905,18 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 	}
 
 	return s.Repo.CreateConsents(consents)
+}
+
+func (s *userService) DeleteBankAccount(userID uint, bankID uint) error {
+	if userID == 0 || bankID == 0 {
+		return errors.New("invalid id")
+	}
+	bank, err := s.Repo.FindBankById(bankID)
+	if err != nil || bank == nil {
+		return errors.New("bank not found")
+	}
+	if bank.UserID != userID {
+		return errors.New("not your bank account")
+	}
+	return s.Repo.DeleteBankAccount(userID, bankID)
 }

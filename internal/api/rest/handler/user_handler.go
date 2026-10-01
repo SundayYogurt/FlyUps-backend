@@ -97,6 +97,7 @@ func SetupUserRoutes(rh *rest.RestHandler) {
 	privateRoutes.Get("/me", handler.Me)
 	privateRoutes.Patch("/profile", handler.UpdateProfile)
 	privateRoutes.Post("/add-bank", handler.AddBankAccount)
+	privateRoutes.Delete("/delete-bank/:id", handler.DeleteBankAccount)
 	privateRoutes.Patch("/update-bank/:id", handler.UpdateBankAccount)
 	privateRoutes.Patch("/set-default-bank/:id", handler.SetDefaultBankAccount)
 	privateRoutes.Post("/signout", handler.SignOut)
@@ -465,9 +466,7 @@ func (h *UserHandler) VerifyStudent(ctx fiber.Ctx) error {
 		return rest.BadRequestError(ctx, err.Error())
 	}
 
-	if token != "" {
-		_ = h.svc.MarkKYCSessionCompleted(ctx.Context(), token)
-	}
+	// The ID card and selfie submission completes the mobile KYC session.
 
 	return rest.SuccessResponse(ctx, "successfully submit verify to admin!", nil)
 }
@@ -1645,4 +1644,19 @@ func (h *UserHandler) GetKYCSessionStatus(ctx fiber.Ctx) error {
 	return rest.SuccessResponse(ctx, "success", fiber.Map{
 		"status": status,
 	})
+}
+
+func (h *UserHandler) DeleteBankAccount(ctx fiber.Ctx) error {
+	user := h.auth.GetCurrentUser(ctx)
+	if user.ID == 0 {
+		return rest.ErrorMessage(ctx, http.StatusUnauthorized, errors.New("unauthorized"))
+	}
+	bankID, err := strconv.ParseUint(ctx.Params("id"), 10, 32)
+	if err != nil || bankID == 0 {
+		return rest.BadRequestError(ctx, "invalid Bank ID")
+	}
+	if err := h.svc.DeleteBankAccount(user.ID, uint(bankID)); err != nil {
+		return rest.BadRequestError(ctx, err.Error())
+	}
+	return rest.SuccessResponse(ctx, "bank account deleted successfully", nil)
 }
