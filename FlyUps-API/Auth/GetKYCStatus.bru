@@ -7,7 +7,11 @@ meta {
 get {
   url: {{baseUrl}}/kyc/session-status
   body: json
-  auth: inherit
+  auth: bearer
+}
+
+auth:bearer {
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6InRlc3RAZ21haWwuY29tIiwiZXhwIjoxNzkwODY2Mjg5LCJpYXQiOjE3OTA4NjUzODksInJvbGUiOiJib29zdGVyIiwic3ViIjoiS05tM1lPR1A2S0N3TndJUGRITXoxTUFpeUJRZHBtelBJV09qbndMXyJ9.GRIxH-2mAKNcS6MGy7zAN7jNrzaGjdRErzyccIMM_gY
 }
 
 settings {

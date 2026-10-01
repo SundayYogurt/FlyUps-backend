@@ -93,3 +93,33 @@ func TestVerifyFaceAndIDCardSendsJPEGFromWebPWithProviderFieldOrder(t *testing.T
 		t.Fatalf("iApp was not called correctly: posted=%v result=%q", posted, result)
 	}
 }
+
+func TestReadIDCardFrontSendsCardAsFile(t *testing.T) {
+	card, err := os.ReadFile("testdata/gopher-doc.1bpp.lossless.webp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const cardURL = "https://res.cloudinary.com/dsvexmpb6/image/upload/v1/id.webp"
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	httpmock.RegisterResponder(http.MethodGet, cardURL, httpmock.NewBytesResponder(http.StatusOK, card))
+	posted := false
+	httpmock.RegisterResponder(http.MethodPost, "https://api.iapp.co.th/v3/store/ekyc/thai-national-id-card/front", func(req *http.Request) (*http.Response, error) {
+		posted = true
+		if req.Header.Get("apikey") != "test-key" {
+			t.Error("missing API key")
+		}
+		if err := req.ParseMultipartForm(11 << 20); err != nil {
+			t.Fatal(err)
+		}
+		files := req.MultipartForm.File["file"]
+		if len(files) != 1 || files[0].Header.Get("Content-Type") != "image/jpeg" {
+			t.Errorf("unexpected OCR upload: %+v", files)
+		}
+		return httpmock.NewStringResponse(http.StatusOK, `{"id_number":"1234567890121"}`), nil
+	})
+	result, err := NewIAppService("test-key").ReadIDCardFront(cardURL)
+	if err != nil || !posted || !strings.Contains(result, "1234567890121") {
+		t.Fatalf("OCR call failed: result=%q posted=%v err=%v", result, posted, err)
+	}
+}

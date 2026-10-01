@@ -7,6 +7,7 @@ import (
 	"flyup/config"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
+	"flyup/internal/repository"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -27,6 +28,7 @@ func ptr[T any](v T) *T {
 
 type mockUserRepository struct {
 	mock.Mock
+	repository.UserRepository
 }
 
 func (m *mockUserRepository) FindAdminUserIDs() ([]uint, error) {
@@ -167,6 +169,14 @@ func (m *mockUserRepository) UpdateIdVerification(v *domain.IdCardVerification) 
 
 func (m *mockUserRepository) FindLatestIdVerification(userID uint) (*domain.IdCardVerification, error) {
 	args := m.Called(userID)
+	if args.Get(0) != nil {
+		return args.Get(0).(*domain.IdCardVerification), args.Error(1)
+	}
+	return nil, args.Error(1)
+}
+
+func (m *mockUserRepository) FindIdVerificationByCardFingerprint(fingerprint string) (*domain.IdCardVerification, error) {
+	args := m.Called(fingerprint)
 	if args.Get(0) != nil {
 		return args.Get(0).(*domain.IdCardVerification), args.Error(1)
 	}
@@ -777,7 +787,7 @@ func TestVerifyID_Success_FirstTime(t *testing.T) {
 	defer httpmock.DeactivateAndReset()
 	repo := new(mockUserRepository)
 	// A low-confidence verification is saved for manual review.
-	svc := NewUserService(repo, nil, nil, config.AppConfig{IAppAPIKey: ""}, nil, nil)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{IAppAPIKey: "", AppSecret: "test-secret"}, nil, nil)
 
 	userID := uint(30)
 	idCardURL := "https://res.cloudinary.com/dsvexmpb6/image/upload/idcard.jpg"
@@ -791,10 +801,12 @@ func TestVerifyID_Success_FirstTime(t *testing.T) {
 	httpmock.RegisterResponder("GET", idCardURL, httpmock.NewBytesResponder(200, jpg.Bytes()))
 	httpmock.RegisterResponder("GET", selfieURL, httpmock.NewBytesResponder(200, jpg.Bytes()))
 	httpmock.RegisterResponder("POST", "https://api.iapp.co.th/v3/store/ekyc/face-and-id-card-verification", httpmock.NewStringResponder(200, `{"total":{"isSamePerson":"false","confidence":40}}`))
+	registerValidIDCardOCR()
 	declareTruth := true
 
 	// No existing verification
 	repo.On("FindLatestIdVerification", userID).Return((*domain.IdCardVerification)(nil), nil)
+	repo.On("FindIdVerificationByCardFingerprint", mock.AnythingOfType("string")).Return((*domain.IdCardVerification)(nil), nil)
 	// Create new verification (pending status since OCR key is empty)
 	repo.On("CreateIdVerification", mock.AnythingOfType("*domain.IdCardVerification")).Return(nil)
 	// Consent
@@ -1131,10 +1143,12 @@ func TestApproveIdCard_Success(t *testing.T) {
 	adminID := uint(1)
 
 	repo.On("FindUserById", userID).Return(&domain.User{ID: userID}, nil)
+	fingerprint := "test-fingerprint"
 	repo.On("FindIdCardStatus", userID).Return(&domain.IdCardVerification{
-		ID:     1,
-		UserID: userID,
-		Status: domain.VerifyStatusPending,
+		ID:              1,
+		UserID:          userID,
+		Status:          domain.VerifyStatusPending,
+		CardFingerprint: &fingerprint,
 	}, nil)
 	repo.On("UpdateIdCardVerification", mock.AnythingOfType("*domain.IdCardVerification")).Return(nil)
 
@@ -1164,6 +1178,16 @@ func TestApproveIdCard_Fail_AlreadyApproved(t *testing.T) {
 	assert.Equal(t, "student is already verified", err.Error())
 	repo.AssertNotCalled(t, "UpdateIdCardVerification", mock.Anything)
 	repo.AssertExpectations(t)
+}
+
+func TestApproveIdCard_Fail_MissingCardNumber(t *testing.T) {
+	repo := new(mockUserRepository)
+	svc := NewUserService(repo, nil, nil, config.AppConfig{}, nil, nil)
+	repo.On("FindUserById", uint(10)).Return(&domain.User{ID: 10}, nil)
+	repo.On("FindIdCardStatus", uint(10)).Return(&domain.IdCardVerification{ID: 1, UserID: 10, Status: domain.VerifyStatusPending}, nil)
+	err := svc.ApproveIdCard(10, 1)
+	assert.EqualError(t, err, "ID card number must be read before approval")
+	repo.AssertNotCalled(t, "UpdateIdCardVerification", mock.Anything)
 }
 
 // ─── RejectStudentCard ────────────────────────────────────────────────────────

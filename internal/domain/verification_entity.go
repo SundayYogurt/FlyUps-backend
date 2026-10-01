@@ -16,16 +16,17 @@ const (
 )
 
 type IdCardVerification struct {
-	ID         uint         `json:"id"`
-	UserID     uint         `json:"user_id"`
-	Document   string       `json:"document"`
-	SelfieURL  string       `json:"selfie_url"`
-	Status     VerifyStatus `json:"status"`
-	User       User         `gorm:"foreignKey:UserID"`
-	VerifiedAt *time.Time   `json:"verified_at,omitempty"`
-	ReviewedBy *uint        `json:"reviewed_by,omitempty"`
-	OcrPayload *string      `json:"ocr_payload,omitempty"`
-	FaceScore  *float64     `json:"face_score,omitempty"`
+	ID              uint         `json:"id"`
+	UserID          uint         `json:"user_id"`
+	Document        string       `json:"document"`
+	SelfieURL       string       `json:"selfie_url"`
+	Status          VerifyStatus `json:"status"`
+	User            User         `gorm:"foreignKey:UserID"`
+	VerifiedAt      *time.Time   `json:"verified_at,omitempty"`
+	ReviewedBy      *uint        `json:"reviewed_by,omitempty"`
+	OcrPayload      *string      `json:"ocr_payload,omitempty"`
+	FaceScore       *float64     `json:"face_score,omitempty"`
+	CardFingerprint *string      `json:"-" gorm:"type:varchar(64);uniqueIndex:idx_id_card_verifications_fingerprint"`
 	gorm.Model
 }
 

@@ -30,6 +30,7 @@ type IAppError struct {
 
 type IAppService interface {
 	VerifyFaceAndIDCard(idCardURL, selfieURL string) (string, error)
+	ReadIDCardFront(idCardURL string) (string, error)
 }
 
 type iAppService struct {
@@ -175,6 +176,39 @@ func (s iAppService) VerifyFaceAndIDCard(idCardURL, selfieURL string) (string, e
 	}
 
 	return string(respBody), nil
+}
+
+func (s iAppService) ReadIDCardFront(idCardURL string) (string, error) {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	if err := downloadAndAttachFile(writer, "file", idCardURL); err != nil {
+		return "", err
+	}
+	if err := writer.Close(); err != nil {
+		return "", err
+	}
+	req, err := http.NewRequest(http.MethodPost, "https://api.iapp.co.th/v3/store/ekyc/thai-national-id-card/front", body)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("apikey", s.APIKey)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to read ID card: %w", err)
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("ID card OCR failed with status %d", resp.StatusCode)
+	}
+	if !json.Valid(data) {
+		return "", errors.New("invalid ID card OCR response")
+	}
+	return string(data), nil
 }
 
 func (e *IAppError) Error() string {

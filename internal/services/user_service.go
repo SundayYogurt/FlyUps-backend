@@ -899,14 +899,17 @@ func (s *userService) ApproveIdCard(userID uint, adminID uint) error {
 	if student == nil {
 		return errors.New("no student verification found")
 	}
-
 	if err := checkVerificationStatus(student.Status); err != nil {
 		return err
+	}
+	if student.CardFingerprint == nil || *student.CardFingerprint == "" {
+		return errors.New("ID card number must be read before approval")
 	}
 
 	now := time.Now()
 
 	v := &domain.IdCardVerification{
+		ID:         student.ID,
 		UserID:     userID,
 		Status:     domain.VerifyStatusApproved,
 		VerifiedAt: &now,
@@ -1773,6 +1776,37 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 
 	idCardURL := input.IDCardURL
 	selfieURL := input.SelfieURL
+	if s.Config.AppSecret == "" {
+		return errors.New("ID card verification is not configured")
+	}
+	cardOCR, err := iappSvc.ReadIDCardFront(idCardURL)
+	if err != nil {
+		return errors.New("could not read ID card number; retake the card photo and try again")
+	}
+	var cardResult struct {
+		IDNumber string `json:"id_number"`
+	}
+	if err := json.Unmarshal([]byte(cardOCR), &cardResult); err != nil {
+		return errors.New("invalid ID card OCR response")
+	}
+	cardNumber, err := helper.NormalizeThaiIDNumber(cardResult.IDNumber)
+	if err != nil {
+		return errors.New("could not read a valid ID card number; retake the card photo and try again")
+	}
+	fingerprint := helper.IDCardFingerprint(cardNumber, s.Config.AppSecret)
+	usedCard, err := s.Repo.FindIdVerificationByCardFingerprint(fingerprint)
+	if err != nil {
+		return errors.New("failed to check ID card usage")
+	}
+	if usedCard != nil && usedCard.UserID != userID {
+		return errors.New("ID card is already used by another account")
+	}
+	if usedCard != nil && (existing == nil || usedCard.ID != existing.ID) {
+		return errors.New("ID card was previously submitted by this account")
+	}
+	if existing != nil && existing.Status == domain.VerifyStatusPending && existing.CardFingerprint != nil && *existing.CardFingerprint != fingerprint {
+		return errors.New("pending verification belongs to a different ID card")
+	}
 
 	ocrPayload, ocrErr := iappSvc.VerifyFaceAndIDCard(idCardURL, selfieURL)
 
@@ -1829,25 +1863,32 @@ func (s *userService) VerifyID(userID uint, input dto.VerifyIDInput) error {
 
 	// สร้าง object
 	verify := &domain.IdCardVerification{
-		UserID:     userID,
-		Document:   idCardURL,
-		SelfieURL:  selfieURL,
-		Status:     finalStatus,
-		FaceScore:  faceScore,
-		OcrPayload: &ocrPayload,
-		VerifiedAt: verifiedAt,
+		UserID:          userID,
+		Document:        idCardURL,
+		SelfieURL:       selfieURL,
+		Status:          finalStatus,
+		FaceScore:       faceScore,
+		OcrPayload:      &ocrPayload,
+		CardFingerprint: &fingerprint,
+		VerifiedAt:      verifiedAt,
 	}
 
 	// ตัดสินใจ: create vs update
-	if existing == nil {
+	if existing == nil || (existing.Status == domain.VerifyStatusRejected && existing.CardFingerprint != nil && *existing.CardFingerprint != fingerprint) {
 		// create ครั้งแรก
 		if err := s.Repo.CreateIdVerification(verify); err != nil {
+			if errors.Is(err, gorm.ErrDuplicatedKey) {
+				return errors.New("ID card is already used by another account")
+			}
 			return errors.New("failed to create id verification")
 		}
 	} else {
 		// ejected → update
 		verify.ID = existing.ID
 		if err := s.Repo.UpdateIdVerification(verify); err != nil {
+			if errors.Is(err, gorm.ErrDuplicatedKey) {
+				return errors.New("ID card is already used by another account")
+			}
 			return errors.New("failed to update id verification")
 		}
 	}
