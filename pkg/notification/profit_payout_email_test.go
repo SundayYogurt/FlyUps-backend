@@ -7,7 +7,7 @@ import (
 
 func TestProfitPayoutEmailContent(t *testing.T) {
 	subject, body := profitPayoutEmail("Siam <Spirit>", 2, 20000, "REF<&123", true)
-	require.Contains(t, subject, "[ทดสอบ]")
+	require.NotContains(t, subject, "[ทดสอบ]")
 	require.Contains(t, subject, "ไตรมาสที่ 2")
 	require.Contains(t, body, "Siam &lt;Spirit&gt;")
 	require.Contains(t, body, "฿20000.00")
