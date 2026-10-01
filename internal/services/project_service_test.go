@@ -12,6 +12,50 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+func TestSubmitCancelRequest_CompletionGuard(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		state     domain.ProjectState
+		paid      bool
+		lookupErr error
+		wantErr   string
+	}{
+		{name: "closed awaiting dividends", state: domain.StateClosed, wantErr: "cannot cancel a completed project"},
+		{name: "all four phases paid", state: domain.StateExecuting, paid: true, wantErr: "cannot cancel a completed project"},
+		{name: "unfinished phases", state: domain.StateExecuting},
+		{name: "milestone lookup failure", state: domain.StateExecuting, lookupErr: errors.New("lookup failed"), wantErr: "lookup failed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := new(ProjectRepository)
+			project := &domain.Project{ID: 10, OwnerUserID: 1, State: tc.state}
+			repo.On("FindProjectByID", uint(10)).Return(project, nil)
+			if tc.state != domain.StateClosed {
+				milestones := make([]domain.Milestone, 4)
+				if tc.paid {
+					for i := range milestones {
+						milestones[i].Status = domain.MilestonePaid
+					}
+				}
+				repo.On("FindMilestonesByProjectID", uint(10)).Return(milestones, tc.lookupErr)
+			}
+			if tc.wantErr == "" {
+				repo.On("UpdateProject", project).Return(project, nil)
+			}
+			svc := NewProjectService(repo, nil, nil, nil, nil, nil, nil, nil)
+			err := svc.SubmitCancelRequest(10, dto.CancelProjectRequest{Reason: "reason", CancelDescription: "description"}, domain.User{ID: 1})
+			if tc.wantErr != "" {
+				assert.EqualError(t, err, tc.wantErr)
+				assert.Equal(t, tc.state, project.State)
+				repo.AssertNotCalled(t, "UpdateProject", mock.Anything)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, domain.StatePendingCancel, project.State)
+			}
+			repo.AssertExpectations(t)
+		})
+	}
+}
+
 func TestCreateProject_Success(t *testing.T) {
 	projRepo := new(ProjectRepository)
 	userRepo := new(mockUserRepository)

@@ -2299,6 +2299,18 @@ func (s *projectService) SubmitCancelRequest(projectID uint, input dto.CancelPro
 		return errors.New("cancel request is already pending")
 	}
 
+	// Completion cannot be undone while dividend transfers are outstanding.
+	if project.State == domain.StateClosed || project.Status == domain.StatusCompleted {
+		return errors.New("cannot cancel a completed project")
+	}
+	milestones, err := s.projectRepo.FindMilestonesByProjectID(projectID)
+	if err != nil {
+		return err
+	}
+	if len(milestones) >= 4 && allMilestonesPaid(milestones) {
+		return errors.New("cannot cancel a completed project")
+	}
+
 	// validate reason
 	reason := strings.TrimSpace(input.Reason)
 	description := strings.TrimSpace(input.CancelDescription)
