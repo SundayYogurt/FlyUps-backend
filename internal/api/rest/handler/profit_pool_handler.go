@@ -9,6 +9,7 @@ import (
 	"flyup/internal/services"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
@@ -31,6 +32,7 @@ func SetupProfitPoolRoutes(rh *rest.RestHandler) {
 		repository.NewUserRepository(rh.DB),
 		rh.InvestmentSvc,
 		rh.NotifSvc,
+		services.ProfitPayoutNotifications{EmailClient: rh.Notification, TestMode: strings.HasPrefix(rh.Config.StripeSecretKey, "sk_test_") || strings.HasPrefix(rh.Config.StripeSecretKey, "rk_test_")},
 	)
 	h := &ProfitPoolHandler{svc: svc, validator: rh.Validator, auth: rh.Auth, adminLogSvc: rh.AdminLogSvc}
 

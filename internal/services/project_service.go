@@ -530,9 +530,8 @@ func (s *projectService) GetPublicProjectByID(ctx context.Context, id uint) (*do
 		}
 	}
 
-	status := domain.StatusActive
 	visibility := domain.VisibilityPublic
-	project, err := s.projectRepo.FindProjectDetailByID(id, nil, &status, &visibility)
+	project, err := s.projectRepo.FindProjectDetailByID(id, nil, nil, &visibility)
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +546,8 @@ func (s *projectService) GetPublicProjectByID(ctx context.Context, id uint) (*do
 		domain.StateSuspended: true,
 	}
 
-	if !allowedStates[project.State] {
+	if !(allowedStates[project.State] && project.Status == domain.StatusActive) &&
+		!(project.State == domain.StateClosed && project.Status == domain.StatusCompleted) {
 		return nil, errors.New("not public")
 	}
 
@@ -3244,7 +3244,8 @@ func (s *projectService) GetPublicProjectBySlug(ctx context.Context, slug string
 		domain.StateSuspended: true,
 	}
 
-	if !allowedStates[project.State] {
+	if !allowedStates[project.State] &&
+		!(project.State == domain.StateClosed && project.Status == domain.StatusCompleted) {
 		return nil, errors.New("not public")
 	}
 
