@@ -7,9 +7,9 @@ import (
 	"flyup/internal/helper"
 	"flyup/internal/repository"
 	"flyup/internal/services"
+	"flyup/pkg/easyslip"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
@@ -32,7 +32,7 @@ func SetupProfitPoolRoutes(rh *rest.RestHandler) {
 		repository.NewUserRepository(rh.DB),
 		rh.InvestmentSvc,
 		rh.NotifSvc,
-		services.ProfitPayoutNotifications{EmailClient: rh.Notification, TestMode: strings.HasPrefix(rh.Config.StripeSecretKey, "sk_test_") || strings.HasPrefix(rh.Config.StripeSecretKey, "rk_test_")},
+		services.ProfitPayoutNotifications{SlipVerifier: easyslip.New(rh.Config.EasySlipAPIKey, rh.Config.CloudinaryCloudName), PlatformRecipient: easyslip.Recipient{Bank: rh.Config.PlatformBankCode, Account: rh.Config.PlatformAccountNumber}, EmailClient: rh.Notification},
 	)
 	h := &ProfitPoolHandler{svc: svc, validator: rh.Validator, auth: rh.Auth, adminLogSvc: rh.AdminLogSvc}
 
@@ -217,7 +217,7 @@ func (h *ProfitPoolHandler) ConfirmPayout(ctx fiber.Ctx) error {
 	}
 	if h.adminLogSvc != nil {
 		id := uint(payoutID)
-		note := req.TransferRef
+		note := "EasySlip verified: " + req.SlipImage
 		h.adminLogSvc.LogAction(currentUser.ID, domain.AdminActionConfirmProfitPayout, domain.TargetTypeProfitPayout, &id, &note)
 	}
 	return rest.SuccessResponse(ctx, "payout confirmed", nil)

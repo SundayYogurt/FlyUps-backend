@@ -75,9 +75,32 @@ func setupProfitPoolTest(t *testing.T) (*fiber.App, *MockProfitPoolService, *Pro
 	h := &ProfitPoolHandler{
 		svc:       mockSvc,
 		validator: validator.New(),
-		auth:      helper.Auth{Secret: testSecret},
+		auth:      helper.Auth{Secret: "test-secret-key-for-testing-1234"},
 	}
 	return app, mockSvc, h
+}
+
+func TestProfitHandlersRejectMissingSlip(t *testing.T) {
+	for _, tc := range []struct{ name, method, path, role, body string }{
+		{"admin pool", "POST", "/admin/profit-pools", "admin", `{"project_id":1,"quarter_no":1,"total_amount":100,"transfer_ref":"MANUAL"}`},
+		{"pioneer", "POST", "/pioneer/profit-pools/1", "pioneer", `{"quarter_no":1,"total_amount":100,"transfer_ref":"MANUAL"}`},
+		{"admin payout", "PATCH", "/admin/profit-pools/1/payouts/2/confirm", "admin", `{"transfer_ref":"MANUAL"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app, svc, h := setupProfitPoolTest(t)
+			app.Use(func(c fiber.Ctx) error { c.Locals("user", domain.User{ID: 99, Role: tc.role}); return c.Next() })
+			app.Post("/admin/profit-pools", h.Create)
+			app.Post("/pioneer/profit-pools/:projectId", h.PioneerSubmit)
+			app.Patch("/admin/profit-pools/:id/payouts/:payoutId/confirm", h.ConfirmPayout)
+			req := httptest.NewRequest(tc.method, tc.path, bytes.NewBufferString(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := app.Test(req)
+			assert.NoError(t, err)
+			defer resp.Body.Close()
+			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+			assert.Empty(t, svc.Calls)
+		})
+	}
 }
 
 // Create
@@ -90,7 +113,7 @@ func TestProfitPoolHandler_Create(t *testing.T) {
 	})
 	app.Post("/admin/profit-pools", h.Create)
 
-	body := dto.CreateProfitPoolRequest{ProjectID: 1, TotalAmount: 5000, TransferRef: "REF-001"}
+	body := dto.CreateProfitPoolRequest{ProjectID: 1, TotalAmount: 5000, TransferRef: "REF-001", QuarterNo: 1, SlipImage: "https://res.cloudinary.com/flyup/image/upload/slip.png"}
 	bodyJSON, _ := json.Marshal(body)
 	mockSvc.On("Create", uint(99), mock.Anything).Return(&dto.ProfitPoolDetail{}, nil)
 	req := httptest.NewRequest(http.MethodPost, "/admin/profit-pools", bytes.NewBuffer(bodyJSON))
@@ -105,7 +128,7 @@ func TestProfitPoolHandler_Create_Unauthorized(t *testing.T) {
 	app, _, h := setupProfitPoolTest(t)
 	app.Post("/admin/profit-pools", h.Create)
 
-	body := dto.CreateProfitPoolRequest{ProjectID: 1, TotalAmount: 5000, TransferRef: "REF-001"}
+	body := dto.CreateProfitPoolRequest{ProjectID: 1, TotalAmount: 5000, TransferRef: "REF-001", QuarterNo: 1, SlipImage: "https://res.cloudinary.com/flyup/image/upload/slip.png"}
 	bodyJSON, _ := json.Marshal(body)
 	req := httptest.NewRequest(http.MethodPost, "/admin/profit-pools", bytes.NewBuffer(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
@@ -194,7 +217,7 @@ func TestProfitPoolHandler_PioneerSubmit(t *testing.T) {
 	})
 	app.Post("/pioneer/profit-pools/:projectId", h.PioneerSubmit)
 
-	body := dto.PioneerSubmitProfitRequest{TotalAmount: 10000, TransferRef: "REF-P001", QuarterNo: 1}
+	body := dto.PioneerSubmitProfitRequest{TotalAmount: 10000, TransferRef: "REF-P001", QuarterNo: 1, SlipImage: "https://res.cloudinary.com/flyup/image/upload/slip.png"}
 	bodyJSON, _ := json.Marshal(body)
 	mockSvc.On("PioneerSubmit", uint(1), uint(5), mock.Anything).Return(&dto.ProfitPoolDetail{}, nil)
 	req := httptest.NewRequest(http.MethodPost, "/pioneer/profit-pools/5", bytes.NewBuffer(bodyJSON))
@@ -209,7 +232,7 @@ func TestProfitPoolHandler_PioneerSubmit_Unauthorized(t *testing.T) {
 	app, _, h := setupProfitPoolTest(t)
 	app.Post("/pioneer/profit-pools/:projectId", h.PioneerSubmit)
 
-	body := dto.PioneerSubmitProfitRequest{TotalAmount: 10000, TransferRef: "REF-P001", QuarterNo: 1}
+	body := dto.PioneerSubmitProfitRequest{TotalAmount: 10000, TransferRef: "REF-P001", QuarterNo: 1, SlipImage: "https://res.cloudinary.com/flyup/image/upload/slip.png"}
 	bodyJSON, _ := json.Marshal(body)
 	req := httptest.NewRequest(http.MethodPost, "/pioneer/profit-pools/5", bytes.NewBuffer(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
@@ -227,7 +250,7 @@ func TestProfitPoolHandler_PioneerSubmit_InvalidProjectID(t *testing.T) {
 	})
 	app.Post("/pioneer/profit-pools/:projectId", h.PioneerSubmit)
 
-	body := dto.PioneerSubmitProfitRequest{TotalAmount: 10000, TransferRef: "REF-P001", QuarterNo: 1}
+	body := dto.PioneerSubmitProfitRequest{TotalAmount: 10000, TransferRef: "REF-P001", QuarterNo: 1, SlipImage: "https://res.cloudinary.com/flyup/image/upload/slip.png"}
 	bodyJSON, _ := json.Marshal(body)
 	req := httptest.NewRequest(http.MethodPost, "/pioneer/profit-pools/abc", bytes.NewBuffer(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
@@ -305,7 +328,7 @@ func TestProfitPoolHandler_ConfirmPayout(t *testing.T) {
 	})
 	app.Patch("/admin/profit-pools/:id/payouts/:payoutId/confirm", h.ConfirmPayout)
 
-	body := dto.ConfirmInvestorPayoutRequest{TransferRef: "REF-INV-001"}
+	body := dto.ConfirmInvestorPayoutRequest{TransferRef: "REF-INV-001", SlipImage: "https://res.cloudinary.com/flyup/image/upload/slip.png"}
 	bodyJSON, _ := json.Marshal(body)
 	mockSvc.On("ConfirmPayout", uint(2), uint(7), uint(99), mock.Anything).Return(nil)
 	req := httptest.NewRequest(http.MethodPatch, "/admin/profit-pools/2/payouts/7/confirm", bytes.NewBuffer(bodyJSON))
@@ -320,7 +343,7 @@ func TestProfitPoolHandler_ConfirmPayout_Unauthorized(t *testing.T) {
 	app, _, h := setupProfitPoolTest(t)
 	app.Patch("/admin/profit-pools/:id/payouts/:payoutId/confirm", h.ConfirmPayout)
 
-	body := dto.ConfirmInvestorPayoutRequest{TransferRef: "REF-INV-001"}
+	body := dto.ConfirmInvestorPayoutRequest{TransferRef: "REF-INV-001", SlipImage: "https://res.cloudinary.com/flyup/image/upload/slip.png"}
 	bodyJSON, _ := json.Marshal(body)
 	req := httptest.NewRequest(http.MethodPatch, "/admin/profit-pools/2/payouts/7/confirm", bytes.NewBuffer(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")
@@ -338,7 +361,7 @@ func TestProfitPoolHandler_ConfirmPayout_InvalidPoolID(t *testing.T) {
 	})
 	app.Patch("/admin/profit-pools/:id/payouts/:payoutId/confirm", h.ConfirmPayout)
 
-	body := dto.ConfirmInvestorPayoutRequest{TransferRef: "REF-INV-001"}
+	body := dto.ConfirmInvestorPayoutRequest{TransferRef: "REF-INV-001", SlipImage: "https://res.cloudinary.com/flyup/image/upload/slip.png"}
 	bodyJSON, _ := json.Marshal(body)
 	req := httptest.NewRequest(http.MethodPatch, "/admin/profit-pools/abc/payouts/7/confirm", bytes.NewBuffer(bodyJSON))
 	req.Header.Set("Content-Type", "application/json")

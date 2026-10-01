@@ -74,21 +74,21 @@ func TestConfirmProfitPayoutBankAndEmail(t *testing.T) {
 		{name: "missing bank", ref: "REF-123"},
 		{name: "incomplete bank", ref: "REF-123", banks: []domain.BankAccount{{BankName: "Bank"}}},
 		{name: "bank lookup fails", ref: "REF-123", bankErr: errors.New("db")},
-		{name: "missing reference", banks: []domain.BankAccount{{BankName: "Bank", AccountName: "Investor", AccountNumber: "123"}}},
+		{name: "missing slip", banks: []domain.BankAccount{{BankName: "Bank", AccountName: "Investor", AccountNumber: "123"}}},
 		{name: "email details and duplicate confirmation", ref: "REF-123", banks: []domain.BankAccount{{BankName: "Bank", AccountName: "Investor", AccountNumber: "123"}}, allowed: true},
 		{name: "email failure does not undo confirmation", ref: "REF-123", banks: []domain.BankAccount{{BankName: "Bank", AccountName: "Investor", AccountNumber: "123"}}, emailErr: errors.New("email unavailable"), allowed: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			repo := &payoutTestRepo{pool: domain.ProfitPool{ID: 1, ProjectID: 10, QuarterNo: 2}, payout: domain.InvestorProfitPayout{ID: 5, ProfitPoolID: 1, BoosterUserID: 2, Amount: 20000}}
 			mail := &payoutTestEmail{err: tc.emailErr}
-			svc := NewProfitPoolService(repo, &payoutTestProjects{}, nil, &payoutTestUsers{banks: tc.banks, bankErr: tc.bankErr}, nil, nil, ProfitPayoutNotifications{EmailClient: mail, TestMode: true})
-			err := svc.ConfirmPayout(1, 5, 99, dto.ConfirmInvestorPayoutRequest{TransferRef: tc.ref})
+			svc := NewProfitPoolService(repo, &payoutTestProjects{}, nil, &payoutTestUsers{banks: tc.banks, bankErr: tc.bankErr}, nil, nil, ProfitPayoutNotifications{SlipVerifier: fixedProfitVerifier{ref: "REF-123", requireImage: true}, EmailClient: mail, TestMode: true})
+			err := svc.ConfirmPayout(1, 5, 99, dto.ConfirmInvestorPayoutRequest{TransferRef: tc.ref, SlipImage: tc.ref})
 			if tc.allowed {
 				require.NoError(t, err)
 				require.Equal(t, 1, repo.updates)
 				require.Equal(t, 1, mail.calls)
 				require.True(t, mail.testMode)
-				require.Error(t, svc.ConfirmPayout(1, 5, 99, dto.ConfirmInvestorPayoutRequest{TransferRef: tc.ref}))
+				require.Error(t, svc.ConfirmPayout(1, 5, 99, dto.ConfirmInvestorPayoutRequest{TransferRef: tc.ref, SlipImage: tc.ref}))
 				require.Equal(t, 1, mail.calls)
 			} else {
 				require.Error(t, err)
@@ -97,4 +97,8 @@ func TestConfirmProfitPayoutBankAndEmail(t *testing.T) {
 			}
 		})
 	}
+}
+
+func (r *payoutTestRepo) ConfirmWithSlip(p *domain.InvestorProfitPayout, slip *domain.VerifiedSlip) error {
+	return r.UpdatePayout(p)
 }

@@ -5,20 +5,22 @@ import "time"
 type CreateProfitPoolRequest struct {
 	ProjectID   uint    `json:"project_id" validate:"required"`
 	TotalAmount float64 `json:"total_amount" validate:"required,gt=0"`
-	TransferRef string  `json:"transfer_ref" validate:"required"`
+	TransferRef string  `json:"transfer_ref"`
+	SlipImage   string  `json:"slip_image" validate:"required,url,max=2048"`
 	AdminNote   string  `json:"admin_note"`
 	QuarterNo   int     `json:"quarter_no" validate:"required,min=1,max=4"`
 }
 
 type PioneerSubmitProfitRequest struct {
 	TotalAmount float64 `json:"total_amount" validate:"required,gt=0"`
-	TransferRef string  `json:"transfer_ref" validate:"required"`
+	TransferRef string  `json:"transfer_ref"`
 	QuarterNo   int     `json:"quarter_no" validate:"required,min=1,max=4"`
-	SlipImage   string  `json:"slip_image"`
+	SlipImage   string  `json:"slip_image" validate:"required,url,max=2048"`
 }
 
 type ConfirmInvestorPayoutRequest struct {
-	TransferRef string `json:"transfer_ref" validate:"required"`
+	TransferRef string `json:"transfer_ref"`
+	SlipImage   string `json:"slip_image" validate:"required,url,max=2048"`
 	Note        string `json:"note"`
 }
 
@@ -35,22 +37,26 @@ type InvestorPayoutDetail struct {
 	TransferRef     string                   `json:"transfer_ref"`
 	AdminNote       string                   `json:"admin_note"`
 	ConfirmedAt     *time.Time               `json:"confirmed_at,omitempty"`
+	SlipImage       string                   `json:"slip_image"`
+	SlipVerifiedAt  *time.Time               `json:"slip_verified_at,omitempty"`
 	BankAccount     *DisbursementBankAccount `json:"bank_account,omitempty"`
 }
 
 type ProfitPoolDetail struct {
-	ID            uint                   `json:"id"`
-	ProjectID     uint                   `json:"project_id"`
-	ProjectTitle  string                 `json:"project_title"`
-	PioneerUserID uint                   `json:"pioneer_user_id"`
-	PioneerName   string                 `json:"pioneer_name"`
-	TotalAmount   float64                `json:"total_amount"`
-	TransferRef   string                 `json:"transfer_ref"`
-	Status        string                 `json:"status"`
-	AdminNote     string                 `json:"admin_note"`
-	QuarterNo     int                    `json:"quarter_no"`
-	CreatedAt     time.Time              `json:"created_at"`
-	Payouts       []InvestorPayoutDetail `json:"payouts"`
+	ID             uint                   `json:"id"`
+	ProjectID      uint                   `json:"project_id"`
+	ProjectTitle   string                 `json:"project_title"`
+	PioneerUserID  uint                   `json:"pioneer_user_id"`
+	PioneerName    string                 `json:"pioneer_name"`
+	TotalAmount    float64                `json:"total_amount"`
+	TransferRef    string                 `json:"transfer_ref"`
+	Status         string                 `json:"status"`
+	AdminNote      string                 `json:"admin_note"`
+	QuarterNo      int                    `json:"quarter_no"`
+	CreatedAt      time.Time              `json:"created_at"`
+	SlipImage      string                 `json:"slip_image"`
+	SlipVerifiedAt *time.Time             `json:"slip_verified_at,omitempty"`
+	Payouts        []InvestorPayoutDetail `json:"payouts"`
 }
 
 type MyProfitPayoutItem struct {

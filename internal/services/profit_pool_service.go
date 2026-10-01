@@ -5,6 +5,7 @@ import (
 	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/repository"
+	"flyup/pkg/easyslip"
 	"flyup/pkg/notification"
 	"fmt"
 	"log"
@@ -26,19 +27,23 @@ type ProfitPoolService interface {
 }
 
 type profitPoolService struct {
-	repo          repository.ProfitPoolRepository
-	projectRepo   repository.ProjectRepository
-	investRepo    repository.InvestmentRepository
-	userRepo      repository.UserRepository
-	investmentSvc InvestmentService
-	notifSvc      NotificationService
-	emailClient   notification.NotificationClient
-	testMode      bool
+	repo              repository.ProfitPoolRepository
+	projectRepo       repository.ProjectRepository
+	investRepo        repository.InvestmentRepository
+	userRepo          repository.UserRepository
+	investmentSvc     InvestmentService
+	notifSvc          NotificationService
+	emailClient       notification.NotificationClient
+	testMode          bool
+	slipVerifier      easyslip.Verifier
+	platformRecipient easyslip.Recipient
 }
 
 type ProfitPayoutNotifications struct {
-	EmailClient notification.NotificationClient
-	TestMode    bool
+	SlipVerifier      easyslip.Verifier
+	PlatformRecipient easyslip.Recipient
+	EmailClient       notification.NotificationClient
+	TestMode          bool
 }
 
 func NewProfitPoolService(
@@ -54,6 +59,8 @@ func NewProfitPoolService(
 	if len(options) > 0 {
 		svc.emailClient = options[0].EmailClient
 		svc.testMode = options[0].TestMode
+		svc.slipVerifier = options[0].SlipVerifier
+		svc.platformRecipient = options[0].PlatformRecipient
 	}
 	return svc
 }
@@ -94,17 +101,22 @@ func (s *profitPoolService) Create(adminID uint, req dto.CreateProfitPoolRequest
 		return nil, errors.New("total principal is zero")
 	}
 
+	slip, err := s.verifyProfitSlip(req.SlipImage, req.TotalAmount, s.platformRecipient)
+	if err != nil {
+		return nil, err
+	}
+	if slip != nil {
+		req.TransferRef = slip.TransRef
+	}
 	pool := &domain.ProfitPool{
 		ProjectID:     req.ProjectID,
 		PioneerUserID: project.OwnerUserID,
 		TotalAmount:   req.TotalAmount,
 		TransferRef:   req.TransferRef,
 		Status:        domain.ProfitPoolPending,
+		SlipImage:     req.SlipImage,
 		AdminNote:     req.AdminNote,
 		QuarterNo:     req.QuarterNo,
-	}
-	if err := s.repo.Create(pool); err != nil {
-		return nil, errors.New("failed to create profit pool")
 	}
 
 	var totalAllocated float64
@@ -127,10 +139,10 @@ func (s *profitPoolService) Create(adminID uint, req dto.CreateProfitPoolRequest
 			SharePct:      sharePct,
 			Status:        domain.InvestorPayoutPending,
 		}
-		if err := s.repo.CreatePayout(payout); err != nil {
-			return nil, errors.New("failed to create investor payout")
-		}
 		createdPayouts = append(createdPayouts, *payout)
+	}
+	if err := s.repo.CreateWithPayouts(pool, createdPayouts, slip); err != nil {
+		return nil, err
 	}
 	s.notifyInvestorsPendingProfit(createdPayouts, project.Title, pool.QuarterNo)
 
@@ -180,15 +192,17 @@ func (s *profitPoolService) GetDetail(poolID uint) (*dto.ProfitPoolDetail, error
 	}
 
 	detail := &dto.ProfitPoolDetail{
-		ID:            pool.ID,
-		ProjectID:     pool.ProjectID,
-		PioneerUserID: pool.PioneerUserID,
-		TotalAmount:   pool.TotalAmount,
-		TransferRef:   pool.TransferRef,
-		Status:        string(pool.Status),
-		AdminNote:     pool.AdminNote,
-		QuarterNo:     pool.QuarterNo,
-		CreatedAt:     pool.CreatedAt,
+		ID:             pool.ID,
+		ProjectID:      pool.ProjectID,
+		PioneerUserID:  pool.PioneerUserID,
+		TotalAmount:    pool.TotalAmount,
+		TransferRef:    pool.TransferRef,
+		SlipImage:      pool.SlipImage,
+		SlipVerifiedAt: pool.SlipVerifiedAt,
+		Status:         string(pool.Status),
+		AdminNote:      pool.AdminNote,
+		QuarterNo:      pool.QuarterNo,
+		CreatedAt:      pool.CreatedAt,
 	}
 	if project, err := s.projectRepo.FindProjectByID(pool.ProjectID); err == nil {
 		detail.ProjectTitle = project.Title
@@ -215,6 +229,8 @@ func (s *profitPoolService) GetDetail(poolID uint) (*dto.ProfitPoolDetail, error
 			SharePct:        p.SharePct,
 			Status:          string(p.Status),
 			TransferRef:     p.TransferRef,
+			SlipImage:       p.SlipImage,
+			SlipVerifiedAt:  p.SlipVerifiedAt,
 			AdminNote:       p.AdminNote,
 			ConfirmedAt:     p.ConfirmedAt,
 			PrincipalAmount: principalMap[p.BoosterUserID],
@@ -251,9 +267,6 @@ func (s *profitPoolService) ConfirmPayout(poolID uint, payoutID uint, adminID ui
 	if payout.Status == domain.InvestorPayoutConfirmed {
 		return errors.New("payout already confirmed")
 	}
-	if strings.TrimSpace(req.TransferRef) == "" {
-		return errors.New("กรุณาระบุเลขอ้างอิงการโอน")
-	}
 	banks, err := s.userRepo.FindBankByUserId(payout.BoosterUserID)
 	if err != nil {
 		return errors.New("ไม่สามารถตรวจสอบบัญชีรับกำไรได้ กรุณาลองอีกครั้ง")
@@ -263,14 +276,22 @@ func (s *profitPoolService) ConfirmPayout(poolID uint, payoutID uint, adminID ui
 		return errors.New("นักลงทุนยังไม่มีข้อมูลบัญชีธนาคารรับกำไรที่ครบถ้วน")
 	}
 
+	slip, err := s.verifyProfitSlip(req.SlipImage, payout.Amount, easyslip.Recipient{Bank: bank.BankName, Account: bank.AccountNumber})
+	if err != nil {
+		return err
+	}
+	if slip != nil {
+		req.TransferRef = slip.TransRef
+	}
+	payout.SlipImage = req.SlipImage
 	now := time.Now().UTC()
 	payout.Status = domain.InvestorPayoutConfirmed
 	payout.TransferRef = req.TransferRef
 	payout.AdminNote = req.Note
 	payout.ConfirmedAt = &now
 	payout.ConfirmedBy = &adminID
-	if err := s.repo.UpdatePayout(payout); err != nil {
-		return errors.New("failed to confirm payout")
+	if err := s.repo.ConfirmWithSlip(payout, slip); err != nil {
+		return err
 	}
 
 	if s.notifSvc != nil || s.emailClient != nil {
@@ -340,6 +361,9 @@ func profitPayoutBank(banks []domain.BankAccount) *domain.BankAccount {
 }
 
 func (s *profitPoolService) validateProfitEligibility(project *domain.Project, quarterNo int, existing []domain.ProfitPool) error {
+	if quarterNo < 1 || quarterNo > 4 {
+		return errors.New("quarter must be between 1 and 4")
+	}
 	if project.State != domain.StateExecuting && project.State != domain.StateClosed {
 		return errors.New("project must be in executing or closed state")
 	}
@@ -422,7 +446,10 @@ func (s *profitPoolService) validatePioneerProjectForProfit(pioneerID, projectID
 	if project.OwnerUserID != pioneerID {
 		return nil, errors.New("permission denied")
 	}
-	existing, _ := s.repo.ListByPioneerUserID(pioneerID)
+	existing, err := s.repo.ListByPioneerUserID(pioneerID)
+	if err != nil {
+		return nil, errors.New(errInternalServer)
+	}
 	projectPools := make([]domain.ProfitPool, 0)
 	for _, p := range existing {
 		if p.ProjectID == projectID {
@@ -489,6 +516,13 @@ func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dt
 		return nil, errors.New("total principal is zero")
 	}
 
+	slip, err := s.verifyProfitSlip(req.SlipImage, req.TotalAmount, s.platformRecipient)
+	if err != nil {
+		return nil, err
+	}
+	if slip != nil {
+		req.TransferRef = slip.TransRef
+	}
 	pool := &domain.ProfitPool{
 		ProjectID:     projectID,
 		PioneerUserID: pioneerID,
@@ -497,9 +531,6 @@ func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dt
 		SlipImage:     req.SlipImage,
 		Status:        domain.ProfitPoolPending,
 		QuarterNo:     req.QuarterNo,
-	}
-	if err := s.repo.Create(pool); err != nil {
-		return nil, errors.New("failed to create profit pool")
 	}
 
 	var totalAllocated float64
@@ -521,12 +552,12 @@ func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dt
 			SharePct:      sharePct,
 			Status:        domain.InvestorPayoutPending,
 		}
-		if err := s.repo.CreatePayout(payout); err != nil {
-			return nil, errors.New("failed to create investor payout")
-		}
 		createdPayouts = append(createdPayouts, *payout)
 	}
 
+	if err := s.repo.CreateWithPayouts(pool, createdPayouts, slip); err != nil {
+		return nil, err
+	}
 	s.notifyInvestorsPendingProfit(createdPayouts, project.Title, pool.QuarterNo)
 	s.notifyAdminsNewProfit(pool, project.Title)
 
@@ -595,4 +626,18 @@ func (s *profitPoolService) GetMyProfitPayouts(userID uint) ([]dto.MyProfitPayou
 		items = append(items, item)
 	}
 	return items, nil
+}
+
+func (s *profitPoolService) verifyProfitSlip(image string, amount float64, recipient easyslip.Recipient) (*domain.VerifiedSlip, error) {
+	if s.slipVerifier == nil {
+		return nil, errors.New("ยังไม่ได้ตั้งค่าระบบตรวจสลิป")
+	}
+	v, err := s.slipVerifier.Verify(image, amount, recipient)
+	if err != nil {
+		return nil, err
+	}
+	if v == nil || v.TransRef == "" || v.SenderBank == "" {
+		return nil, errors.New("invalid slip verification")
+	}
+	return &domain.VerifiedSlip{TransRef: v.TransRef, SenderBank: v.SenderBank, ImageURL: image, RecipientBank: recipient.Bank, RecipientAccount: recipient.Account, Amount: amount, TransferredAt: v.TransferredAt, VerifiedAt: time.Now().UTC()}, nil
 }

@@ -79,6 +79,7 @@ func StartServer(cfg config.AppConfig) {
 		&domain.Meeting{},
 
 		// profit pools
+		&domain.VerifiedSlip{},
 		&domain.ProfitPool{},
 		&domain.InvestorProfitPayout{},
 

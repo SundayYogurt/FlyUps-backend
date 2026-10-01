@@ -10,26 +10,29 @@ import (
 )
 
 type AppConfig struct {
-	ServerPort          string
-	Dsn                 string
-	AppSecret           string
-	ResendAPIKey        string
-	EmailFrom           string
-	BaseURL             string
-	CloudinaryCloudName string
-	CloudinaryAPIKey    string
-	CloudinaryAPISecret string
-	StripeSecretKey     string
-	StripeWebhookSecret string
-	IAppAPIKey          string
-	GoogleClientID      string
-	GoogleClientSecret  string
-	GoogleRedirectURI   string
-	RedisAddr           string
-	RedisPassword       string
-	RedisDB             int
-	OpenAIAPIKey        string
-	OpenAIModel         string
+	ServerPort            string
+	Dsn                   string
+	AppSecret             string
+	ResendAPIKey          string
+	EmailFrom             string
+	BaseURL               string
+	CloudinaryCloudName   string
+	CloudinaryAPIKey      string
+	CloudinaryAPISecret   string
+	EasySlipAPIKey        string
+	PlatformBankCode      string
+	PlatformAccountNumber string
+	StripeSecretKey       string
+	StripeWebhookSecret   string
+	IAppAPIKey            string
+	GoogleClientID        string
+	GoogleClientSecret    string
+	GoogleRedirectURI     string
+	RedisAddr             string
+	RedisPassword         string
+	RedisDB               int
+	OpenAIAPIKey          string
+	OpenAIModel           string
 }
 
 func SetupEnv() (cfg AppConfig, err error) {
@@ -130,25 +133,28 @@ func SetupEnv() (cfg AppConfig, err error) {
 	openAIModel := os.Getenv("OPENAI_MODEL")
 
 	return AppConfig{
-		ServerPort:          httpPort,
-		Dsn:                 Dsn,
-		AppSecret:           appSecret,
-		ResendAPIKey:        resendAPIKey,
-		EmailFrom:           emailFrom,
-		BaseURL:             baseURL,
-		CloudinaryCloudName: cloudName,
-		CloudinaryAPIKey:    apiKey,
-		CloudinaryAPISecret: apiSecret,
-		StripeSecretKey:     stripeSecretKey,
-		StripeWebhookSecret: stripeWebhookSecret,
-		IAppAPIKey:          iappAPIKey,
-		GoogleClientID:      googleClientID,
-		GoogleClientSecret:  googleClientSecret,
-		GoogleRedirectURI:   googleRedirectURL,
-		RedisAddr:           redisAddr,
-		RedisPassword:       redisPassword,
-		RedisDB:             redisDB,
-		OpenAIAPIKey:        openAIAPIKey,
-		OpenAIModel:         openAIModel,
+		ServerPort:            httpPort,
+		Dsn:                   Dsn,
+		AppSecret:             appSecret,
+		ResendAPIKey:          resendAPIKey,
+		EmailFrom:             emailFrom,
+		BaseURL:               baseURL,
+		CloudinaryCloudName:   cloudName,
+		CloudinaryAPIKey:      apiKey,
+		CloudinaryAPISecret:   apiSecret,
+		EasySlipAPIKey:        os.Getenv("EASYSLIP_API_KEY"),
+		PlatformBankCode:      os.Getenv("PLATFORM_BANK_CODE"),
+		PlatformAccountNumber: os.Getenv("PLATFORM_ACCOUNT_NUMBER"),
+		StripeSecretKey:       stripeSecretKey,
+		StripeWebhookSecret:   stripeWebhookSecret,
+		IAppAPIKey:            iappAPIKey,
+		GoogleClientID:        googleClientID,
+		GoogleClientSecret:    googleClientSecret,
+		GoogleRedirectURI:     googleRedirectURL,
+		RedisAddr:             redisAddr,
+		RedisPassword:         redisPassword,
+		RedisDB:               redisDB,
+		OpenAIAPIKey:          openAIAPIKey,
+		OpenAIModel:           openAIModel,
 	}, nil
 }

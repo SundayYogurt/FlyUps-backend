@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flyup/internal/domain"
 	"flyup/internal/dto"
+	"flyup/pkg/easyslip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -184,7 +185,7 @@ func newProfitPoolSvc(
 	investSvc InvestmentService,
 	notifSvc NotificationService,
 ) ProfitPoolService {
-	return NewProfitPoolService(repo, projRepo, investRepo, userRepo, investSvc, notifSvc)
+	return NewProfitPoolService(repo, projRepo, investRepo, userRepo, investSvc, notifSvc, ProfitPayoutNotifications{SlipVerifier: fixedProfitVerifier{ref: "REF-001"}})
 }
 
 // Create
@@ -620,4 +621,32 @@ func TestProfitPoolService_GetMyProfitPayouts_RepoError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, items)
+}
+
+func (m *mockProfitPoolRepo) CreateWithPayouts(pool *domain.ProfitPool, payouts []domain.InvestorProfitPayout, slip *domain.VerifiedSlip) error {
+	if err := m.Create(pool); err != nil {
+		return err
+	}
+	for i := range payouts {
+		payouts[i].ProfitPoolID = pool.ID
+		if err := m.CreatePayout(&payouts[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (m *mockProfitPoolRepo) ConfirmWithSlip(p *domain.InvestorProfitPayout, slip *domain.VerifiedSlip) error {
+	return m.UpdatePayout(p)
+}
+
+type fixedProfitVerifier struct {
+	ref          string
+	requireImage bool
+}
+
+func (v fixedProfitVerifier) Verify(image string, amount float64, recipient easyslip.Recipient) (*easyslip.Verification, error) {
+	if v.requireImage && image == "" {
+		return nil, errors.New("missing slip image")
+	}
+	return &easyslip.Verification{TransRef: v.ref, SenderBank: "004"}, nil
 }
