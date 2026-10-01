@@ -3,6 +3,7 @@ package notification
 import (
 	"flyup/config"
 	"fmt"
+	"html"
 
 	"github.com/resend/resend-go/v2"
 )
@@ -16,6 +17,7 @@ type NotificationClient interface {
 	SendUserSuspendedEmail(to string, reason string) error
 	SendMilestoneReminderEmail(to string, projectTitle string, phaseNo int, dueDate string, daysLeft int) error
 	SendRefundApprovedEmail(to string, projectTitle string, amount float64) error
+	SendProfitPayoutEmail(to, projectTitle string, quarterNo int, amount float64, transferRef string, testMode bool) error
 }
 
 type notificationClient struct {
@@ -606,6 +608,30 @@ func (n notificationClient) SendRefundApprovedEmail(to string, projectTitle stri
 	}
 
 	_, err := n.client.Emails.Send(params)
+	return err
+}
+
+func profitPayoutEmail(projectTitle string, quarterNo int, amount float64, transferRef string, testMode bool) (string, string) {
+	subject := fmt.Sprintf("FlyUp: ยืนยันการโอนกำไร — %s ไตรมาสที่ %d", projectTitle, quarterNo)
+	testNotice := ""
+	if testMode {
+		subject = "[ทดสอบ] " + subject
+		testNotice = "<p><b>รายการทดสอบ: อีเมลนี้ไม่ได้ยืนยันว่ามีเงินเข้าบัญชีจริง</b></p>"
+	}
+	body := fmt.Sprintf(`<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="font-family:Arial,sans-serif;background:#f6f9fc;padding:24px">
+<div style="max-width:500px;margin:auto;background:white;border-radius:12px;padding:24px">
+<h2>FlyUp — ยืนยันการโอนกำไร</h2>%s
+<p>ผู้ดูแลระบบยืนยันการโอนกำไรจากโปรเจกต์ <b>%s</b> ไตรมาสที่ <b>%d</b> แล้ว</p>
+<p>จำนวนเงิน <b>฿%.2f</b></p><p>เลขอ้างอิงการโอน: %s</p>
+<p>ตรวจสอบรายการได้ที่เมนู “กำไร” ใน FlyUp และตรวจสอบยอดเข้าจากธนาคารของคุณ</p>
+</div></body></html>`, testNotice, html.EscapeString(projectTitle), quarterNo, amount, html.EscapeString(transferRef))
+	return subject, body
+}
+
+func (n notificationClient) SendProfitPayoutEmail(to, projectTitle string, quarterNo int, amount float64, transferRef string, testMode bool) error {
+	subject, body := profitPayoutEmail(projectTitle, quarterNo, amount, transferRef, testMode)
+	_, err := n.client.Emails.Send(&resend.SendEmailRequest{From: n.config.EmailFrom, To: []string{to}, Subject: subject, Html: body})
 	return err
 }
 

@@ -76,6 +76,7 @@ func SetupProjectRoutes(rh *rest.RestHandler) {
 	pub.Get("/new", handler.GetNewProjects)
 	pub.Get("/ending", handler.GetEndingSoonProjects)
 	pub.Get("/executing", handler.GetExecutingProjects)
+	pub.Get("/completed", handler.GetCompletedProjects)
 	pub.Get("/:id<int>", handler.GetPublicProjectByID)
 	pub.Get("/category/:category_id<int>", handler.GetProjectsByCategory)
 	pub.Get("/:id<int>/updates", handler.GetProjectUpdates)
@@ -2560,4 +2561,13 @@ func (h *ProjectHandler) RejectProjectEdit(ctx fiber.Ctx) error {
 	pid := uint(id)
 	h.adminLogSvc.LogAction(admin.ID, domain.AdminActionRejectProjectEdit, domain.TargetTypeProject, &pid, nil)
 	return rest.SuccessResponse(ctx, "project edit rejected and reverted", nil)
+}
+
+// GetCompletedProjects returns public projects that finished successfully.
+func (h *ProjectHandler) GetCompletedProjects(ctx fiber.Ctx) error {
+	projects, err := h.svc.GetPublicProjects(dto.PublicProjectFilter{Completed: true})
+	if err != nil {
+		return err
+	}
+	return rest.SuccessResponse(ctx, "success", projects)
 }

@@ -5,9 +5,11 @@ import (
 	"flyup/internal/domain"
 	"flyup/internal/dto"
 	"flyup/internal/repository"
+	"flyup/pkg/notification"
 	"fmt"
 	"log"
 	"math"
+	"strings"
 	"time"
 )
 
@@ -30,6 +32,13 @@ type profitPoolService struct {
 	userRepo      repository.UserRepository
 	investmentSvc InvestmentService
 	notifSvc      NotificationService
+	emailClient   notification.NotificationClient
+	testMode      bool
+}
+
+type ProfitPayoutNotifications struct {
+	EmailClient notification.NotificationClient
+	TestMode    bool
 }
 
 func NewProfitPoolService(
@@ -39,8 +48,14 @@ func NewProfitPoolService(
 	userRepo repository.UserRepository,
 	investmentSvc InvestmentService,
 	notifSvc NotificationService,
+	options ...ProfitPayoutNotifications,
 ) ProfitPoolService {
-	return &profitPoolService{repo, projectRepo, investRepo, userRepo, investmentSvc, notifSvc}
+	svc := &profitPoolService{repo: repo, projectRepo: projectRepo, investRepo: investRepo, userRepo: userRepo, investmentSvc: investmentSvc, notifSvc: notifSvc}
+	if len(options) > 0 {
+		svc.emailClient = options[0].EmailClient
+		svc.testMode = options[0].TestMode
+	}
+	return svc
 }
 
 func (s *profitPoolService) Create(adminID uint, req dto.CreateProfitPoolRequest) (*dto.ProfitPoolDetail, error) {
@@ -93,6 +108,7 @@ func (s *profitPoolService) Create(adminID uint, req dto.CreateProfitPoolRequest
 	}
 
 	var totalAllocated float64
+	createdPayouts := make([]domain.InvestorProfitPayout, 0, len(investors))
 	for i, inv := range investors {
 		sharePct := math.Round((inv.PrincipalAmount/totalPrincipal)*10000) / 100
 		var amount float64
@@ -114,7 +130,9 @@ func (s *profitPoolService) Create(adminID uint, req dto.CreateProfitPoolRequest
 		if err := s.repo.CreatePayout(payout); err != nil {
 			return nil, errors.New("failed to create investor payout")
 		}
+		createdPayouts = append(createdPayouts, *payout)
 	}
+	s.notifyInvestorsPendingProfit(createdPayouts, project.Title, pool.QuarterNo)
 
 	return s.GetDetail(pool.ID)
 }
@@ -206,23 +224,9 @@ func (s *profitPoolService) GetDetail(poolID uint) (*dto.ProfitPoolDetail, error
 			pd.LastName = user.LastName
 			pd.Email = user.Email
 		}
-		if banks, err := s.userRepo.FindBankByUserId(p.BoosterUserID); err == nil && len(banks) > 0 {
-			var b domain.BankAccount
-			found := false
-			for _, bank := range banks {
-				if bank.IsDefault {
-					b = bank
-					found = true
-					break
-				}
-			}
-			if !found {
-				b = banks[0]
-			}
-			pd.BankAccount = &dto.DisbursementBankAccount{
-				BankName:      b.BankName,
-				AccountName:   b.AccountName,
-				AccountNumber: b.AccountNumber,
+		if banks, err := s.userRepo.FindBankByUserId(p.BoosterUserID); err == nil {
+			if b := profitPayoutBank(banks); b != nil {
+				pd.BankAccount = &dto.DisbursementBankAccount{BankName: b.BankName, AccountName: b.AccountName, AccountNumber: b.AccountNumber}
 			}
 		}
 		detail.Payouts = append(detail.Payouts, pd)
@@ -247,6 +251,17 @@ func (s *profitPoolService) ConfirmPayout(poolID uint, payoutID uint, adminID ui
 	if payout.Status == domain.InvestorPayoutConfirmed {
 		return errors.New("payout already confirmed")
 	}
+	if strings.TrimSpace(req.TransferRef) == "" {
+		return errors.New("กรุณาระบุเลขอ้างอิงการโอน")
+	}
+	banks, err := s.userRepo.FindBankByUserId(payout.BoosterUserID)
+	if err != nil {
+		return errors.New("ไม่สามารถตรวจสอบบัญชีรับกำไรได้ กรุณาลองอีกครั้ง")
+	}
+	bank := profitPayoutBank(banks)
+	if bank == nil {
+		return errors.New("นักลงทุนยังไม่มีข้อมูลบัญชีธนาคารรับกำไรที่ครบถ้วน")
+	}
 
 	now := time.Now().UTC()
 	payout.Status = domain.InvestorPayoutConfirmed
@@ -258,7 +273,7 @@ func (s *profitPoolService) ConfirmPayout(poolID uint, payoutID uint, adminID ui
 		return errors.New("failed to confirm payout")
 	}
 
-	if s.notifSvc != nil {
+	if s.notifSvc != nil || s.emailClient != nil {
 		projectTitle := ""
 		if project, err := s.projectRepo.FindProjectByID(pool.ProjectID); err == nil {
 			projectTitle = project.Title
@@ -266,9 +281,23 @@ func (s *profitPoolService) ConfirmPayout(poolID uint, payoutID uint, adminID ui
 		relatedID := payout.ID
 		relatedType := "investor_payout"
 		title := "ได้รับกำไรจากโปรเจกต์"
-		body := fmt.Sprintf("โอนกำไรจากโปรเจกต์ %s จำนวน ฿%.2f เรียบร้อยแล้ว (%.2f%% ของทุนรวม)",
-			projectTitle, payout.Amount, payout.SharePct)
-		_ = s.notifSvc.CreateAndPush(payout.BoosterUserID, domain.NotifProfit, title, body, &relatedID, &relatedType)
+		body := fmt.Sprintf("ผู้ดูแลยืนยันการโอนกำไรจากโปรเจกต์ %s ไตรมาสที่ %d จำนวน ฿%.2f (%.2f%% ของทุนรวม)",
+			projectTitle, pool.QuarterNo, payout.Amount, payout.SharePct)
+		if s.testMode {
+			title = "[ทดสอบ] " + title
+			body += " — รายการทดสอบ ไม่ยืนยันยอดเงินเข้าจริง"
+		}
+		if s.notifSvc != nil {
+			_ = s.notifSvc.CreateAndPush(payout.BoosterUserID, domain.NotifProfit, title, body, &relatedID, &relatedType)
+		}
+		if s.emailClient != nil {
+			user, lookupErr := s.userRepo.FindUserById(payout.BoosterUserID)
+			if lookupErr != nil || user == nil || user.Email == "" {
+				log.Printf("[ConfirmPayout] email recipient unavailable for payout %d", payout.ID)
+			} else if emailErr := s.emailClient.SendProfitPayoutEmail(user.Email, projectTitle, pool.QuarterNo, payout.Amount, req.TransferRef, s.testMode); emailErr != nil {
+				log.Printf("[ConfirmPayout] payout %d email failed: %v", payout.ID, emailErr)
+			}
+		}
 	}
 
 	// if all payouts confirmed → mark pool completed
@@ -291,6 +320,24 @@ func (s *profitPoolService) ConfirmPayout(poolID uint, payoutID uint, adminID ui
 	}
 
 	return nil
+}
+
+// Use the same receiving account in the admin detail and confirmation checks.
+func profitPayoutBank(banks []domain.BankAccount) *domain.BankAccount {
+	if len(banks) == 0 {
+		return nil
+	}
+	bank := &banks[0]
+	for i := range banks {
+		if banks[i].IsDefault {
+			bank = &banks[i]
+			break
+		}
+	}
+	if strings.TrimSpace(bank.BankName) == "" || strings.TrimSpace(bank.AccountName) == "" || strings.TrimSpace(bank.AccountNumber) == "" {
+		return nil
+	}
+	return bank
 }
 
 func (s *profitPoolService) validateProfitEligibility(project *domain.Project, quarterNo int, existing []domain.ProfitPool) error {
@@ -405,6 +452,22 @@ func (s *profitPoolService) notifyAdminsNewProfit(pool *domain.ProfitPool, proje
 	}
 }
 
+// notifyInvestorsPendingProfit informs each investor as soon as their profit
+// payout is created. Notification delivery is best-effort and must not fail
+// the profit submission after its records have already been persisted.
+func (s *profitPoolService) notifyInvestorsPendingProfit(payouts []domain.InvestorProfitPayout, projectTitle string, quarterNo int) {
+	if s.notifSvc == nil {
+		return
+	}
+	for _, payout := range payouts {
+		relatedID := payout.ID
+		relatedType := "investor_payout"
+		title := "มีกำไรรอโอนเงิน"
+		body := fmt.Sprintf("กำไรไตรมาส %d จากโปรเจกต์ %s จำนวน ฿%.2f อยู่ระหว่างรอโอนเงิน", quarterNo, projectTitle, payout.Amount)
+		_ = s.notifSvc.CreateAndPush(payout.BoosterUserID, domain.NotifProfit, title, body, &relatedID, &relatedType)
+	}
+}
+
 func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dto.PioneerSubmitProfitRequest) (*dto.ProfitPoolDetail, error) {
 	project, err := s.validatePioneerProjectForProfit(pioneerID, projectID, req.QuarterNo)
 	if err != nil {
@@ -441,6 +504,7 @@ func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dt
 	}
 
 	var totalAllocated float64
+	createdPayouts := make([]domain.InvestorProfitPayout, 0, len(investors))
 	for i, inv := range investors {
 		sharePct := math.Round((inv.PrincipalAmount/totalPrincipal)*10000) / 100
 		var amount float64
@@ -450,18 +514,21 @@ func (s *profitPoolService) PioneerSubmit(pioneerID uint, projectID uint, req dt
 			amount = math.Round((inv.PrincipalAmount/totalPrincipal)*req.TotalAmount*100) / 100
 			totalAllocated += amount
 		}
-		if err := s.repo.CreatePayout(&domain.InvestorProfitPayout{
+		payout := &domain.InvestorProfitPayout{
 			ProfitPoolID:  pool.ID,
 			ProjectID:     projectID,
 			BoosterUserID: inv.UserID,
 			Amount:        amount,
 			SharePct:      sharePct,
 			Status:        domain.InvestorPayoutPending,
-		}); err != nil {
+		}
+		if err := s.repo.CreatePayout(payout); err != nil {
 			return nil, errors.New("failed to create investor payout")
 		}
+		createdPayouts = append(createdPayouts, *payout)
 	}
 
+	s.notifyInvestorsPendingProfit(createdPayouts, project.Title, pool.QuarterNo)
 	s.notifyAdminsNewProfit(pool, project.Title)
 
 	return s.GetDetail(pool.ID)

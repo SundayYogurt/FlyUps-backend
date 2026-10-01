@@ -97,7 +97,7 @@ func (m *mockPPInvestmentSvc) HandleStripeWebhook(payload []byte, sigHeader stri
 func (m *mockPPInvestmentSvc) RefundInvestment(boosterUserID, investmentID uint, note string) (*dto.RefundResponse, error) {
 	return nil, nil
 }
-func (m *mockPPInvestmentSvc) ApproveRefund(investmentID uint) error           { return nil }
+func (m *mockPPInvestmentSvc) ApproveRefund(investmentID uint) error { return nil }
 func (m *mockPPInvestmentSvc) ListRefundRequests() ([]dto.RefundRequestItem, error) {
 	return nil, nil
 }
@@ -141,6 +141,38 @@ func (m *mockPPNotifSvc) Subscribe(userID uint) chan *domain.Notification {
 	return make(chan *domain.Notification, 1)
 }
 func (m *mockPPNotifSvc) Unsubscribe(userID uint, ch chan *domain.Notification) {}
+
+func TestProfitPoolService_NotifyInvestorsPendingProfit(t *testing.T) {
+	notifSvc := new(mockPPNotifSvc)
+	svc := &profitPoolService{notifSvc: notifSvc}
+	payouts := []domain.InvestorProfitPayout{
+		{ID: 11, BoosterUserID: 101, Amount: 750.50},
+		{ID: 12, BoosterUserID: 102, Amount: 249.50},
+	}
+
+	notifSvc.On(
+		"CreateAndPush",
+		uint(101),
+		domain.NotifProfit,
+		"มีกำไรรอโอนเงิน",
+		"กำไรไตรมาส 2 จากโปรเจกต์ Siam Spirit จำนวน ฿750.50 อยู่ระหว่างรอโอนเงิน",
+		mock.MatchedBy(func(id *uint) bool { return id != nil && *id == 11 }),
+		mock.MatchedBy(func(kind *string) bool { return kind != nil && *kind == "investor_payout" }),
+	).Return(nil).Once()
+	notifSvc.On(
+		"CreateAndPush",
+		uint(102),
+		domain.NotifProfit,
+		"มีกำไรรอโอนเงิน",
+		"กำไรไตรมาส 2 จากโปรเจกต์ Siam Spirit จำนวน ฿249.50 อยู่ระหว่างรอโอนเงิน",
+		mock.MatchedBy(func(id *uint) bool { return id != nil && *id == 12 }),
+		mock.MatchedBy(func(kind *string) bool { return kind != nil && *kind == "investor_payout" }),
+	).Return(nil).Once()
+
+	svc.notifyInvestorsPendingProfit(payouts, "Siam Spirit", 2)
+
+	notifSvc.AssertExpectations(t)
+}
 
 // helpers
 
@@ -375,6 +407,7 @@ func TestProfitPoolService_ConfirmPayout_Success_AllDone(t *testing.T) {
 	investRepo := new(mockInvestmentRepo)
 	userRepo := new(mockUserRepository)
 	svc := newProfitPoolSvc(repo, projRepo, investRepo, userRepo, nil, nil)
+	userRepo.On("FindBankByUserId", uint(2)).Return([]domain.BankAccount{{BankName: "Bank", AccountName: "Investor", AccountNumber: "123"}}, nil)
 
 	pool := &domain.ProfitPool{ID: 1, ProjectID: 10, Status: domain.ProfitPoolPending}
 	repo.On("FindByID", uint(1)).Return(pool, nil)
