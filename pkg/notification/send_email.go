@@ -615,7 +615,6 @@ func profitPayoutEmail(projectTitle string, quarterNo int, amount float64, trans
 	subject := fmt.Sprintf("FlyUp: ยืนยันการโอนกำไร — %s ไตรมาสที่ %d", projectTitle, quarterNo)
 	testNotice := ""
 	if testMode {
-		subject = "[ทดสอบ] " + subject
 		testNotice = "<p><b>รายการทดสอบ: อีเมลนี้ไม่ได้ยืนยันว่ามีเงินเข้าบัญชีจริง</b></p>"
 	}
 	body := fmt.Sprintf(`<!DOCTYPE html><html><head><meta charset="UTF-8"></head>

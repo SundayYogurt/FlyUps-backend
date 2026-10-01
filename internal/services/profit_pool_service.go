@@ -284,7 +284,6 @@ func (s *profitPoolService) ConfirmPayout(poolID uint, payoutID uint, adminID ui
 		body := fmt.Sprintf("ผู้ดูแลยืนยันการโอนกำไรจากโปรเจกต์ %s ไตรมาสที่ %d จำนวน ฿%.2f (%.2f%% ของทุนรวม)",
 			projectTitle, pool.QuarterNo, payout.Amount, payout.SharePct)
 		if s.testMode {
-			title = "[ทดสอบ] " + title
 			body += " — รายการทดสอบ ไม่ยืนยันยอดเงินเข้าจริง"
 		}
 		if s.notifSvc != nil {
